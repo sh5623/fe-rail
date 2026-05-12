@@ -1,0 +1,20 @@
+{
+  "name": "fe-rail-market",
+  "owner": {
+    "name": "승호",
+    "email": "your@email.com"
+  },
+  "plugins": [
+    {
+      "name": "fe-rail",
+      "description": "Frontend 프로젝트 전용 하네스. Next.js/TypeScript 환경 최적화, spec→build→review 사이클 강제, gstack 디자인 품질 기준 내장.",
+      "version": "1.0.0",
+      "category": "engineering",
+      "tags": ["frontend", "nextjs", "typescript", "harness", "workflow"],
+      "source": {
+        "source": "github",
+        "repo": "sh5623/fe-rail"
+      }
+    }
+  ]
+}

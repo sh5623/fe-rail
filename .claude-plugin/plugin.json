@@ -1,0 +1,12 @@
+{
+  "name": "fe-rail",
+  "description": "Frontend 프로젝트 전용 하네스. spec → build → review → done 사이클을 강제하고, Next.js/TypeScript 환경에 최적화된 스킬을 제공합니다.",
+  "version": "1.0.0",
+  "author": {
+    "name": "승호",
+    "email": "your@email.com"
+  },
+  "homepage": "https://github.com/sh5623/fe-rail",
+  "repository": "https://github.com/sh5623/fe-rail",
+  "license": "MIT"
+}

@@ -1,0 +1,9 @@
+{
+  "hooks": [
+    {
+      "event": "PostToolUse",
+      "command": "sh -c 'echo \"$CLAUDE_TOOL_NAME\" | grep -qE \"(Write|Edit)\" && echo \"[fe-rail] 파일 수정 감지 - 타입체크는 빌드 단계에서 일괄 수행\" || true'",
+      "description": "파일 수정 후 알림 (타입체크는 빌드 단계에서 일괄 수행)"
+    }
+  ]
+}
