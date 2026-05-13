@@ -45,7 +45,8 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/quality-gate.sh", "timeout": 60 }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/quality-gate.sh", "timeout": 60 },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/doc-sync-check.sh", "timeout": 10 }
         ]
       }
     ]

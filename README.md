@@ -20,6 +20,7 @@ claude
 | fe-build | `/fe-rail:fe-build` | Next.js/TS 코드 구현 (타입→훅→컴포넌트→테스트) |
 | fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
 | fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화 |
+| fe-doc-sync | `/fe-rail:fe-doc-sync` | 변경사항 분석 후 CLAUDE.md·README.md 수정안 제안 |
 
 ## 포함된 Hooks
 
@@ -30,10 +31,13 @@ claude
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 자동 동기화 | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
-| `write-guard.sh` | PreToolUse:Write | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성 차단 (`.env.example`은 허용) | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 | — |
+| `write-guard.sh` | PreToolUse:Write\|Edit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
+| `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
+| `task-guard.sh` | PreToolUse:Task | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 + `.ts/.tsx/.vue` 타입 조기 피드백 | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
 | `quality-gate.sh` | Stop | 변경 파일에 ESLint + `tsc --noEmit` 실행 후 경고 출력 | — |
+| `doc-sync-check.sh` | Stop | hooks/skills/agents 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
 ## 워크플로우

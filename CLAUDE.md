@@ -27,7 +27,8 @@ fe-rail/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
 │   ├── fe-build/          ← 스펙 → 코드 구현
 │   ├── fe-review/         ← 4축 코드 리뷰
-│   └── fe-start/          ← 원스톱 자동화 (spec→PR)
+│   ├── fe-start/          ← 원스톱 자동화 (spec→PR)
+│   └── fe-doc-sync/       ← CLAUDE.md·README.md 문서 동기화
 └── .claude/
     └── settings.local.json ← Bash 권한 화이트리스트
 ```
@@ -84,6 +85,7 @@ fe-review → 4축 검토 (타입·성능·a11y·품질) — fe-reviewer 서브�
 /fe-rail:fe-build    # feature.md → 코드 구현
 /fe-rail:fe-review   # 코드 리뷰
 /fe-rail:fe-start feature.md  # 원스톱 자동화
+/fe-rail:fe-doc-sync  # 변경사항 → CLAUDE.md·README.md 동기화
 ```
 
 ### 대상 프로젝트 유형
