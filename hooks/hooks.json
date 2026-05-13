@@ -1,9 +1,41 @@
 {
-  "hooks": [
-    {
-      "event": "PostToolUse",
-      "command": "sh -c 'echo \"$CLAUDE_TOOL_NAME\" | grep -qE \"(Write|Edit)\" && echo \"[fe-rail] 파일 수정 감지 - 타입체크는 빌드 단계에서 일괄 수행\" || true'",
-      "description": "파일 수정 후 알림 (타입체크는 빌드 단계에서 일괄 수행)"
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-init.sh" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write-guard.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/lint-fix.sh" },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/nextjs-guard.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/quality-gate.sh" }
+        ]
+      }
+    ]
+  }
 }

@@ -21,6 +21,21 @@ claude
 | fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
 | fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화 |
 
+## 포함된 Hooks
+
+정책: **위험은 차단(exit 2), 품질은 경고(stderr)**.
+재현 명세: [hooks/SPEC.md](hooks/SPEC.md) — 환경변수 규약·전체 패턴 리스트·hooks.json 원본 포함.
+
+| Hook | 이벤트 | 역할 | 차단 |
+|------|--------|------|------|
+| `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 자동 동기화 | — |
+| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
+| `write-guard.sh` | PreToolUse:Write | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성 차단 (`.env.example`은 허용) | ✅ |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 | — |
+| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
+| `quality-gate.sh` | Stop | 변경 파일에 ESLint + `tsc --noEmit` 실행 후 경고 출력 | — |
+| `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
+
 ## 워크플로우
 ```
 
