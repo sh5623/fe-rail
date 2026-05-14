@@ -20,7 +20,7 @@ function ProductList() {
 ## 데이터 Fetch
 
 ```typescript
-// ✅ 서버 데이터는 TanStack Query
+// ✅ 클라이언트 사이드 데이터 페치는 TanStack Query
 const { data, isLoading, error } = useQuery({
   queryKey: ['products'],
   queryFn: fetchProducts,
@@ -71,7 +71,7 @@ const handleData = (data: any) => {}
 <Image src="/hero.webp" alt="..." priority width={1200} height={600} />
 
 // ✅ next/font로 폰트 로드
-import { Pretendard } from 'next/font/local'
+import localFont from 'next/font/local'
 
 // ❌ <img> 태그 직접 사용 금지
 // ❌ system-ui / -apple-system 주 폰트 금지

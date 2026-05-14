@@ -111,7 +111,7 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 
 | 환경 | 지원 여부 | 비고 |
 |------|----------|------|
-| React + TypeScript | ✅ | Vite·CRA 등 번들러 무관 |
+| React + TypeScript | ✅ | Vite 등 번들러 무관 |
 | Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |
 
