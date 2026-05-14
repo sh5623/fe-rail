@@ -68,7 +68,7 @@ fe-spec  →  feature.md 생성 (사용자 승인 필요)
             └─ 에이전트: fe-analyst·fe-vision·fe-researcher·fe-architect
     │
     ▼
-fe-build →  타입 → 훅 → 컴포넌트 → 테스트 순서로 구현
+fe-build →  타입 → 비즈니스 로직 분리 → 컴포넌트 → 테스트 순서로 구현
             └─ 에이전트: fe-explorer·fe-test-author·fe-build-fixer
     │
     ▼
