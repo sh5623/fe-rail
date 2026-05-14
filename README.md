@@ -25,7 +25,6 @@ claude
 ## 포함된 Hooks
 
 정책: **위험은 차단(exit 2), 품질은 경고(stderr)**.
-재현 명세: [hooks/SPEC.md](hooks/SPEC.md) — 환경변수 규약·전체 패턴 리스트·hooks.json 원본 포함.
 
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
@@ -40,14 +39,51 @@ claude
 | `doc-sync-check.sh` | Stop | hooks/skills/agents 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
+## 포함된 Agents
+
+각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
+frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`)로 구성됩니다.
+
+### spec 단계
+| Agent | 위임 시점 | 모델 | 격리 |
+|-------|----------|------|------|
+| `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
+| `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 | sonnet | 책임 (read-only) |
+| `fe-researcher` | 외부 문서·라이브러리 조사 (출처 URL 필수) | sonnet | 도구 (WebSearch/WebFetch) |
+| `fe-architect` | Next.js 아키텍처·RSC 경계·데이터 흐름 자문 | opus | 책임 (read-only) |
+
+### build 단계
+| Agent | 위임 시점 | 모델 | 격리 |
+|-------|----------|------|------|
+| `fe-explorer` | 코드베이스 탐색 3쿼리 이상 | haiku | 컨텍스트 |
+| `fe-test-author` | BDD 시나리오 도출 + TDD Red-Green-Refactor | sonnet | 책임 (구현) |
+| `fe-build-fixer` | tsc/eslint 오류 최소 diff 수정 | sonnet | 도구 (Edit만, Write 금지) |
+
+### review 단계
+| Agent | 위임 시점 | 모델 | 격리 |
+|-------|----------|------|------|
+| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질) | sonnet | 책임 (read-only) |
+| `fe-a11y-auditor` | a11y 정밀 감사 | sonnet | 책임 (read-only) |
+| `fe-perf-auditor` | RSC·번들·Image·Font 정밀 감사 | sonnet | 책임 (read-only) |
+| `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
+| `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | sonnet | 책임 (read-only) |
+
+### PR 단계
+| Agent | 위임 시점 | 모델 | 격리 |
+|-------|----------|------|------|
+| `fe-git-operator` | 커밋 분리·메시지 규칙·안전한 스테이징 | sonnet | 도구 (Write/Edit 금지) |
+| `fe-pr-author` | PR 본문 작성 + `gh pr create` | sonnet | 컨텍스트 + 도구 |
+
 ## 워크플로우
+
+**원스톱 자동화**
+```
+feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → PR 생성 완료
 ```
 
-원스톱 자동화
-feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → PR 생성 완료
-단계별 수동 제어
-/fe-rail:fe-spec /fe-rail:fe-build /fe-rail:fe-review git commit && gh pr create
-
+**단계별 수동 제어**
+```
+/fe-rail:fe-spec → /fe-rail:fe-build → /fe-rail:fe-review → git commit && gh pr create
 ```
 
 ## 전제 조건
