@@ -4,10 +4,13 @@
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# 변경 파일 수집 (staged + unstaged, 최대 20개)
-CHANGED_FILES=$(git diff --name-only HEAD 2>/dev/null \
+# 변경 파일 수집 (staged + unstaged + 신규 untracked, 최대 20개)
+CHANGED_FILES=$(
+  { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } \
   | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|vue)$' \
-  | head -20)
+  | sort -u \
+  | head -20
+)
 
 [ -z "$CHANGED_FILES" ] && exit 0
 
