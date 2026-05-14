@@ -20,6 +20,8 @@ function ProductList() {
 ## 데이터 Fetch
 
 ```typescript
+'use client'
+
 // ✅ 클라이언트 사이드 데이터 페치는 TanStack Query
 const { data, isLoading, error } = useQuery({
   queryKey: ['products'],
@@ -72,6 +74,7 @@ const handleData = (data: any) => {}
 
 // ✅ next/font로 폰트 로드
 import localFont from 'next/font/local'
+const pretendard = localFont({ src: './fonts/pretendard.woff2' })
 
 // ❌ <img> 태그 직접 사용 금지
 // ❌ system-ui / -apple-system 주 폰트 금지
