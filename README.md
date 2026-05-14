@@ -91,7 +91,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 - Claude Code
 - pnpm
 - gh CLI (PR 자동 생성 시)
-- Next.js 14+ / TypeScript strict mode
+- TypeScript strict mode (Next.js / React / Vue 3 / Angular)
 
 ## 기반 레퍼런스
 

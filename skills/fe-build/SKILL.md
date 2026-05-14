@@ -1,7 +1,7 @@
 ---
 name: fe-build
 description: >-
-  Next.js + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
+  React/Next.js/Vue/Angular + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
   Use when: feature.md 또는 스펙이 승인된 후 구현 시작할 때, 컴포넌트 작성, 페이지 개발.
   Do NOT load for: 스펙 작성, 코드 리뷰, 버그 분석.
 allowed-tools:
