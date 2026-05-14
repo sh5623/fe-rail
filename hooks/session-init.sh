@@ -52,12 +52,9 @@ if [ -d "$CACHE_BASE" ]; then
         "$CLAUDE_PLUGIN_ROOT/" "$CACHE_BASE/$PLUGIN_VERSION/"
       echo "[fe-rail] v${CACHE_VERSION} → v${PLUGIN_VERSION} 동기화 완료"
     else
-      # 버전 일치 → mtime 비교
-      SRC_MTIME=$(find "$CLAUDE_PLUGIN_ROOT" -name '*.md' -o -name '*.json' -o -name '*.sh' 2>/dev/null \
-                  | head -50 | xargs stat -f '%m' 2>/dev/null | sort -rn | head -1)
-      CACHE_MTIME=$(find "$CACHE_DIR" -name '*.md' -o -name '*.json' -o -name '*.sh' 2>/dev/null \
-                    | head -50 | xargs stat -f '%m' 2>/dev/null | sort -rn | head -1)
-      if [ -n "$SRC_MTIME" ] && [ -n "$CACHE_MTIME" ] && [ "$SRC_MTIME" -gt "$CACHE_MTIME" ]; then
+      # 버전 일치 → 소스에 캐시보다 새로운 파일이 있으면 동기화 (find -newer: POSIX 호환)
+      if find "$CLAUDE_PLUGIN_ROOT" \( -name '*.md' -o -name '*.json' -o -name '*.sh' \) \
+           -newer "$CACHE_DIR" 2>/dev/null | grep -q .; then
         rsync -a --delete \
           --exclude '.git' --exclude 'node_modules' --exclude '.DS_Store' \
           "$CLAUDE_PLUGIN_ROOT/" "$CACHE_DIR"

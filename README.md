@@ -30,10 +30,10 @@ claude
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 자동 동기화 | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
-| `write-guard.sh` | PreToolUse:Write\|Edit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
+| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
 | `task-guard.sh` | PreToolUse:Task | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 + `.ts/.tsx/.vue` 타입 조기 피드백 | — |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
 | `quality-gate.sh` | Stop | 변경 파일에 ESLint + `tsc --noEmit` 실행 후 경고 출력 | — |
 | `doc-sync-check.sh` | Stop | hooks/skills/agents 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 | — |
@@ -57,7 +57,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-explorer` | 코드베이스 탐색 3쿼리 이상 | haiku | 컨텍스트 |
 | `fe-test-author` | BDD 시나리오 도출 + TDD Red-Green-Refactor | sonnet | 책임 (구현) |
-| `fe-build-fixer` | tsc/eslint 오류 최소 diff 수정 | sonnet | 도구 (Edit만, Write 금지) |
+| `fe-build-fixer` | tsc/eslint 오류 최소 diff 수정 | sonnet | 도구 (Edit+Grep, Write/MultiEdit 금지) |
 
 ### review 단계
 | Agent | 위임 시점 | 모델 | 격리 |

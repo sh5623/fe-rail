@@ -93,7 +93,7 @@ function CampaignList() {
 }
 ```
 
-**디자인 (gstack 기준)**
+**UI 컴포넌트 기준**
 - 새 UI 컴포넌트 작성 시 변형 2개 이상 먼저 제안
 - system-ui / -apple-system 주 폰트 금지
 - shadcn/ui 컴포넌트 우선 활용

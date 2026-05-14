@@ -35,16 +35,7 @@ allowed-tools:
 
 모든 에이전트는 READ-ONLY — 메인 세션이 결과를 받아 수정 여부를 결정한다.
 
-### Phase 2 — 심층 감사 (조건부 위임)
-
-`fe-reviewer` 결과에 따라 추가 위임:
-
-| 조건 | 추가 위임 에이전트 |
-|------|----------------|
-| 접근성(a11y) BLOCK/WARN 발생 | `fe-a11y-auditor` — WCAG AA 정밀 감사 |
-| 성능 BLOCK/WARN 발생 | `fe-perf-auditor` — RSC·번들·Image 정밀 감사 |
-
-### Phase 3 — 리뷰 결과 보고
+### Phase 2 — 리뷰 결과 보고
 
 `fe-reviewer` 에이전트의 출력을 그대로 전달한다. 형식:
 

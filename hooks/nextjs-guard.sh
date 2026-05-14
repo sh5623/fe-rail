@@ -12,6 +12,14 @@ fi
 [ -z "$FILE_PATH" ] && exit 0
 [ ! -f "$FILE_PATH" ] && exit 0
 
+# Next.js 프로젝트만 대상 — next.config.* 없으면 종료
+PROJECT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null || pwd)
+NEXTJS_PROJECT=0
+for cfg in next.config.js next.config.ts next.config.mjs; do
+  [ -f "$PROJECT_ROOT/$cfg" ] && NEXTJS_PROJECT=1 && break
+done
+[ "$NEXTJS_PROJECT" -eq 0 ] && exit 0
+
 # .tsx / .jsx 만 대상
 case "$FILE_PATH" in
   *.tsx|*.jsx) ;;
