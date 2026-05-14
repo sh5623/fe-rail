@@ -41,7 +41,7 @@ allowed-tools:
 
 | 조건 | 추가 위임 에이전트 |
 |------|----------------|
-| a11y BLOCK/WARN 발생 | `fe-a11y-auditor` — WCAG AA 정밀 감사 |
+| 접근성(a11y) BLOCK/WARN 발생 | `fe-a11y-auditor` — WCAG AA 정밀 감사 |
 | 성능 BLOCK/WARN 발생 | `fe-perf-auditor` — RSC·번들·Image 정밀 감사 |
 
 ### Phase 3 — 리뷰 결과 보고

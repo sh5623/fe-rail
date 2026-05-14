@@ -59,7 +59,7 @@ pnpm tsc --noEmit && pnpm lint && pnpm test --run
 ### Phase 4 — 리뷰 (에이전트 위임)
 
 `fe-reviewer` 에이전트에 위임하여 4축(타입·성능·a11y·품질) 리뷰를 수행한다.
-a11y BLOCK/WARN 발생 시 → `fe-a11y-auditor` 추가 위임.
+접근성(a11y) BLOCK/WARN 발생 시 → `fe-a11y-auditor` 추가 위임.
 성능 BLOCK/WARN 발생 시 → `fe-perf-auditor` 추가 위임.
 
 결과를 받아 BLOCK/WARN/INFO 항목을 간략 보고한다.
