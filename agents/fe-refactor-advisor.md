@@ -73,7 +73,7 @@ maxTurns: 30
 | 테스트 없는 리팩토링 | 안전망 없이 구조 변경 위험 |
 | 불필요한 추상화 | YAGNI 원칙 |
 
-</required>
+</forbidden>
 
 ---
 

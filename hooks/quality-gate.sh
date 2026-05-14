@@ -14,16 +14,36 @@ CHANGED_FILES=$(git diff --name-only HEAD 2>/dev/null \
 OUTPUT=""
 
 # ── ESLint ──────────────────────────────────────────────────────────────────
+ESLINT_BIN=""
 if [ -x "$PROJECT_ROOT/node_modules/.bin/eslint" ]; then
-  LINT_OUT=$(echo "$CHANGED_FILES" | xargs "$PROJECT_ROOT/node_modules/.bin/eslint" --quiet 2>&1)
+  ESLINT_BIN="$PROJECT_ROOT/node_modules/.bin/eslint"
+elif command -v npx >/dev/null 2>&1; then
+  for cfg in .eslintrc.js .eslintrc.json .eslintrc.cjs .eslintrc.yml .eslintrc.yaml \
+             eslint.config.js eslint.config.mjs eslint.config.ts; do
+    if [ -f "$PROJECT_ROOT/$cfg" ]; then
+      ESLINT_BIN="npx eslint"
+      break
+    fi
+  done
+fi
+
+if [ -n "$ESLINT_BIN" ]; then
+  LINT_OUT=$(echo "$CHANGED_FILES" | xargs $ESLINT_BIN --quiet 2>&1)
   if [ -n "$LINT_OUT" ]; then
     OUTPUT="${OUTPUT}[ESLint]\n${LINT_OUT}\n"
   fi
 fi
 
 # ── TypeScript ───────────────────────────────────────────────────────────────
+TSC_BIN=""
 if [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ]; then
-  TSC_OUT=$("$PROJECT_ROOT/node_modules/.bin/tsc" --noEmit --pretty false 2>&1 | head -20)
+  TSC_BIN="$PROJECT_ROOT/node_modules/.bin/tsc"
+elif command -v npx >/dev/null 2>&1 && [ -f "$PROJECT_ROOT/tsconfig.json" ]; then
+  TSC_BIN="npx tsc"
+fi
+
+if [ -n "$TSC_BIN" ] && [ -f "$PROJECT_ROOT/tsconfig.json" ]; then
+  TSC_OUT=$($TSC_BIN --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1 | head -20)
   if [ -n "$TSC_OUT" ]; then
     OUTPUT="${OUTPUT}[TypeScript]\n${TSC_OUT}\n"
   fi
