@@ -1,7 +1,7 @@
 ---
 name: fe-build
 description: >-
-  React/Next.js/Vue/Angular + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
+  React/Next.js + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
   Use when: feature.md 또는 스펙이 승인된 후 구현 시작할 때, 컴포넌트 작성, 페이지 개발.
   Do NOT load for: 스펙 작성, 코드 리뷰, 버그 분석.
 allowed-tools:
@@ -42,7 +42,7 @@ allowed-tools:
 ```
 
 1. 타입 정의 먼저 (types/ 또는 컴포넌트 상단)
-2. 비즈니스 로직 분리 (React 훅 / Vue composable / Angular service)
+2. 비즈니스 로직 분리 (커스텀 훅)
 3. 컴포넌트 구현 (UI만 담당, 로직은 분리된 레이어에서)
 4. 테스트 작성 (Vitest + RTL)
 5. 타입체크 확인 (tsc --noEmit)

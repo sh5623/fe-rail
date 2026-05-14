@@ -1,6 +1,6 @@
 {
   "name": "fe-rail",
-  "description": "Frontend 프로젝트 전용 하네스. spec → build → review → PR 사이클을 자동화. React/Next.js/Vue/Angular + TypeScript 멀티 프레임워크 지원.",
+  "description": "Frontend 프로젝트 전용 하네스. spec → build → review → PR 사이클을 자동화. React / Next.js + TypeScript.",
   "version": "1.1.0",
   "author": {
     "name": "승호",

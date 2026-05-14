@@ -5,8 +5,8 @@
 ```
 my-monorepo/
 ├── apps/
-│   ├── web/          ← React / Next.js 앱
-│   ├── admin/        ← Vue 3 앱
+│   ├── web/          ← Next.js 앱
+│   ├── admin/        ← React + Vite 앱
 │   └── mobile-web/   ← React Native Web
 ├── packages/
 │   ├── ui/           ← 공유 컴포넌트
