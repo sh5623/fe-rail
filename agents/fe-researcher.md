@@ -1,7 +1,7 @@
 ---
 name: fe-researcher
 description: 외부 문서·라이브러리 조사 전문 — Next.js/React/TS 공식 문서, GitHub Issues, Stack Overflow. 모든 정보에 출처 URL 필수.
-tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
+tools: Read, Bash, WebSearch, WebFetch
 disallowedTools:
   - Write
   - Edit

@@ -56,7 +56,7 @@ allowed-tools:
 ## 기술 상세
 - 관련 페이지/라우트: 
 - API 엔드포인트: 
-- 상태관리: Zustand | TanStack Query | 로컬 state
+- 상태관리: (예: Zustand·Pinia·NgRx | TanStack Query | 로컬 state)
 - 의존 컴포넌트: 
 
 ## 완료 기준 (Acceptance Criteria)
@@ -69,7 +69,7 @@ allowed-tools:
 
 ## 금지 사항
 - [ ] any 타입 사용
-- [ ] useEffect로 서버 데이터 fetch
+- [ ] 컴포넌트 라이프사이클에서 서버 데이터 직접 fetch
 - [ ] 컴포넌트에 비즈니스 로직 직접 작성
 ```
 
