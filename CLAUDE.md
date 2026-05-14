@@ -9,7 +9,7 @@
 ## 이 저장소의 목적
 
 `fe-rail`은 프론트엔드 개발 워크플로우를 표준화하는 Claude Code 플러그인이다.
-모노레포 환경과 React / Vue / Angular 멀티 프레임워크를 지원하며,
+React / Next.js + TypeScript 환경을 대상으로 하며,
 **spec → build → review → PR** 사이클을 강제하여 에이전트 출력 품질을 일관되게 유지한다.
 
 ---
@@ -111,11 +111,9 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 
 | 환경 | 지원 여부 | 비고 |
 |------|----------|------|
-| React + TypeScript | ✅ | Next.js 포함, 기본 최적화 대상 |
-| Vue 3 + TypeScript | ✅ | Composition API 기준 |
-| Angular | ✅ | standalone component 기준 |
+| React + TypeScript | ✅ | Vite·CRA 등 번들러 무관 |
+| Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |
-| Vite / Webpack | ✅ | 번들러 무관 |
 
 ---
 

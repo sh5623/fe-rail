@@ -1,6 +1,6 @@
-# 프레임워크별 코딩 규칙
+# 코딩 규칙 (React / Next.js)
 
-## React / Next.js
+## 컴포넌트 구조
 
 ```typescript
 // ✅ 로직은 커스텀 훅으로 분리
@@ -9,39 +9,70 @@ function ProductList() {
   return <Table data={products} loading={isLoading} />
 }
 
+// ❌ 컴포넌트에 비즈니스 로직 직접 작성 금지
+function ProductList() {
+  const [products, setProducts] = useState([])
+  const filtered = products.filter(p => p.status === 'active')
+  // ...
+}
+```
+
+## 데이터 Fetch
+
+```typescript
 // ✅ 서버 데이터는 TanStack Query
-const { data } = useQuery({ queryKey: ['products'], queryFn: fetchProducts })
+const { data, isLoading, error } = useQuery({
+  queryKey: ['products'],
+  queryFn: fetchProducts,
+})
 
 // ❌ useEffect fetch 금지
-// ❌ any 타입 금지
-// ❌ 컴포넌트에 비즈니스 로직 직접 작성 금지
+useEffect(() => {
+  fetch('/api/products').then(...)
+}, [])
 ```
 
-## Vue 3
+## RSC / Client 경계 (Next.js App Router)
 
 ```typescript
-// ✅ Composition API + composable 분리
-const { products, isLoading } = useProducts()
+// ✅ 인터랙션 없는 컴포넌트는 Server Component 기본
+async function ProductPage() {
+  const products = await fetchProducts()
+  return <ProductList products={products} />
+}
 
-// ✅ defineProps/defineEmits에 타입 명시
-const props = defineProps<{ items: Product[] }>()
+// ✅ 상태·이벤트 필요할 때만 'use client'
+'use client'
+function AddToCartButton({ productId }: { productId: string }) {
+  const [added, setAdded] = useState(false)
+  return <button onClick={() => setAdded(true)}>...</button>
+}
 
-// ❌ Options API 금지 (레거시 코드 유지 보수 시 예외)
-// ❌ any 타입 금지
+// ❌ 필요 없는데 'use client' 남용 금지
 ```
 
-## Angular
+## 타입
 
 ```typescript
-// ✅ standalone component 기본
-@Component({ standalone: true, ... })
-
-// ✅ inject() 함수로 의존성 주입 (constructor inject 대신)
-private productService = inject(ProductService)
-
-// ✅ signal 기반 상태 관리 (Angular 17+)
-products = signal<Product[]>([])
+// ✅ 명시적 인터페이스
+interface ProductCardProps {
+  product: Product
+  onSelect: (id: string) => void
+}
 
 // ❌ any 타입 금지
-// ❌ ngModel 양방향 바인딩 남용 금지
+const handleData = (data: any) => {}
+```
+
+## 이미지 / 폰트 (Next.js)
+
+```typescript
+// ✅ next/image priority 설정 (LCP 요소)
+<Image src="/hero.webp" alt="..." priority width={1200} height={600} />
+
+// ✅ next/font로 폰트 로드
+import { Pretendard } from 'next/font/local'
+
+// ❌ <img> 태그 직접 사용 금지
+// ❌ system-ui / -apple-system 주 폰트 금지
 ```

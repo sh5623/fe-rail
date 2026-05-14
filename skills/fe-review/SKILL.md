@@ -29,7 +29,7 @@ allowed-tools:
 |---------|------|---------|
 | `fe-reviewer` | 타입·성능·a11y·품질 4축 기본 리뷰 | 항상 |
 | `fe-a11y-auditor` | WCAG AA 정밀 감사 | fe-reviewer에서 접근성(a11y) BLOCK/WARN 발생 시 |
-| `fe-perf-auditor` | RSC·번들·Image 정밀 감사 | fe-reviewer에서 성능 BLOCK/WARN 발생 시 |
+| `fe-perf-auditor` | RSC·번들·Image 정밀 감사 (Next.js 전용) | fe-reviewer에서 성능 BLOCK/WARN 발생 시 |
 | `fe-test-runner` | 테스트 실행·실패 분류 | 항상 (스택트레이스는 에이전트 내부에서 처리) |
 | `fe-refactor-advisor` | 리팩토링 방향 분석 | 명시적 요청 시 |
 

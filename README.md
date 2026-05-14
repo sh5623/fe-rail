@@ -1,7 +1,7 @@
 # fe-rail
 
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
-> spec → build → review → PR 자동화 워크플로우. React / Vue / Angular + TypeScript 멀티 프레임워크 지원.
+> spec → build → review → PR 자동화 워크플로우. React / Next.js + TypeScript.
 
 ## 설치
 
@@ -64,7 +64,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질) | sonnet | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 정밀 감사 | sonnet | 책임 (read-only) |
-| `fe-perf-auditor` | RSC·번들·Image·Font 정밀 감사 | sonnet | 책임 (read-only) |
+| `fe-perf-auditor` | RSC·번들·Image·Font 정밀 감사 (Next.js 전용) | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
 | `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | sonnet | 책임 (read-only) |
 
@@ -91,7 +91,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 - Claude Code
 - pnpm
 - gh CLI (PR 자동 생성 시)
-- TypeScript strict mode (Next.js / React / Vue 3 / Angular)
+- TypeScript strict mode (React / Next.js)
 
 ## 기반 레퍼런스
 
