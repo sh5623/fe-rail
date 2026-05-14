@@ -56,8 +56,14 @@ pnpm tsc --noEmit && pnpm lint && pnpm test --run
 ```
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
 
-### Phase 4 — 리뷰 요약 출력
-통과/경고/블록 항목 간략 보고.
+### Phase 4 — 리뷰 (에이전트 위임)
+
+`fe-reviewer` 에이전트에 위임하여 4축(타입·성능·a11y·품질) 리뷰를 수행한다.
+a11y BLOCK/WARN 발생 시 → `fe-a11y-auditor` 추가 위임.
+성능 BLOCK/WARN 발생 시 → `fe-perf-auditor` 추가 위임.
+
+결과를 받아 BLOCK/WARN/INFO 항목을 간략 보고한다.
+BLOCK이 있으면 수정 후 재위임, BLOCK 0이 되어야 Phase 5로 진행.
 
 ### Phase 5 — 두 번째 확인 ⛔ STOP
 > **"검증 완료. 커밋하고 PR 생성할까요?"**
