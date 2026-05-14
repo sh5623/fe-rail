@@ -42,8 +42,8 @@ allowed-tools:
 ```
 
 1. 타입 정의 먼저 (types/ 또는 컴포넌트 상단)
-2. 커스텀 훅 작성 (비즈니스 로직 분리)
-3. 컴포넌트 구현 (UI만 담당, 로직은 훅에서)
+2. 비즈니스 로직 분리 (React 훅 / Vue composable / Angular service)
+3. 컴포넌트 구현 (UI만 담당, 로직은 분리된 레이어에서)
 4. 테스트 작성 (Vitest + RTL)
 5. 타입체크 확인 (tsc --noEmit)
 
