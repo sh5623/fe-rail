@@ -64,33 +64,38 @@ pnpm tsc --noEmit && pnpm lint && pnpm test --run
 
 ---
 
-### Phase 6 — 커밋 & PR
-```bash
-git status
-git add -A
-git commit -m "feat: [기능명]
+### Phase 6 — 커밋 & PR (에이전트 위임)
 
-- [주요 변경사항 1]
-- [주요 변경사항 2]
+본문에서 git/gh 명령을 직접 실행하지 않고 전담 에이전트에 순차 위임합니다.
+이렇게 하면 `hooks/guard.sh` 의 위험 명령 차단 정책과 자연스럽게 일치하고,
+메인 세션 컨텍스트가 diff·커밋 메시지로 오염되지 않습니다.
 
-Closes #[이슈번호]"
+#### 6-1. `fe-git-operator` 위임 — 커밋 & 푸시
 
-git push origin HEAD
+전달할 컨텍스트:
+- Phase 2에서 작성/수정한 **파일 목록** (명시적 스테이징 대상)
+- 기능명, 주요 변경사항 요약, 관련 이슈 번호
 
-gh pr create \
-  --title "feat: [기능명]" \
-  --body "## 변경사항
-[변경사항 설명]
+에이전트가 책임지는 것:
+- 명시적 파일 스테이징 (절대 `git add -A` / `git add .` 사용 금지)
+- 논리 단위별 커밋 분리, 컨벤셔널 커밋 메시지 작성
+- `git push origin HEAD`
 
-## 완료 기준
-- [x] TypeScript 타입 에러 없음
-- [x] ESLint 통과
-- [x] 테스트 통과
-" \
-  --draft
-```
+#### 6-2. `fe-pr-author` 위임 — PR 생성
 
-PR은 기본 draft로 생성합니다. 준비되면 직접 ready for review로 전환하세요.
+전달할 컨텍스트:
+- feature.md 경로
+- 커밋 범위 (base..HEAD)
+- Phase 4 리뷰 요약 (통과/경고 항목)
+
+에이전트가 책임지는 것:
+- PR 제목·본문 작성 (변경사항·완료 기준 체크리스트 포함)
+- `gh pr create --draft` 실행
+- 메인 세션은 **PR URL만** 결과로 받음
+
+> PR은 기본 draft로 생성합니다. 준비되면 직접 ready for review로 전환하세요.
+> `--no-pr` 플래그가 켜져 있으면 6-2는 건너뜁니다.
+> `--no-draft`
 
 ## 플래그
 

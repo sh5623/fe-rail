@@ -19,10 +19,23 @@
 ```
 fe-rail/
 ├── CLAUDE.md              ← 에이전트 컨텍스트 (이 파일)
-├── agents/
-│   └── fe-reviewer.md     ← 읽기 전용 리뷰 서브에이전트
+├── agents/                ← 14개 서브에이전트 (spec·build·review·PR 단계별)
+│   ├── fe-analyst.md      ← spec: 요구사항 갭 분석
+│   ├── fe-vision.md       ← spec: Figma·스크린샷 분석
+│   ├── fe-researcher.md   ← spec: 외부 문서 조사
+│   ├── fe-architect.md    ← spec: 아키텍처 자문
+│   ├── fe-explorer.md     ← build: 코드베이스 탐색
+│   ├── fe-test-author.md  ← build: BDD·TDD 테스트 작성
+│   ├── fe-build-fixer.md  ← build: tsc/eslint 오류 수정
+│   ├── fe-reviewer.md     ← review: 4축 코드 리뷰
+│   ├── fe-a11y-auditor.md ← review: a11y 정밀 감사
+│   ├── fe-perf-auditor.md ← review: 성능 정밀 감사
+│   ├── fe-test-runner.md  ← review: 테스트 실행·분류
+│   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
+│   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징
+│   └── fe-pr-author.md    ← PR: PR 본문 작성·생성
 ├── hooks/
-│   └── hooks.json         ← PostToolUse 훅 (파일 수정 감지)
+│   └── hooks.json         ← Pre/PostToolUse·Stop 훅
 ├── skills/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
 │   ├── fe-build/          ← 스펙 → 코드 구현
@@ -39,8 +52,8 @@ fe-rail/
 |--------|------|------|
 | **CLAUDE.md** | 이 파일 | 에이전트가 프로젝트를 이해하는 최우선 컨텍스트 |
 | **Skills** | `skills/*/SKILL.md` | 작업 유형별 전문화된 지침 (도구 제한 포함) |
-| **Subagent** | `agents/fe-reviewer.md` | 역할 격리된 리뷰 전담 에이전트 |
-| **Hooks** | `hooks/hooks.json` | 도구 사용 후 자동 실행되는 사이드이펙트 |
+| **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (14개) |
+| **Hooks** | `hooks/hooks.json` | Pre/PostToolUse·Stop 이벤트 자동 실행 사이드이펙트 |
 | **Permissions** | `settings.local.json` | Bash 명령어 화이트리스트로 에이전트 권한 제한 |
 
 ---
@@ -52,15 +65,19 @@ fe-rail/
     │
     ▼
 fe-spec  →  feature.md 생성 (사용자 승인 필요)
+            └─ 에이전트: fe-analyst·fe-vision·fe-researcher·fe-architect
     │
     ▼
 fe-build →  타입 → 훅 → 컴포넌트 → 테스트 순서로 구현
+            └─ 에이전트: fe-explorer·fe-test-author·fe-build-fixer
     │
     ▼
-fe-review → 4축 검토 (타입·성능·a11y·품질) — fe-reviewer 서브에이전트 활용
+fe-review → 4축 검토 (타입·성능·a11y·품질)
+            └─ 에이전트: fe-reviewer·fe-a11y-auditor·fe-perf-auditor·fe-test-runner·fe-refactor-advisor
     │
     ▼
 커밋 & PR  →  git + gh CLI (사용자 승인 필요)
+            └─ 에이전트: fe-git-operator·fe-pr-author
 ```
 
 **원스톱 자동화**: `fe-start` 스킬이 위 전체 흐름을 자동으로 처리한다.
@@ -104,86 +121,13 @@ fe-review → 4축 검토 (타입·성능·a11y·품질) — fe-reviewer 서브�
 
 ## 모노레포 지원
 
-모노레포 환경에서 에이전트를 사용할 때는 아래 규칙을 따른다.
-
-### 디렉토리 구조 관례
-
-```
-my-monorepo/
-├── apps/
-│   ├── web/          ← React / Next.js 앱
-│   ├── admin/        ← Vue 3 앱
-│   └── mobile-web/   ← React Native Web
-├── packages/
-│   ├── ui/           ← 공유 컴포넌트
-│   ├── utils/        ← 공통 유틸
-│   └── types/        ← 공유 타입 정의
-└── CLAUDE.md         ← 루트 컨텍스트 (프로젝트별로 별도 작성 권장)
-```
-
-### 에이전트 행동 규칙 (모노레포)
-
-1. **작업 범위 확인 먼저** — 기능을 구현하기 전에 어느 `app` 또는 `package`에 속하는지 명시한다.
-2. **공유 패키지 우선 탐색** — `packages/ui`, `packages/utils` 등 이미 존재하는 공통 모듈을 확인한 후 새 코드를 작성한다.
-3. **패키지 경계 존중** — 앱 간 직접 import 금지. 공유 로직은 반드시 `packages/`로 분리한다.
-4. **각 앱의 package.json 기준** — 기술 스택 확인 시 루트가 아닌 해당 앱의 `package.json`을 참조한다.
-
-### feature.md 위치 (모노레포)
-
-```
-apps/web/feature.md      ← 앱별로 분리 작성
-apps/admin/feature.md
-```
+@docs/monorepo.md
 
 ---
 
 ## 프레임워크별 코딩 규칙
 
-### React / Next.js
-
-```typescript
-// ✅ 로직은 커스텀 훅으로 분리
-function ProductList() {
-  const { products, isLoading } = useProducts()
-  return <Table data={products} loading={isLoading} />
-}
-
-// ✅ 서버 데이터는 TanStack Query
-const { data } = useQuery({ queryKey: ['products'], queryFn: fetchProducts })
-
-// ❌ useEffect fetch 금지
-// ❌ any 타입 금지
-// ❌ 컴포넌트에 비즈니스 로직 직접 작성 금지
-```
-
-### Vue 3
-
-```typescript
-// ✅ Composition API + composable 분리
-const { products, isLoading } = useProducts()
-
-// ✅ defineProps/defineEmits에 타입 명시
-const props = defineProps<{ items: Product[] }>()
-
-// ❌ Options API 금지 (레거시 코드 유지 보수 시 예외)
-// ❌ any 타입 금지
-```
-
-### Angular
-
-```typescript
-// ✅ standalone component 기본
-@Component({ standalone: true, ... })
-
-// ✅ inject() 함수로 의존성 주입 (constructor inject 대신)
-private productService = inject(ProductService)
-
-// ✅ signal 기반 상태 관리 (Angular 17+)
-products = signal<Product[]>([])
-
-// ❌ any 타입 금지
-// ❌ ngModel 양방향 바인딩 남용 금지
-```
+@docs/framework-rules.md
 
 ---
 
@@ -227,7 +171,7 @@ pnpm test --run      # 테스트
 - 테스트 없이 완료 선언
 - `console.log`를 코드에 남기기
 - 패키지 경계를 무시한 직접 import (모노레포)
-- 리뷰 에이전트가 코드 직접 수정
+- 에이전트가 자신의 격리 범위(`disallowedTools`)를 벗어나 행동
 
 ---
 
