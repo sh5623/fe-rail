@@ -54,7 +54,7 @@ feature.md 존재 확인 → 없으면: "feature.md가 없습니다. fe-spec 스
 ```bash
 pnpm tsc --noEmit && pnpm lint && pnpm test --run
 ```
-실패 시 자동 수정 후 재검증.
+실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
 
 ### Phase 4 — 리뷰 요약 출력
 통과/경고/블록 항목 간략 보고.
@@ -95,7 +95,6 @@ pnpm tsc --noEmit && pnpm lint && pnpm test --run
 
 > PR은 기본 draft로 생성합니다. 준비되면 직접 ready for review로 전환하세요.
 > `--no-pr` 플래그가 켜져 있으면 6-2는 건너뜁니다.
-> `--no-draft`
 
 ## 플래그
 
