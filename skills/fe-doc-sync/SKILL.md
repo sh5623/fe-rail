@@ -4,7 +4,10 @@ description: >
   CLAUDE.md 와 README.md 를 코드 변경사항에 맞게 동기화합니다.
   hooks/skills/agents 파일이 추가·수정됐을 때 사용하세요.
   git diff 를 분석해 누락된 항목을 찾고, 구체적인 수정 diff 를 제안한 뒤 승인 후 적용합니다.
-tools: Read, Bash, Edit
+allowed-tools:
+  - Read
+  - Bash
+  - Edit
 ---
 
 # fe-doc-sync — 문서 동기화 스킬
