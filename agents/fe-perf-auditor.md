@@ -48,6 +48,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 |------|----------|
 | `"next"` 있음 | Next.js → RSC 경계 + next/image + next/font 카테고리 적용 |
 | `"vite"` + `"@tanstack/react-router"` | Vite SPA → 번들 분석 + fetchpriority + loader waterfall 카테고리 적용 |
+| `"tailwindcss"` 있음 (직교) | + Tailwind 카테고리 (content/purge, `@apply`, 중복 CSS) 추가 적용 |
 
 ---
 
@@ -61,6 +62,16 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 | Code split | dynamic import / lazy() 가능한 무거운 컴포넌트, barrel export | Med |
 | Suspense | 데이터 fetching 컴포넌트에 Suspense 경계 없음 | Med |
 | Dependency | 번들 사이즈 큰 라이브러리, tree-shaking 불가 import | Low |
+
+### Tailwind (감지 시)
+
+| 카테고리 | 핵심 확인 항목 | 영향도 |
+|---------|------------|-------|
+| content/purge | `tailwind.config.*` 의 `content` 가 사용처를 누락 → 사용된 클래스가 purge | High |
+| 변수 보간 클래스 | `` `bg-${color}-500` `` 패턴 → purge 후 누락 → safelist 또는 정적 매핑 필요 | High |
+| `@apply` 과다 | 컴포넌트 내부 1회성 스타일에 `@apply` 남용 → 별도 CSS 번들 증가 | Med |
+| 중복 CSS | Tailwind 사용 중 별도 `.css` 파일에서 동일 속성 재정의 | Med |
+| 미사용 플러그인 | `@tailwindcss/typography` 등 import 후 미사용 → 번들 증가 | Low |
 
 ### Next.js 전용
 
@@ -141,6 +152,11 @@ Grep: "next/font|@next/font"
 Grep: "loader:|loader =" (라우트 loader 미사용 감지)
 Grep: "useStore\(\)" (셀렉터 없는 전체 구독)
 Grep: "fetchpriority"
+
+# Tailwind (감지 시)
+Read: tailwind.config.* → content 경로 ↔ 실제 소스 트리 대조
+Grep: "@apply" (남용 후보)
+Grep: "className=\{`.*\$\{.*\}.*`\}" (변수 보간 클래스 — purge 위험)
 ```
 
 ### Step 3: (옵션) --with-build

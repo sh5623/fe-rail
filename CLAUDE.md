@@ -112,7 +112,9 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 | 환경 | 지원 여부 | 비고 |
 |------|----------|------|
 | Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
-| Vite + React + TanStack Router | ✅ | Zustand·shadcn/ui 규칙 내장 |
+| Vite + React + TanStack Router | ✅ | Zustand 규칙 내장 |
+| Tailwind CSS (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — Next.js / Vite 공통 |
+| shadcn/ui (직교) | ✅ | UI primitives 격리·`cva()` variant·래핑 패턴 — Tailwind 위에서 동작 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |
 
 ---

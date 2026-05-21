@@ -68,13 +68,18 @@ maxTurns: 30
 | 이미지 alt 누락 | `<img>` 또는 `<Image>` alt 없음 |
 
 ### 코드 품질
-| 체크 항목 | 패턴 |
-|---------|------|
-| 함수 50줄 초과 | 분리 권장 |
-| 중첩 4단계 이상 | 조기 반환 또는 컴포넌트 분리 |
-| console.log 잔존 | 프로덕션 코드에 로그 |
-| 중복 로직 | 3번 이상 반복되는 코드 |
-| 불명확한 네이밍 | `data`, `item`, `temp` 등 |
+| 체크 항목 | 패턴 | 적용 |
+|---------|------|------|
+| 함수 50줄 초과 | 분리 권장 | 공통 |
+| 중첩 4단계 이상 | 조기 반환 또는 컴포넌트 분리 | 공통 |
+| console.log 잔존 | 프로덕션 코드에 로그 | 공통 |
+| 중복 로직 | 3번 이상 반복되는 코드 | 공통 |
+| 불명확한 네이밍 | `data`, `item`, `temp` 등 | 공통 |
+| Tailwind 임의값 남용 | `bg-[#xyz]`, `w-[437px]` 등 — `theme` 토큰 존재 시 토큰 우선 | Tailwind |
+| Tailwind 변수 보간 클래스 | `` `bg-${color}-500` `` — JIT 미감지로 purge | Tailwind |
+| 인라인 style + Tailwind 혼용 | `style={{...}}` 과 className 병용 — 우선순위 추적 불가 | Tailwind |
+| 긴 className 직접 조합 | `cn()` (clsx + tailwind-merge) 미사용 — 충돌 시 불명확 | Tailwind |
+| shadcn 컴포넌트 직접 수정 | `components/ui/*` 소스 변경 — 업그레이드 불가, 래핑으로 대체 | shadcn |
 
 ---
 
