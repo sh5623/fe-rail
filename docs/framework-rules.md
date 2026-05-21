@@ -1,7 +1,9 @@
-# 코딩 규칙 (React / Next.js / Vite SPA)
+# 코딩 규칙 (React / Next.js / Vite SPA + Tailwind / shadcn/ui)
 
 > **프레임워크 감지**: 에이전트는 `package.json`을 먼저 읽어 프레임워크를 확인한 후
 > 해당 섹션의 규칙만 적용한다. Next.js(`next`) ↔ Vite SPA(`vite` + `@tanstack/react-router`) 섹션이 다르다.
+> 스타일링(Tailwind + shadcn/ui)은 두 프레임워크 모두에 동일하게 적용되는 **공통 규칙**이다.
+> 감지 기준: `tailwindcss` 의존성이 있으면 Tailwind 규칙, `class-variance-authority` + `components/ui/` 가 있으면 shadcn/ui 규칙을 함께 적용한다.
 
 ---
 
@@ -50,6 +52,132 @@ interface ProductCardProps {
 
 // ❌ any 타입 금지
 const handleData = (data: any) => {}
+```
+
+### 스타일링 — Tailwind CSS
+
+> `package.json` 에 `"tailwindcss"` 의존성이 있을 때 적용. Next.js / Vite SPA 모두에 동일하게 적용된다.
+
+```typescript
+// ✅ 조건부 클래스는 cn() (clsx + tailwind-merge) 으로 조합
+import { cn } from '@/lib/utils'
+
+<button
+  className={cn(
+    'rounded font-medium',
+    isActive ? 'bg-primary text-white' : 'bg-transparent text-primary',
+    className, // 외부 override 가능
+  )}
+/>
+
+// ❌ 문자열 직접 조합 — 충돌 시 어떤 클래스가 이기는지 불명확
+<button className={`rounded ${isActive ? 'bg-primary' : ''} ${className}`} />
+
+// ❌ 인라인 style 과 Tailwind 혼용 — 우선순위 추적 불가
+<div style={{ padding: 16 }} className="p-2" />
+```
+
+```typescript
+// ✅ 디자인 토큰 우선 — tailwind.config.* 의 theme 확장 사용
+<div className="bg-primary text-foreground p-4 rounded-lg" />
+
+// ❌ 임의값 남용 — 토큰이 있는데도 사용
+<div className="bg-[#2563EB] text-[#0F172A] p-[16px] rounded-[8px]" />
+
+// ✅ 예외: 디자인 시스템에 없는 일회성 값에만 임의값 허용 (주석으로 사유 명시)
+<div className="grid-cols-[200px_1fr_auto]" />
+```
+
+```typescript
+// ✅ 변수형 클래스는 정적 매핑 — Tailwind JIT 가 인식 가능
+const variantClass = {
+  primary: 'bg-primary text-white',
+  ghost: 'bg-transparent text-primary',
+} as const
+
+<button className={variantClass[variant]} />
+
+// ❌ 보간으로 클래스 생성 금지 — Tailwind JIT 가 감지 못 함
+<button className={`bg-${color}-500`} />
+```
+
+```typescript
+// ✅ 반응형은 모바일 우선 (sm → md → lg → xl)
+<div className="text-sm md:text-base lg:text-lg" />
+
+// ❌ 데스크탑 기준으로 작성한 뒤 모바일 override
+<div className="text-lg md:text-base sm:text-sm" />
+```
+
+```typescript
+// ✅ dark mode 클래스는 한 줄에 묶어 의도 명확화
+<div className="bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100" />
+
+// ❌ dark mode 토큰을 별도 컴포넌트로 분기 (런타임 비용)
+```
+
+**`@apply` 사용 기준**:
+- ✅ 디자인 시스템 전역 패턴(`.btn`, `.card` 등 베이스 클래스)에만 제한적 사용
+- ❌ 컴포넌트 내부 1회성 스타일에 사용 금지 — Tailwind 의 의도와 충돌
+- ❌ shadcn/ui 컴포넌트를 `@apply` 로 재구성 금지
+
+**content / purge 경로**:
+- ✅ 모노레포에서는 `tailwind.config.*` 의 `content` 가 사용처(`apps/*/src/**`, `packages/ui/src/**`) 를 모두 포함해야 한다
+- ❌ 동적 문자열로만 사용된 클래스는 purge 됨 — safelist 또는 정적 매핑 필요
+
+### 스타일링 — shadcn/ui
+
+> `package.json` 에 `"class-variance-authority"` + `components/ui/` 디렉토리가 있을 때 적용.
+> shadcn/ui 는 Tailwind 위에서 동작하므로 위의 **Tailwind 규칙을 상속**한다.
+
+```typescript
+// ✅ shadcn 컴포넌트는 components/ui/ 에 격리 — 직접 수정 금지
+// 외부에서 래핑하여 도메인별 컴포넌트로 확장
+import { Button as ShadcnButton } from '@/components/ui/button'
+
+export function PrimaryButton({ children, ...props }: Props) {
+  return (
+    <ShadcnButton variant="default" size="lg" {...props}>
+      {children}
+    </ShadcnButton>
+  )
+}
+
+// ❌ shadcn 컴포넌트 소스 직접 수정 — 업그레이드 시 충돌
+```
+
+```typescript
+// ✅ variant 정의는 cva() 로 — 타입 추론 + Tailwind 클래스 정적 분석 가능
+import { cva, type VariantProps } from 'class-variance-authority'
+
+const buttonVariants = cva('rounded font-medium transition-colors', {
+  variants: {
+    variant: {
+      primary: 'bg-primary text-white hover:bg-primary/90',
+      ghost: 'bg-transparent text-primary hover:bg-primary/10',
+    },
+    size: {
+      sm: 'px-3 py-1 text-sm',
+      md: 'px-4 py-2',
+      lg: 'px-6 py-3 text-lg',
+    },
+  },
+  defaultVariants: { variant: 'primary', size: 'md' },
+})
+
+type ButtonProps = VariantProps<typeof buttonVariants> &
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+
+export function Button({ className, variant, size, ...props }: ButtonProps) {
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size }), className)}
+      {...props}
+    />
+  )
+}
+
+// ❌ variant 마다 if-else / switch 로 클래스 분기 — cva() 사용
 ```
 
 ---
@@ -160,37 +288,6 @@ const items = useCartStore((s) => s.items)
 const store = useCartStore()
 
 // ❌ 서버 상태(API 응답)를 Zustand에 저장 — TanStack Query 캐시 사용
-```
-
-### UI (shadcn/ui)
-
-```typescript
-// ✅ cn() 유틸리티로 조건부 클래스 조합
-import { cn } from '@/lib/utils'
-
-function Button({ className, variant, ...props }: ButtonProps) {
-  return (
-    <button
-      className={cn(buttonVariants({ variant }), className)}
-      {...props}
-    />
-  )
-}
-
-// ✅ shadcn 컴포넌트를 직접 수정하지 않고 래핑
-// ✅ 공통 variant/size는 cva()로 정의
-import { cva } from 'class-variance-authority'
-
-const buttonVariants = cva('rounded font-medium', {
-  variants: {
-    variant: { primary: 'bg-primary text-white', ghost: 'bg-transparent' },
-    size: { sm: 'px-3 py-1 text-sm', md: 'px-4 py-2' },
-  },
-  defaultVariants: { variant: 'primary', size: 'md' },
-})
-
-// ❌ tailwind 클래스 문자열 직접 조합 (충돌 위험)
-// ❌ shadcn 컴포넌트 소스 직접 수정 (업그레이드 불가)
 ```
 
 ### 이미지 / 에셋

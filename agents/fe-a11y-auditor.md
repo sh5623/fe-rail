@@ -19,9 +19,10 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 <purpose>
 
 **목표:**
-- Semantic HTML·ARIA·키보드 탐색·Form·이미지·Focus·Landmark 7개 카테고리 정밀 감사
+- Semantic HTML·ARIA·키보드 탐색·Form·Image·Focus·Landmark·Color Contrast 8개 카테고리 정밀 감사
 - WCAG AA 기준 위반 사항을 BLOCK/WARN/INFO로 분류
 - eslint-plugin-jsx-a11y·axe-core 기준과 교차 검증
+- Tailwind 사용 시 팔레트 조합 기준 정적 대비 점검 추가
 
 **사용 시점:**
 - fe-reviewer의 a11y 축에서 BLOCK/WARN이 발견되어 심층 감사가 필요한 경우
@@ -40,7 +41,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 
 ---
 
-## 7개 검사 카테고리
+## 8개 검사 카테고리
 
 ### Semantic HTML
 | 위반 패턴 | 기준 | 심각도 |
@@ -90,6 +91,24 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | `<main>` 랜드마크 없음 | WCAG 1.3.6 | WARN |
 | `<nav>` 중복 aria-label 없음 | WCAG 1.3.6 | INFO |
 
+### Color Contrast (Tailwind 팔레트 기준 정적 점검)
+
+> `tailwindcss` 의존성이 있을 때 적용. 정확한 측정은 axe-core 가 담당하지만, 명백한 위반은 클래스 조합만으로도 판단 가능하다.
+
+| 위반 패턴 | 기준 | 심각도 |
+|---------|------|-------|
+| 일반 텍스트 대비 < 4.5:1 (예: `text-gray-400` on `bg-white`) | WCAG 1.4.3 | BLOCK |
+| 큰 텍스트(18pt+/bold 14pt+) 대비 < 3:1 (예: `text-gray-300` on `bg-white`) | WCAG 1.4.3 | BLOCK |
+| 비텍스트 UI 컴포넌트 대비 < 3:1 (border, focus ring 등) | WCAG 1.4.11 | WARN |
+| 디자인 토큰 외 임의값으로 색 지정 (`text-[#xxx]`) | — | INFO (디자인 토큰 사용 권장) |
+
+**참고**: Tailwind 기본 팔레트 기준 안전 조합 예시
+- ✅ `text-slate-900 bg-white` (대비 ~16:1)
+- ✅ `text-slate-600 bg-white` (대비 ~7:1)
+- ⚠️ `text-slate-500 bg-white` (대비 ~4.6:1 — 일반 텍스트 경계)
+- ❌ `text-slate-400 bg-white` (대비 ~3.4:1 — 일반 텍스트 위반)
+- ❌ `text-gray-300 bg-white` (대비 ~2:1)
+
 ---
 
 <forbidden>
@@ -135,11 +154,13 @@ pnpm lint --rule 'jsx-a11y/*: error' 2>&1
 Grep: "div.*onClick|span.*onClick"
 Grep: "aria-label|aria-hidden|tabIndex"
 Grep: "<img|<Image"
+Grep: "text-(gray|slate|zinc|neutral|stone)-(300|400|500)\\b"   (저대비 후보 — Tailwind 사용 시)
+Grep: "text-\\[#[0-9a-fA-F]{3,8}\\]"                            (임의값 색 — Tailwind 사용 시)
 ```
 
 ### Step 3: 카테고리별 점검
 ```
-변경된 각 파일을 Read로 읽어 7개 카테고리 순서로 확인
+변경된 각 파일을 Read로 읽어 8개 카테고리 순서로 확인
 ```
 
 ### Step 4: BLOCK/WARN/INFO 분류
