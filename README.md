@@ -1,7 +1,7 @@
 # fe-rail
 
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
-> spec → build → review → PR 자동화 워크플로우. React / Next.js + TypeScript.
+> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA + TypeScript.
 
 ## 설치
 
@@ -28,7 +28,7 @@ claude
 
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
-| `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 자동 동기화 | — |
+| `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 동기화 + 새 버전 알림 (GitHub, 하루 1회) | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
@@ -50,7 +50,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
 | `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (출처 URL 필수) | sonnet | 도구 (WebSearch/WebFetch) |
-| `fe-architect` | Next.js 아키텍처·RSC 경계·데이터 흐름 자문 | opus | 책임 (read-only) |
+| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(라우트·Zustand) 프레임워크 감지 | opus | 책임 (read-only) |
 
 ### build 단계
 | Agent | 위임 시점 | 모델 | 격리 |
@@ -64,7 +64,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질) | sonnet | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 정밀 감사 | sonnet | 책임 (read-only) |
-| `fe-perf-auditor` | RSC·번들·Image·Font 정밀 감사 (Next.js 전용) | sonnet | 책임 (read-only) |
+| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(loader waterfall·fetchpriority·번들) | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
 | `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | sonnet | 책임 (read-only) |
 
@@ -91,7 +91,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 - Claude Code
 - pnpm
 - gh CLI (PR 자동 생성 시)
-- TypeScript strict mode (React / Next.js)
+- TypeScript strict mode (Next.js / Vite SPA)
 
 ## 기반 레퍼런스
 
