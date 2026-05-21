@@ -51,12 +51,13 @@ maxTurns: 30
 | 강제 타입 단언 남용 | `as Type` (불필요한 경우) |
 
 ### 성능
-| 체크 항목 | 패턴 |
-|---------|------|
-| 불필요한 리렌더링 | useEffect 의존성 배열 문제, inline 객체/함수 |
-| 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음 |
-| 무거운 import | barrel export, 사용하지 않는 import |
-| RSC 경계 오류 | Server Component에 클라이언트 로직 |
+| 체크 항목 | 패턴 | 적용 |
+|---------|------|------|
+| 불필요한 리렌더링 | useEffect 의존성 배열 문제, inline 객체/함수 | 공통 |
+| 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음 | 공통 |
+| 무거운 import | barrel export, 사용하지 않는 import | 공통 |
+| Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
+| RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
 
 ### 접근성 (a11y)
 | 체크 항목 | 패턴 |
