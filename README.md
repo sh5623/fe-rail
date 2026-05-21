@@ -20,7 +20,7 @@ claude
 | fe-build | `/fe-rail:fe-build` | 프론트엔드 코드 구현 (타입→로직 분리→컴포넌트→테스트) |
 | fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
 | fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화 |
-| fe-doc-sync | `/fe-rail:fe-doc-sync` | 변경사항 분석 후 CLAUDE.md·README.md 수정안 제안 |
+| fe-doc-sync | `/fe-rail:fe-doc-sync` | **설치된 사용자 프로젝트** 스캔 (라우트·의존성·구조·ENV) → 그 프로젝트의 CLAUDE.md·README.md 수정안 제안 |
 
 ## 포함된 Hooks
 
@@ -36,7 +36,7 @@ claude
 | `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | ESLint `--fix` + Prettier 자동 적용 | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
 | `quality-gate.sh` | Stop | 변경 파일에 ESLint + `tsc --noEmit` 실행 후 경고 출력 | — |
-| `doc-sync-check.sh` | Stop | hooks/skills/agents 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 | — |
+| `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
 ## 포함된 Agents
