@@ -31,7 +31,7 @@ allowed-tools:
 | 요구사항이 모호하거나 갭이 있을 때 | `fe-analyst` — 6갭 분석 후 명확화 질문 도출 |
 | Figma·스크린샷·디자인 시안이 있을 때 | `fe-vision` — 레이아웃·컴포넌트·색상 추출 |
 | 특정 라이브러리·API 조사가 필요할 때 | `fe-researcher` — 공식 문서 기반 조사 |
-| RSC 경계·아키텍처 결정이 필요할 때 | `fe-architect` — 구조 자문 |
+| RSC 경계·아키텍처·스타일링 전략(Tailwind/shadcn) 결정이 필요할 때 | `fe-architect` — 구조 자문 |
 
 ### Phase 1 — 목적 명확화
 사용자에게 반드시 확인:
@@ -57,6 +57,7 @@ allowed-tools:
 - 관련 페이지/라우트: 
 - API 엔드포인트: 
 - 상태관리: (예: Zustand·Pinia·NgRx | TanStack Query | 로컬 state)
+- 스타일링: (Tailwind 클래스 / shadcn/ui 컴포넌트 / 커스텀 CSS)
 - 의존 컴포넌트: 
 
 ## 완료 기준 (Acceptance Criteria)

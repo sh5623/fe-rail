@@ -1,7 +1,7 @@
 ---
 name: fe-build
 description: >-
-  React/Next.js + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
+  React / Next.js / Vite SPA + TypeScript 프로젝트의 프론트엔드 컴포넌트와 페이지를 구현합니다.
   Use when: feature.md 또는 스펙이 승인된 후 구현 시작할 때, 컴포넌트 작성, 페이지 개발.
   Do NOT load for: 스펙 작성, 코드 리뷰, 버그 분석.
 allowed-tools:
@@ -13,7 +13,7 @@ allowed-tools:
 
 # FE Build 스킬
 
-승인된 스펙을 기반으로 Next.js + TypeScript 코드를 구현합니다.
+승인된 스펙을 기반으로 React/Next.js + Vite SPA + TypeScript 코드를 구현합니다.
 
 ## When to Use
 
@@ -97,6 +97,8 @@ function CampaignList() {
 - 새 UI 컴포넌트 작성 시 변형 2개 이상 먼저 제안
 - system-ui / -apple-system 주 폰트 금지
 - shadcn/ui 컴포넌트 우선 활용
+- Tailwind 조건부 클래스는 `cn()` (clsx + tailwind-merge) 사용 — 문자열 직접 조합 금지
+- 변수 보간 클래스(`` `bg-${color}-500` ``) 금지 — 정적 매핑 사용
 
 ### Phase 4 — 구현 후 자동 검증
 구현 완료 후 반드시 실행:
