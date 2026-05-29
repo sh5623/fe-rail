@@ -61,11 +61,14 @@ else                              PM=npm
 fi
 ```
 
-감지된 `$PM`으로 프로젝트의 검증 스크립트를 실행한다. `package.json`의 `scripts`를 먼저 확인하고, 없으면 폴백을 쓴다:
+감지된 `$PM`으로 검증을 실행한다. **`package.json`의 `scripts` 존재 여부를 먼저 확인**하고 정의된 것만 실행한다 — `||` 폴백은 스크립트 실패 시에도 우측을 실행해 타입체크/테스트가 이중 실행되므로 쓰지 않는다:
 ```bash
-$PM run typecheck || $PM exec tsc --noEmit   # 타입
-$PM run lint                                  # 린트
-$PM run test || $PM test                      # 테스트 (watch 비활성: --run/--watch=false 확인)
+# 타입: typecheck 스크립트가 있으면 그것만, 없으면 tsc 폴백
+if grep -q '"typecheck"' package.json; then $PM run typecheck; else $PM exec tsc --noEmit; fi
+# 린트: 스크립트가 있을 때만 (없으면 건너뜀 — 검증 중단 방지)
+if grep -q '"lint"' package.json; then $PM run lint; fi
+# 테스트: test 스크립트가 있으면 그것만, 없으면 vitest 폴백 (watch 비활성: --run)
+if grep -q '"test"' package.json; then $PM run test; else $PM exec vitest run; fi
 ```
 
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
