@@ -44,6 +44,9 @@ claude
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
 frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`)로 구성됩니다.
 
+> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용합니다. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
+> 티어 배분: **opus**(고판단 — `fe-analyst`·`fe-architect`·`fe-reviewer`·`fe-refactor-advisor`) / **haiku**(저비용 탐색 — `fe-explorer`) / **sonnet**(나머지 실행·도구 계열).
+
 ### spec 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
@@ -62,11 +65,11 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 ### review 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질, Tailwind 안티패턴 포함) | sonnet | 책임 (read-only) |
+| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질, Tailwind 안티패턴 포함) | opus | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast — Tailwind 팔레트 기준 포함) | sonnet | 책임 (read-only) |
 | `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(loader waterfall·fetchpriority·번들) / Tailwind(purge·@apply) | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
-| `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | sonnet | 책임 (read-only) |
+| `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | opus | 책임 (read-only) |
 
 ### PR 단계
 | Agent | 위임 시점 | 모델 | 격리 |
@@ -89,9 +92,20 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 ## 전제 조건
 
 - Claude Code
-- pnpm
+- 패키지 매니저 (pnpm / npm / yarn / bun — lock 파일로 자동 감지)
 - gh CLI (PR 자동 생성 시)
 - TypeScript strict mode (Next.js / Vite SPA)
+
+## 설치 후 권장 설정 (소비자 프로젝트)
+
+플러그인의 agent들은 **소비자 프로젝트의 컨텍스트를 읽어** 동작합니다. 설치 직후 아래를 갖추면 품질이 크게 올라갑니다.
+
+| 항목 | 이유 | 방법 |
+|------|------|------|
+| **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않음) | `/init` 또는 `/fe-rail:fe-doc-sync` |
+| **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
+| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회 활성화 (미설치 시 로컬 이미지·WebSearch로 fallback) | Figma MCP(서버명 `Figma`) / Context7 플러그인 설치 |
+| **검증 스크립트** | Phase 3 자동 검증이 `package.json`의 `typecheck`/`lint`/`test` 스크립트를 사용 | 해당 스크립트 정의 권장 |
 
 ## 기반 레퍼런스
 

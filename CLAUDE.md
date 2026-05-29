@@ -58,6 +58,41 @@ fe-rail/
 
 ---
 
+## 지원 MCP 플러그인
+
+하네스가 최적으로 동작하려면 다음 MCP 플러그인이 설치되어 있어야 한다.
+각 플러그인은 특정 에이전트의 `tools` 목록에 등록되어 있으며, 없으면 해당 에이전트가 fallback 동작으로 전환된다.
+
+| MCP | 설치 형태 | 연결 에이전트 | 도구 접두사 | 없을 때 fallback |
+|-----|----------|-------------|-----------|----------------|
+| **Figma** | 프로젝트/사용자 `.mcp.json` 서버 (이름: `Figma`) | `fe-vision` | `mcp__Figma__get_figma_data`<br>`mcp__Figma__download_figma_images` | 로컬 스크린샷(PNG/JPG)만 분석 |
+| **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs` | WebSearch + WebFetch로 문서 조회 |
+
+> **도구 접두사는 설치 형태에 따라 달라진다.** 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (위 표는 각각의 설치 형태 기준으로 검증된 접두사다.)
+
+### 설치
+
+- **Context7** (플러그인): `/plugin install context7@<marketplace>` → `/reload-plugins`. 도구는 `mcp__plugin_context7_context7__*` 로 등록된다.
+- **Figma** (프로젝트 MCP 서버): 프로젝트 `.mcp.json` 에 `Figma` 라는 이름으로 서버를 등록한다 (예: `figma-developer-mcp`, 토큰은 환경변수로 주입). 도구는 `mcp__Figma__*` 로 등록된다.
+
+---
+
+## 모델 티어 정책
+
+각 에이전트의 `model`은 **별칭**(`opus`/`sonnet`/`haiku`)으로 지정한다. 풀 버전 ID를 고정하지 않는다.
+
+| 티어 | 에이전트 | 기준 |
+|------|---------|------|
+| **opus** | fe-analyst · fe-architect · fe-reviewer · fe-refactor-advisor | 추론·판단 집약, 게이트 역할 (오탐/누락 비용 큼) |
+| **sonnet** | 위·아래를 제외한 실행·도구 계열 전부 | 구현·수정·실행 등 |
+| **haiku** | fe-explorer | 단순 코드 탐색, 비용 효율 우선 |
+
+- **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용한다. 별도 수정 없이 개선이 반영되지만, 플러그인 버전이 같아도 동작이 변동될 수 있다.
+- **재현성 점검**: 안정성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 확인한다.
+- **티어 변경 원칙**: "전부 opus화" 금지. 고판단 게이트만 선별 상향하고, 탐색·기계적 작업은 저비용 티어를 유지한다.
+
+---
+
 ## 워크플로우
 
 ```
@@ -104,6 +139,14 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 /fe-rail:fe-start feature.md  # 원스톱 자동화
 /fe-rail:fe-doc-sync  # 설치된 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
 ```
+
+### 설치 후 권장 설정 (소비자 프로젝트)
+
+에이전트는 **소비자 프로젝트의 컨텍스트를 읽어** 추론한다. 설치 직후 아래를 갖추면 출력 품질이 크게 올라간다.
+
+1. **프로젝트 CLAUDE.md 생성** — `fe-analyst`·`fe-architect`는 소비자 프로젝트의 CLAUDE.md에서 스택·규칙을 읽는다. 이 플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않으므로, 소비자가 자체 CLAUDE.md를 두지 않으면 에이전트가 빈손으로 분석한다. → `/init` 또는 `/fe-rail:fe-doc-sync` 실행.
+2. **Bash 권한 허용** — 소비자 `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)`를 추가하면 PR 단계 에이전트가 매번 권한 프롬프트 없이 동작한다.
+3. **MCP (선택)** — Figma·Context7 미설치 시 `fe-vision`·`fe-researcher`는 fallback(로컬 이미지·WebSearch)으로 동작한다. 위 "지원 MCP 플러그인" 참조.
 
 ### 대상 프로젝트 유형
 

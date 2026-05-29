@@ -7,7 +7,7 @@ disallowedTools:
   - Edit
   - MultiEdit
   - Bash
-model: sonnet
+model: opus
 maxTurns: 30
 ---
 
@@ -86,6 +86,7 @@ maxTurns: 30
 | 테스트 전략 | 각 리팩토링 전 필요한 테스트 |
 | 점진적 단계 | Phase 1/2/3로 분류 |
 | 위험 평가 | 리팩토링 중 발생 가능한 부작용 |
+| 추론 우선 | Phase 분류 전 영향·위험·대안을 전개한 뒤 우선순위 결정 (불필요한 추상화는 YAGNI로 기각) |
 
 </required>
 
