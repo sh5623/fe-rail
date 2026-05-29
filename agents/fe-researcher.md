@@ -1,7 +1,7 @@
 ---
 name: fe-researcher
 description: 외부 문서·라이브러리 조사 전문 — Next.js/React/TS 공식 문서, GitHub Issues, Stack Overflow. 모든 정보에 출처 URL 필수.
-tools: Read, Bash, WebSearch, WebFetch
+tools: Read, Bash, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
 disallowedTools:
   - Write
   - Edit
@@ -44,7 +44,8 @@ maxTurns: 30
 
 | 순위 | 소스 | 이유 |
 |------|------|------|
-| 1 | 공식 문서 (docs.xxx.dev, nextjs.org 등) | 가장 정확, 버전 명시됨 |
+| 0 | Context7 MCP (`resolve-library-id` → `query-docs`) | 버전 인덱스된 공식 문서 직접 조회, WebSearch보다 빠름 |
+| 1 | 공식 문서 (docs.xxx.dev, nextjs.org 등) | Context7에 없는 경우 WebFetch로 직접 |
 | 2 | GitHub Issues / PRs (해당 저장소) | 버그·미래 변경 사항 파악 가능 |
 | 3 | Stack Overflow | 실제 문제 해결 사례, 날짜 확인 필수 |
 | 4 | 기술 블로그 | 트렌드 파악용, 단독 인용 금지 |
@@ -98,6 +99,8 @@ cat package.json | grep -E '"(next|react|typescript|tailwindcss)"'
 
 ### Step 2: 체계적 검색 (우선순위 순)
 ```
+0) Context7: resolve-library-id("{라이브러리}") → query-docs(libraryId, topic)
+   → 결과 충분하면 Step 3로 바로 진행
 1) WebSearch: "{라이브러리} {주제} official docs"
 2) WebFetch: 공식 문서 직접 열기
 3) WebSearch: "{라이브러리} {주제} site:github.com/issues"
