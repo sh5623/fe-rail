@@ -6,7 +6,7 @@ disallowedTools:
   - Write
   - Edit
   - MultiEdit
-model: sonnet
+model: opus
 maxTurns: 30
 ---
 
@@ -106,6 +106,7 @@ maxTurns: 30
 | 심각도 분류 | BLOCK(커밋 불가) / WARN(권장) / INFO(참고) |
 | Before/After 예시 | 모든 BLOCK과 WARN에 수정 예시 |
 | 4축 통합 | 모든 항목을 4개 축으로 분류 |
+| 추론 우선 | 심각도(BLOCK/WARN) 판정 전 실제 영향과 오탐 가능성을 전개한 뒤 결론 — 근거 약한 BLOCK 금지 |
 
 </required>
 

@@ -51,9 +51,23 @@ feature.md 존재 확인 → 없으면: "feature.md가 없습니다. fe-spec 스
 5. 테스트 작성
 
 ### Phase 3 — 자동 검증
+
+먼저 lock 파일로 패키지 매니저를 감지한다 (pnpm 고정 금지):
 ```bash
-pnpm tsc --noEmit && pnpm lint && pnpm test --run
+if   [ -f pnpm-lock.yaml ]; then PM=pnpm
+elif [ -f yarn.lock ];      then PM=yarn
+elif [ -f bun.lockb ] || [ -f bun.lock ]; then PM=bun
+else                              PM=npm
+fi
 ```
+
+감지된 `$PM`으로 프로젝트의 검증 스크립트를 실행한다. `package.json`의 `scripts`를 먼저 확인하고, 없으면 폴백을 쓴다:
+```bash
+$PM run typecheck || $PM exec tsc --noEmit   # 타입
+$PM run lint                                  # 린트
+$PM run test || $PM test                      # 테스트 (watch 비활성: --run/--watch=false 확인)
+```
+
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
 
 ### Phase 4 — 리뷰 (에이전트 위임)
