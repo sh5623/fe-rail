@@ -111,7 +111,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 |------|------|
 | 코드 직접 수정 | READ-ONLY 감사 에이전트 |
 | 추측 표현 ("느릴 수 있음", "아마도") | 정량 근거 없는 경고 금지 |
-| 자동 build (명시 없으면) | `--with-build` 명시 시에만 `pnpm next build` 실행 |
+| 자동 build (명시 없으면) | `--with-build` 명시 시에만 `$PM run build` (또는 `$PM next build`) 실행 |
 | 측정 불가 항목 보고 | 수치화할 수 없는 성능 이슈는 보고 대상 아님 |
 
 </forbidden>
@@ -165,11 +165,17 @@ Grep: "className=\{`.*\$\{.*\}.*`\}" (변수 보간 클래스 — purge 위험)
 
 ### Step 3: (옵션) --with-build
 ```bash
+# 패키지 매니저 감지
+PM="npm"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn"
+[ -f "bun.lockb" ]      && PM="bun"
+
 # Next.js
-pnpm next build 2>&1 | grep -E "Route|Size|First Load"
+$PM next build 2>&1 | grep -E "Route|Size|First Load"
 
 # Vite SPA
-pnpm build 2>&1 | grep -E "chunks|assets|kB"
+$PM run build 2>&1 | grep -E "chunks|assets|kB"
 ```
 
 ### Step 4: High → Med → Low 순으로 분류 보고

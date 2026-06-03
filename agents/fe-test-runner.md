@@ -40,14 +40,24 @@ maxTurns: 30
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+# lockfile 기준 감지, 없으면 npm fallback
+PM="npm"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn"
+[ -f "bun.lockb" ]      && PM="bun"
+```
+
 ## 러너 감지 우선순위
 
 | 순위 | 조건 | 명령 |
 |------|------|------|
-| 1 | `package.json` `scripts.test` 명시 | `pnpm test` |
-| 2 | `vitest` devDependencies | `pnpm vitest run` |
-| 3 | `jest` devDependencies | `pnpm jest` |
-| 4 | `@playwright/test` dependencies | `pnpm playwright test` |
+| 1 | `package.json` `scripts.test` 명시 | `$PM test` |
+| 2 | `vitest` devDependencies | `$PM vitest run` |
+| 3 | `jest` devDependencies | `$PM jest` |
+| 4 | `@playwright/test` dependencies | `$PM playwright test` |
 
 ---
 
@@ -106,10 +116,10 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx|ts|js)$'
 ### Step 3: 테스트 실행
 ```bash
 # vitest 예시
-pnpm vitest run --reporter=verbose 2>&1
+$PM vitest run --reporter=verbose 2>&1
 
 # jest 예시
-pnpm jest --findRelatedTests <변경파일들> 2>&1
+$PM jest --findRelatedTests <변경파일들> 2>&1
 ```
 
 ### Step 4: 결과 분류

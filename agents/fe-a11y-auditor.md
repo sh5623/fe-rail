@@ -129,7 +129,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | 필수 | 기준 |
 |------|------|
 | 변경 파일 기준 | `git diff --name-only` 기준 범위 결정 |
-| eslint-plugin-jsx-a11y 활용 | `pnpm lint` 결과와 교차 확인 |
+| eslint-plugin-jsx-a11y 활용 | `$PM lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`→bun) |
 | file:line 참조 | 모든 발견사항에 위치 명시 |
 | Before/After 예시 | BLOCK과 WARN에 수정 예시 |
 | WCAG 기준 번호 | 모든 항목에 기준 번호 표기 |
@@ -147,8 +147,11 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
 
 ### Step 2: 정적 분석 (병렬)
 ```bash
+# 패키지 매니저 감지
+PM="npm"; [ -f "pnpm-lock.yaml" ] && PM="pnpm"; [ -f "yarn.lock" ] && PM="yarn"; [ -f "bun.lockb" ] && PM="bun"
+
 # ESLint a11y 플러그인 실행
-pnpm lint --rule 'jsx-a11y/*: error' 2>&1
+$PM lint --rule 'jsx-a11y/*: error' 2>&1
 
 # 패턴 검색
 Grep: "div.*onClick|span.*onClick"

@@ -40,6 +40,15 @@ maxTurns: 30
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+PM="npm"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn"
+[ -f "bun.lockb" ]      && PM="bun"
+```
+
 ## 커밋 메시지 형식
 
 ```
@@ -130,8 +139,14 @@ git diff --name-only HEAD
 
 ### Step 3: 검증 상태 확인
 ```bash
-pnpm tsc --noEmit 2>&1 | grep -c "error" || echo "0"
-pnpm lint 2>&1 | grep -c "error" || echo "0"
+# 패키지 매니저 감지
+PM="npm"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn"
+[ -f "bun.lockb" ]      && PM="bun"
+
+$PM tsc --noEmit 2>&1 | grep -c "error" || echo "0"
+$PM lint 2>&1 | grep -c "error" || echo "0"
 ```
 
 ### Step 4: 그룹별 커밋 (HEREDOC)
