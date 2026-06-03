@@ -44,7 +44,8 @@ cat package.json 2>/dev/null | grep -E '"workspaces"|"packageManager"'
 |--------------------|------|
 | `next` | Next.js 앱 (App Router 여부는 `app/` vs `pages/` 존재로 추가 판별) |
 | `vite` + `@tanstack/react-router` | Vite SPA (TanStack Router) |
-| `vite` + `react-router-dom` | Vite SPA (react-router) |
+| `vite` + `react-router`(v7) | Vite SPA (React Router 7) — 데이터는 TanStack Query 단독 소유 |
+| `vite` + `react-router-dom`(v6 이하) | Vite SPA (React Router 레거시) |
 | `workspaces` 필드 존재 + `apps/`·`packages/` | 모노레포 |
 | `react-native` | RN Web (참고만, fe-rail 주 대상 아님) |
 
@@ -77,7 +78,7 @@ ls -1 apps/ packages/ 2>/dev/null
 
 ```bash
 # 상태관리·데이터·UI 핵심 라이브러리
-cat package.json | grep -oE '"(next|vite|@tanstack/react-router|@tanstack/react-query|zustand|jotai|redux|@reduxjs/toolkit|tailwindcss|@radix-ui|shadcn|class-variance-authority|vitest|jest|playwright|cypress)[^"]*":\s*"[^"]+"'
+cat package.json | grep -oE '"(next|vite|@tanstack/react-router|react-router|@tanstack/react-query|zustand|jotai|redux|@reduxjs/toolkit|tailwindcss|@radix-ui|shadcn|class-variance-authority|vitest|jest|playwright|cypress)[^"]*":\s*"[^"]+"'
 ```
 
 ### (D) 변경 컨텍스트 (보조)
