@@ -51,8 +51,8 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
 | `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
-| `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 | sonnet | 책임 (read-only) |
-| `fe-researcher` | 외부 문서·라이브러리 조사 (출처 URL 필수) | sonnet | 도구 (WebSearch/WebFetch) |
+| `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 (Figma URL → MCP 직접 조회) | sonnet | 책임 (read-only) |
+| `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn (직교 감지) | opus | 책임 (read-only) |
 
 ### build 단계

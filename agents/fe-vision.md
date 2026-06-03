@@ -1,7 +1,7 @@
 ---
 name: fe-vision
 description: Figma 스크린샷·UI mockup·디자인 시안·PDF·다이어그램에서 정보를 추출. 프론트엔드 작업에서 디자인 → 코드 변환의 첫 단계. READ-ONLY.
-tools: Read
+tools: Read, mcp__Figma__get_figma_data, mcp__Figma__download_figma_images
 disallowedTools:
   - Write
   - Edit
@@ -47,6 +47,7 @@ maxTurns: 20
 
 | 포맷 | 확인 방법 |
 |------|---------|
+| Figma URL | `mcp__Figma__get_figma_data`로 설계 토큰·컴포넌트 트리 직접 추출 |
 | PNG / JPG / JPEG / WebP | Read 도구로 직접 읽기 |
 | GIF | 첫 프레임 기준으로 분석 |
 | PDF | Read 도구 (pages 파라미터 활용) |
@@ -100,7 +101,10 @@ maxTurns: 20
 
 ### Step 1: 미디어 읽기
 ```
-Read 도구로 제공된 파일 로드
+입력 유형 확인:
+  - Figma URL → mcp__Figma__get_figma_data로 노드 트리·설계 토큰 추출
+               → 이미지 필요 시 mcp__Figma__download_figma_images 추가 호출
+  - 로컬 파일 → Read 도구로 직접 로드
 포맷 확인 → 분석 가능 여부 판단
 복수 파일이면 병렬 읽기
 ```
