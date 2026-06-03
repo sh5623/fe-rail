@@ -26,7 +26,7 @@ fe-rail/
 │   ├── fe-architect.md    ← spec: 아키텍처 자문
 │   ├── fe-explorer.md     ← build: 코드베이스 탐색
 │   ├── fe-test-author.md  ← build: BDD·TDD 테스트 작성
-│   ├── fe-build-fixer.md  ← build: tsc/eslint 오류 수정
+│   ├── fe-build-fixer.md  ← build: tsc·린터(ESLint/Biome) 오류 수정
 │   ├── fe-reviewer.md     ← review: 4축 코드 리뷰
 │   ├── fe-a11y-auditor.md ← review: a11y 정밀 감사
 │   ├── fe-perf-auditor.md ← review: 성능 정밀 감사
@@ -155,8 +155,9 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 | 환경 | 지원 여부 | 비고 |
 |------|----------|------|
 | Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
-| Vite + React + TanStack Router | ✅ | Zustand 규칙 내장 |
-| Tailwind CSS (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — Next.js / Vite 공통 |
+| Vite + React (TanStack Router) | ✅ | 라우트 loader·Zustand 규칙 내장 |
+| Vite + React (React Router 7) | ✅ | 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
+| Tailwind CSS v3 / v4 (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — v4 는 CSS-first(`@theme`)·gradient rename·`@reference` 추가 분기 |
 | shadcn/ui (직교) | ✅ | UI primitives 격리·`cva()` variant·래핑 패턴 — Tailwind 위에서 동작 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |
 
@@ -181,7 +182,7 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 | 항목 | 기준 |
 |------|------|
 | TypeScript | `any` 타입 0개, strict mode |
-| 린트 | ESLint 경고 0개 |
+| 린트 | 린터(ESLint 또는 Biome) 경고 0개 |
 | 테스트 | Vitest + Testing Library, 주요 인터랙션 커버 |
 | 접근성 | WCAG AA — `aria-label`, 키보드 네비게이션 |
 | 반응형 | 375px / 768px / 1280px 기준 |
@@ -192,7 +193,7 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 ```bash
 # 프로젝트 루트 또는 앱 디렉토리에서 실행
 pnpm tsc --noEmit    # 타입 에러
-pnpm lint            # ESLint
+pnpm lint            # 린트 (ESLint 또는 Biome — 프로젝트 설정에 따라)
 pnpm test --run      # 테스트
 ```
 

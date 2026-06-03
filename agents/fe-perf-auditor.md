@@ -46,9 +46,10 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 
 | 판별 | 프레임워크 |
 |------|----------|
-| `"next"` 있음 | Next.js → RSC 경계 + next/image + next/font 카테고리 적용 |
-| `"vite"` + `"@tanstack/react-router"` | Vite SPA → 번들 분석 + fetchpriority + loader waterfall 카테고리 적용 |
-| `"tailwindcss"` 있음 (직교) | + Tailwind 카테고리 (content/purge, `@apply`, 중복 CSS) 추가 적용 |
+| `"next"` 있음 | Next.js → RSC 경계 + next/image + next/font 카테고리 적용 (Vite SPA·Tailwind 전용 항목은 노이즈이므로 보고 안 함) |
+| `"vite"` + `"@tanstack/react-router"` | Vite SPA (TanStack Router) → 번들 분석 + fetchpriority + loader waterfall |
+| `"vite"` + `"react-router"`(v7) | Vite SPA (React Router 7) → 번들 분석 + fetchpriority + **TQ prefetch waterfall**(loader 아님) |
+| `"tailwindcss"` 있음 (직교) | + Tailwind 카테고리. **major 로 v3/v4 분기** — v3: `content` 배열 누락 / v4: `@source`·content 자동감지·`@apply`+`@reference` |
 
 ---
 
@@ -67,9 +68,10 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 
 | 카테고리 | 핵심 확인 항목 | 영향도 |
 |---------|------------|-------|
-| content/purge | `tailwind.config.*` 의 `content` 가 사용처를 누락 → 사용된 클래스가 purge | High |
-| 변수 보간 클래스 | `` `bg-${color}-500` `` 패턴 → purge 후 누락 → safelist 또는 정적 매핑 필요 | High |
-| `@apply` 과다 | 컴포넌트 내부 1회성 스타일에 `@apply` 남용 → 별도 CSS 번들 증가 | Med |
+| content/purge (v3) | `tailwind.config.*` 의 `content` 가 사용처를 누락 → 사용된 클래스가 purge | High |
+| 소스 감지 (v4) | v4 는 content 자동감지 → 모노레포 외부 패키지가 `@source` 누락 시 클래스 purge | High |
+| 변수 보간 클래스 | `` `bg-${color}-500` `` 패턴 → purge 후 누락 → safelist(v3)/`@source inline`(v4) 또는 정적 매핑 | High |
+| `@apply` 과다 | 1회성 스타일에 `@apply` 남용 → 별도 CSS 번들 증가. **v4 는 유틸 직접 사용 권장**(모듈 CSS 는 `@reference` 필요) | Med |
 | 중복 CSS | Tailwind 사용 중 별도 `.css` 파일에서 동일 속성 재정의 | Med |
 | 미사용 플러그인 | `@tailwindcss/typography` 등 import 후 미사용 → 번들 증가 | Low |
 
@@ -85,7 +87,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 
 | 카테고리 | 핵심 확인 항목 | 영향도 |
 |---------|------------|-------|
-| 라우트 loader | 컴포넌트 마운트 후 fetch (loader 미사용으로 waterfall) | High |
+| 데이터 prefetch | TanStack Router: 라우트 loader 미사용 waterfall / **RR7: 데이터는 TQ — loader fetch 대신 라우트 진입 시 `queryClient.prefetchQuery` 로 waterfall 방지** | High |
 | LCP 이미지 | `fetchpriority="high"` 누락, 정적 `import` 대신 `/public` 하드코딩 | High |
 | Zustand 구독 | 스토어 전체 구독 → 셀렉터 미사용으로 리렌더링 | Med |
 | 번들 분석 | `vite build --report` 기준 청크 사이즈 과다, manualChunks 미설정 | Med |
@@ -149,13 +151,15 @@ Grep: "<img |<Image"
 Grep: "next/font|@next/font"
 
 # Vite SPA
-Grep: "loader:|loader =" (라우트 loader 미사용 감지)
+Grep: "loader:|loader =" (TanStack Router: 미사용 waterfall / RR7: loader 내 데이터 fetch = 위반 신호)
 Grep: "useStore\(\)" (셀렉터 없는 전체 구독)
 Grep: "fetchpriority"
 
-# Tailwind (감지 시)
-Read: tailwind.config.* → content 경로 ↔ 실제 소스 트리 대조
-Grep: "@apply" (남용 후보)
+# Tailwind (감지 시) — 먼저 tailwindcss major 로 v3/v4 판별
+# v3: Read tailwind.config.* → content 경로 ↔ 소스 트리 대조
+# v4: Read 진입 CSS(@import "tailwindcss") → @source 누락·@theme 토큰 확인 (config 없을 수 있음)
+Grep: "@apply" (남용 후보 — v4 모듈 CSS 는 @reference 동반 여부도)
+Grep: "@tailwind (base|components|utilities)" (v4 인데 v3 디렉티브 잔존)
 Grep: "className=\{`.*\$\{.*\}.*`\}" (변수 보간 클래스 — purge 위험)
 ```
 

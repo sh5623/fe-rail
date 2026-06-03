@@ -57,6 +57,7 @@ maxTurns: 30
 | 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음 | 공통 |
 | 무거운 import | barrel export, 사용하지 않는 import | 공통 |
 | Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
+| RR7 데이터 소유 위반 | `react-router` `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7) |
 | RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
 
 ### 접근성 (a11y)
@@ -79,6 +80,8 @@ maxTurns: 30
 | Tailwind 변수 보간 클래스 | `` `bg-${color}-500` `` — JIT 미감지로 purge | Tailwind |
 | 인라인 style + Tailwind 혼용 | `style={{...}}` 과 className 병용 — 우선순위 추적 불가 | Tailwind |
 | 긴 className 직접 조합 | `cn()` (clsx + tailwind-merge) 미사용 — 충돌 시 불명확 | Tailwind |
+| Tailwind v4 구식 유틸 | `bg-gradient-to-*`(→`bg-linear-to-*`), `outline-none`(→`outline-hidden`), `flex-shrink-*`/`flex-grow-*`(→`shrink-*`/`grow-*`), `shadow`·`rounded` 스케일 이동 | Tailwind v4 |
+| Tailwind v4 진입 디렉티브 | `@tailwind base/components/utilities` 사용 — v4 는 `@import "tailwindcss"` (CSS 진입점 한정) | Tailwind v4 |
 | shadcn 컴포넌트 직접 수정 | `components/ui/*` 소스 변경 — 업그레이드 불가, 래핑으로 대체 | shadcn |
 
 ---
@@ -90,7 +93,7 @@ maxTurns: 30
 | 코드 직접 수정 | READ-ONLY 리뷰 에이전트 |
 | 변경 없는 파일 리뷰 | 범위 외 지적은 노이즈 |
 | 추측 표현 ("아마도", "~일 수 있음") | 근거 없는 지적 금지 |
-| Prettier 스타일 지적 | 포맷팅은 lint-fix.sh가 처리 |
+| 포맷/스타일 지적 (Prettier·Biome) | 포맷팅은 lint-fix.sh가 처리 |
 | 이모지 사용 | 리뷰 보고서에 이모지 금지 |
 
 </forbidden>

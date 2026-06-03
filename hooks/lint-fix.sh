@@ -1,7 +1,10 @@
 #!/bin/bash
 # [fe-rail] lint-fix.sh — PostToolUse:Edit|Write|MultiEdit
-# ESLint --fix 후 Prettier --write 자동 적용. 차단 없음(exit 0).
-# tsc는 quality-gate.sh(Stop)에서 한 번만 실행하여 중복 방지.
+# 소비자 환경을 감지해 Biome 또는 ESLint(+Prettier) 로 자동 정리한다. 차단 없음(exit 0).
+#   - Biome  : biome check --write (lint + format 통합)
+#   - ESLint : eslint --fix
+#   - Prettier: prettier --write (Biome 미감지 시에만 — 이중 포맷 충돌 방지)
+# tsc 는 quality-gate.sh(Stop)에서 한 번만 실행하여 중복 방지.
 
 # 파일 경로 추출
 FILE_PATH="${TOOL_INPUT_FILE_PATH}"
@@ -22,45 +25,34 @@ esac
 # 프로젝트 루트 탐색
 PROJECT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# ── ESLint ──────────────────────────────────────────────────────────────────
-ESLINT_BIN=""
-if [ -x "$PROJECT_ROOT/node_modules/.bin/eslint" ]; then
-  ESLINT_BIN="$PROJECT_ROOT/node_modules/.bin/eslint"
-elif command -v npx >/dev/null 2>&1; then
-  # config 파일이 하나라도 있으면 npx 사용
-  for cfg in .eslintrc.js .eslintrc.json .eslintrc.cjs .eslintrc.yml .eslintrc.yaml \
-             eslint.config.js eslint.config.mjs eslint.config.ts; do
-    if [ -f "$PROJECT_ROOT/$cfg" ]; then
-      ESLINT_BIN="npx eslint"
-      break
-    fi
-  done
+# 공유 감지·실행 로직 로드
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+[ -f "$LIB_DIR/scripts/lint-lib.sh" ] && . "$LIB_DIR/scripts/lint-lib.sh"
+
+# ── Biome (lint + format 통합) ───────────────────────────────────────────────
+# --write 로 safe fix + format 적용. 남은 진단은 종료코드(0=clean)로 판별.
+# biome check 는 성공 시에도 요약 줄을 출력하므로 출력 유무가 아닌 종료코드로 게이트.
+if fe_has_biome "$PROJECT_ROOT"; then
+  fe_run_biome "$PROJECT_ROOT" check --write --no-errors-on-unmatched "$FILE_PATH" >/dev/null 2>&1
+  REMAINING=$(fe_run_biome "$PROJECT_ROOT" check --no-errors-on-unmatched "$FILE_PATH" 2>&1)
+  RC=$?
+  if [ "$RC" -ne 0 ] && [ -n "$REMAINING" ]; then
+    echo "[fe-rail][biome] $REMAINING" | head -10 >&2
+  fi
 fi
 
-if [ -n "$ESLINT_BIN" ]; then
-  $ESLINT_BIN --fix --quiet "$FILE_PATH" 2>/dev/null
-  REMAINING=$($ESLINT_BIN --quiet "$FILE_PATH" 2>&1)
+# ── ESLint ──────────────────────────────────────────────────────────────────
+if fe_has_eslint "$PROJECT_ROOT"; then
+  fe_run_eslint "$PROJECT_ROOT" --fix --quiet "$FILE_PATH" 2>/dev/null
+  REMAINING=$(fe_run_eslint "$PROJECT_ROOT" --quiet "$FILE_PATH" 2>&1)
   if [ -n "$REMAINING" ]; then
     echo "[fe-rail][eslint] $REMAINING" | head -10 >&2
   fi
 fi
 
-# ── Prettier ────────────────────────────────────────────────────────────────
-PRETTIER_BIN=""
-if [ -x "$PROJECT_ROOT/node_modules/.bin/prettier" ]; then
-  PRETTIER_BIN="$PROJECT_ROOT/node_modules/.bin/prettier"
-elif command -v npx >/dev/null 2>&1; then
-  for cfg in .prettierrc .prettierrc.js .prettierrc.json .prettierrc.yml \
-             prettier.config.js prettier.config.cjs; do
-    if [ -f "$PROJECT_ROOT/$cfg" ]; then
-      PRETTIER_BIN="npx prettier"
-      break
-    fi
-  done
-fi
-
-if [ -n "$PRETTIER_BIN" ]; then
-  $PRETTIER_BIN --write --log-level=silent "$FILE_PATH" 2>/dev/null
+# ── Prettier (Biome 미감지 시에만) ───────────────────────────────────────────
+if fe_has_prettier "$PROJECT_ROOT" && ! fe_has_biome "$PROJECT_ROOT"; then
+  fe_run_prettier "$PROJECT_ROOT" --write --log-level=silent "$FILE_PATH" 2>/dev/null
 fi
 
 exit 0
