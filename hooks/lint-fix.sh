@@ -25,23 +25,16 @@ esac
 # 프로젝트 루트 탐색
 PROJECT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# 공유 감지 로직 로드
+# 공유 감지·실행 로직 로드
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 [ -f "$LIB_DIR/scripts/lint-lib.sh" ] && . "$LIB_DIR/scripts/lint-lib.sh"
 
-BIOME=""; ESLINT=""; PRETTIER=""
-if command -v fe_detect_biome >/dev/null 2>&1; then
-  BIOME=$(fe_detect_biome "$PROJECT_ROOT")
-  ESLINT=$(fe_detect_eslint "$PROJECT_ROOT")
-  PRETTIER=$(fe_detect_prettier "$PROJECT_ROOT")
-fi
-
 # ── Biome (lint + format 통합) ───────────────────────────────────────────────
-# --write 로 safe fix + format 적용 후, 남은 진단을 종료코드(0=clean)로 판별한다.
+# --write 로 safe fix + format 적용. 남은 진단은 종료코드(0=clean)로 판별.
 # biome check 는 성공 시에도 요약 줄을 출력하므로 출력 유무가 아닌 종료코드로 게이트.
-if [ -n "$BIOME" ]; then
-  $BIOME check --write --no-errors-on-unmatched "$FILE_PATH" >/dev/null 2>&1
-  REMAINING=$($BIOME check --no-errors-on-unmatched "$FILE_PATH" 2>&1)
+if fe_has_biome "$PROJECT_ROOT"; then
+  fe_run_biome "$PROJECT_ROOT" check --write --no-errors-on-unmatched "$FILE_PATH" >/dev/null 2>&1
+  REMAINING=$(fe_run_biome "$PROJECT_ROOT" check --no-errors-on-unmatched "$FILE_PATH" 2>&1)
   RC=$?
   if [ "$RC" -ne 0 ] && [ -n "$REMAINING" ]; then
     echo "[fe-rail][biome] $REMAINING" | head -10 >&2
@@ -49,17 +42,17 @@ if [ -n "$BIOME" ]; then
 fi
 
 # ── ESLint ──────────────────────────────────────────────────────────────────
-if [ -n "$ESLINT" ]; then
-  $ESLINT --fix --quiet "$FILE_PATH" 2>/dev/null
-  REMAINING=$($ESLINT --quiet "$FILE_PATH" 2>&1)
+if fe_has_eslint "$PROJECT_ROOT"; then
+  fe_run_eslint "$PROJECT_ROOT" --fix --quiet "$FILE_PATH" 2>/dev/null
+  REMAINING=$(fe_run_eslint "$PROJECT_ROOT" --quiet "$FILE_PATH" 2>&1)
   if [ -n "$REMAINING" ]; then
     echo "[fe-rail][eslint] $REMAINING" | head -10 >&2
   fi
 fi
 
 # ── Prettier (Biome 미감지 시에만) ───────────────────────────────────────────
-if [ -n "$PRETTIER" ] && [ -z "$BIOME" ]; then
-  $PRETTIER --write --log-level=silent "$FILE_PATH" 2>/dev/null
+if fe_has_prettier "$PROJECT_ROOT" && ! fe_has_biome "$PROJECT_ROOT"; then
+  fe_run_prettier "$PROJECT_ROOT" --write --log-level=silent "$FILE_PATH" 2>/dev/null
 fi
 
 exit 0

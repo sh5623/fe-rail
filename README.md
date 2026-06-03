@@ -1,7 +1,7 @@
 # fe-rail
 
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
-> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA + TypeScript, Tailwind / shadcn/ui 정식 지원.
+> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA(TanStack Router·React Router 7) + TypeScript, Tailwind v3/v4 / shadcn/ui 정식 지원.
 
 ## 설치
 
@@ -53,7 +53,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
 | `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (출처 URL 필수) | sonnet | 도구 (WebSearch/WebFetch) |
-| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(라우트·Zustand) + Tailwind/shadcn (직교 감지) | opus | 책임 (read-only) |
+| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn (직교 감지) | opus | 책임 (read-only) |
 
 ### build 단계
 | Agent | 위임 시점 | 모델 | 격리 |
@@ -67,7 +67,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질, Tailwind 안티패턴 포함) | opus | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast — Tailwind 팔레트 기준 포함) | sonnet | 책임 (read-only) |
-| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(loader waterfall·fetchpriority·번들) / Tailwind(purge·@apply) | sonnet | 책임 (read-only) |
+| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply) | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
 | `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | opus | 책임 (read-only) |
 
