@@ -49,7 +49,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 ## Test plan
 - [ ] 단위 테스트 통과 (vitest/jest)
 - [ ] 타입 체크 통과 (tsc --noEmit)
-- [ ] 린트 통과 (eslint)
+- [ ] 린트 통과 (eslint/biome)
 - [ ] 기능 동작 확인: <구체적 시나리오>
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -138,7 +138,7 @@ gh pr create \
 ## Test plan
 - [ ] 단위 테스트 통과 (vitest)
 - [ ] 타입 체크 통과 (tsc --noEmit)
-- [ ] 린트 통과 (eslint)
+- [ ] 린트 통과 (eslint/biome)
 - [ ] 375px/768px/1280px 반응형 확인
 - [ ] 키보드 탐색 및 스크린 리더 확인
 

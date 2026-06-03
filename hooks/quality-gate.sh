@@ -1,6 +1,7 @@
 #!/bin/bash
 # [fe-rail] quality-gate.sh — Stop
-# 응답 종료 전 변경 파일에 ESLint + tsc --noEmit 일괄 실행. 차단 없음(exit 0).
+# 응답 종료 전 변경 파일에 린터(Biome 또는 ESLint) + tsc --noEmit 일괄 실행. 차단 없음(exit 0).
+# 소비자 환경을 감지해 설치된 도구만 돌린다. Biome·ESLint 가 모두 있으면 둘 다 실행.
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
@@ -14,24 +15,30 @@ CHANGED_FILES=$(
 
 [ -z "$CHANGED_FILES" ] && exit 0
 
-OUTPUT=""
+# 공유 감지 로직 로드
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+[ -f "$LIB_DIR/scripts/lint-lib.sh" ] && . "$LIB_DIR/scripts/lint-lib.sh"
 
-# ── ESLint ──────────────────────────────────────────────────────────────────
-ESLINT_BIN=""
-if [ -x "$PROJECT_ROOT/node_modules/.bin/eslint" ]; then
-  ESLINT_BIN="$PROJECT_ROOT/node_modules/.bin/eslint"
-elif command -v npx >/dev/null 2>&1; then
-  for cfg in .eslintrc.js .eslintrc.json .eslintrc.cjs .eslintrc.yml .eslintrc.yaml \
-             eslint.config.js eslint.config.mjs eslint.config.ts; do
-    if [ -f "$PROJECT_ROOT/$cfg" ]; then
-      ESLINT_BIN="npx eslint"
-      break
-    fi
-  done
+BIOME=""; ESLINT=""
+if command -v fe_detect_biome >/dev/null 2>&1; then
+  BIOME=$(fe_detect_biome "$PROJECT_ROOT")
+  ESLINT=$(fe_detect_eslint "$PROJECT_ROOT")
 fi
 
-if [ -n "$ESLINT_BIN" ]; then
-  LINT_OUT=$(echo "$CHANGED_FILES" | xargs $ESLINT_BIN --quiet 2>&1)
+OUTPUT=""
+
+# ── Biome ───────────────────────────────────────────────────────────────────
+# biome check 는 clean 일 때도 요약을 출력하므로 종료코드로 게이트한다.
+if [ -n "$BIOME" ]; then
+  BIOME_OUT=$(echo "$CHANGED_FILES" | xargs $BIOME check --no-errors-on-unmatched 2>&1)
+  if [ $? -ne 0 ] && [ -n "$BIOME_OUT" ]; then
+    OUTPUT="${OUTPUT}[Biome]\n${BIOME_OUT}\n"
+  fi
+fi
+
+# ── ESLint ──────────────────────────────────────────────────────────────────
+if [ -n "$ESLINT" ]; then
+  LINT_OUT=$(echo "$CHANGED_FILES" | xargs $ESLINT --quiet 2>&1)
   if [ -n "$LINT_OUT" ]; then
     OUTPUT="${OUTPUT}[ESLint]\n${LINT_OUT}\n"
   fi

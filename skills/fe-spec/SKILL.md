@@ -62,7 +62,7 @@ allowed-tools:
 
 ## 완료 기준 (Acceptance Criteria)
 - [ ] TypeScript 타입 에러 0개
-- [ ] ESLint 경고 0개
+- [ ] 린터(ESLint/Biome) 경고 0개
 - [ ] Vitest 테스트 통과
 - [ ] 반응형: 모바일(375px) / 태블릿(768px) / 데스크탑(1280px)
 - [ ] 접근성: 키보드 네비게이션, aria-label 적용

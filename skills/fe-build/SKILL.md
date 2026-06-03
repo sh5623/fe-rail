@@ -35,7 +35,7 @@ allowed-tools:
 |------|-------------|
 | 3쿼리 이상의 파일·심볼 탐색 필요 | `fe-explorer` — 요약만 반환, 컨텍스트 보호 |
 | 테스트 코드 생성 (BDD/TDD) | `fe-test-author` — 시나리오 도출 + 파일 작성 |
-| tsc·eslint 오류 수정 | `fe-build-fixer` — 최소 diff 오류 제거 |
+| tsc·린터(ESLint/Biome) 오류 수정 | `fe-build-fixer` — 최소 diff 오류 제거 |
 
 ### Phase 2 — 구현 순서
 반드시 이 순서를 지킵니다:
@@ -104,7 +104,7 @@ function CampaignList() {
 구현 완료 후 반드시 실행:
 ```bash
 pnpm tsc --noEmit          # 타입 에러 확인
-pnpm lint                   # ESLint 확인
+pnpm lint                   # 린트 확인 (ESLint 또는 Biome)
 pnpm test --run             # 테스트 실행
 ```
 
