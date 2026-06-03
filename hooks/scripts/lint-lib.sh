@@ -13,6 +13,8 @@
 # 설계 원칙:
 #   - 바이너리 경로를 문자열 변수에 담아 비인용 실행($BIN cmd) 하지 않는다.
 #     fe_run_xxx 함수 내부에서 "quoted path" 로 exec 하므로 경로 공백에 안전.
+#   - fe_run_xxx 는 subshell 에서 project root 로 cd 후 실행한다.
+#     ESLint v9 flat config 등 CWD 기준으로 설정 파일을 탐색하는 도구에 필요.
 #   - config 파일이 없는 도구는 감지 실패 → 설정 없는 린터 "no config" 오류 방지.
 #   - 로컬 바이너리(node_modules/.bin) 우선, 없으면 npx fallback.
 #   - Biome 감지 시 Prettier 는 호출부에서 skip(이중 포맷 충돌 방지).
@@ -30,11 +32,13 @@ fe_has_biome() {
 
 fe_run_biome() {
   local root="$1"; shift
-  if [ -x "$root/node_modules/.bin/biome" ]; then
-    "$root/node_modules/.bin/biome" "$@"
-  else
-    npx @biomejs/biome "$@"
-  fi
+  ( cd "$root" && \
+    if [ -x "$root/node_modules/.bin/biome" ]; then
+      "$root/node_modules/.bin/biome" "$@"
+    else
+      npx @biomejs/biome "$@"
+    fi
+  )
 }
 
 # ── ESLint ─────────────────────────────────────────────────────────────────
@@ -51,11 +55,13 @@ fe_has_eslint() {
 
 fe_run_eslint() {
   local root="$1"; shift
-  if [ -x "$root/node_modules/.bin/eslint" ]; then
-    "$root/node_modules/.bin/eslint" "$@"
-  else
-    npx eslint "$@"
-  fi
+  ( cd "$root" && \
+    if [ -x "$root/node_modules/.bin/eslint" ]; then
+      "$root/node_modules/.bin/eslint" "$@"
+    else
+      npx eslint "$@"
+    fi
+  )
 }
 
 # ── Prettier ───────────────────────────────────────────────────────────────
@@ -73,9 +79,11 @@ fe_has_prettier() {
 
 fe_run_prettier() {
   local root="$1"; shift
-  if [ -x "$root/node_modules/.bin/prettier" ]; then
-    "$root/node_modules/.bin/prettier" "$@"
-  else
-    npx prettier "$@"
-  fi
+  ( cd "$root" && \
+    if [ -x "$root/node_modules/.bin/prettier" ]; then
+      "$root/node_modules/.bin/prettier" "$@"
+    else
+      npx prettier "$@"
+    fi
+  )
 }

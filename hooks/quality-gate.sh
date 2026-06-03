@@ -53,11 +53,13 @@ _fe_has_tsc() {
   [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ] || command -v npx >/dev/null 2>&1
 }
 _fe_run_tsc() {
-  if [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ]; then
-    "$PROJECT_ROOT/node_modules/.bin/tsc" "$@"
-  else
-    npx tsc "$@"
-  fi
+  ( cd "$PROJECT_ROOT" && \
+    if [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ]; then
+      "$PROJECT_ROOT/node_modules/.bin/tsc" "$@"
+    else
+      npx tsc "$@"
+    fi
+  )
 }
 
 if _fe_has_tsc; then
