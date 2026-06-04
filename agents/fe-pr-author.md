@@ -79,7 +79,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | 버그 수정 (`fix`) | 🐛 블록 — 증상·원인·해결 |
 | 신규 기능 (`feat`) | ✨ 블록 — 추가·핵심·영향 |
 | 혼합 | 두 블록 모두 |
-| refactor·perf·chore | bullet 요약 + (perf 는 측정값, refactor 는 동작 불변 근거) |
+| refactor·perf·docs·style·test·chore·ci | bullet 요약 + (perf 는 before/after 측정값, refactor 는 동작 불변 근거) |
 
 ---
 

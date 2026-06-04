@@ -8,7 +8,7 @@
     {
       "name": "fe-rail",
       "description": "Frontend 프로젝트 전용 하네스. Next.js/TypeScript 환경 최적화, spec→build→review 사이클 강제, gstack 디자인 품질 기준 내장.",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "category": "engineering",
       "tags": ["frontend", "nextjs", "typescript", "harness", "workflow"],
       "source": {
