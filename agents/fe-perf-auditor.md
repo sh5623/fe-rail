@@ -165,16 +165,16 @@ Grep: "className=\{`.*\$\{.*\}.*`\}" (변수 보간 클래스 — purge 위험)
 
 ### Step 3: (옵션) --with-build
 ```bash
-# 패키지 매니저 감지
-PM="npm"
-[ -f "pnpm-lock.yaml" ] && PM="pnpm"
-[ -f "yarn.lock" ]      && PM="yarn"
-[ -f "bun.lockb" ]      && PM="bun"
+# 패키지 매니저 감지 (PX=바이너리 실행용)
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
 
-# Next.js
-$PM next build 2>&1 | grep -E "Route|Size|First Load"
+# Next.js (next는 바이너리 → $PX)
+$PX next build 2>&1 | grep -E "Route|Size|First Load"
 
-# Vite SPA
+# Vite SPA (build는 npm 스크립트 → $PM run)
 $PM run build 2>&1 | grep -E "chunks|assets|kB"
 ```
 

@@ -148,7 +148,7 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
 ### Step 2: 정적 분석 (병렬)
 ```bash
 # 패키지 매니저 감지
-PM="npm"; [ -f "pnpm-lock.yaml" ] && PM="pnpm"; [ -f "yarn.lock" ] && PM="yarn"; [ -f "bun.lockb" ] && PM="bun"
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
 
 # ESLint a11y 플러그인 실행
 $PM lint --rule 'jsx-a11y/*: error' 2>&1

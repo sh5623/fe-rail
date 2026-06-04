@@ -89,16 +89,16 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 
 ### Step 0: 패키지 매니저 감지
 ```bash
-PM="npm"
-[ -f "pnpm-lock.yaml" ] && PM="pnpm"
-[ -f "yarn.lock" ]      && PM="yarn"
-[ -f "bun.lockb" ]      && PM="bun"
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
 ```
 
 ### Step 1: 병렬 오류 수집
 ```bash
-# 동시 실행
-$PM tsc --noEmit 2>&1
+# 동시 실행 ($PX=바이너리 실행, $PM=스크립트 실행)
+$PX tsc --noEmit 2>&1
 $PM lint 2>&1
 ```
 
@@ -119,7 +119,7 @@ $PM lint 2>&1
 
 ### Step 4: 전체 검증
 ```bash
-$PM tsc --noEmit 2>&1 | grep -c "error"
+$PX tsc --noEmit 2>&1 | grep -c "error"
 $PM lint 2>&1 | grep -c "error"
 ```
 

@@ -147,8 +147,8 @@ Then: 기대 결과 (DOM 변화, API 호출)
 
 ### Step 4: 검증 보고
 ```bash
-# PM 감지 후 실행
-PM="npm"; [ -f "pnpm-lock.yaml" ] && PM="pnpm"; [ -f "yarn.lock" ] && PM="yarn"; [ -f "bun.lockb" ] && PM="bun"
+# PM 감지 후 실행 ($PM test = npm 스크립트)
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
 $PM test --run <파일명> 2>&1 | tail -20
 ```
 

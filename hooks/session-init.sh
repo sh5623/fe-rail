@@ -14,6 +14,7 @@ PLUGIN_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_JS
 
 # 원격 버전 체크 (GitHub, 하루 1회)
 REMOTE_CHECK_CACHE="$HOME/.claude/fe-rail-version-check.cache"
+mkdir -p "$(dirname "$REMOTE_CHECK_CACHE")"
 REMOTE_URL="https://raw.githubusercontent.com/sh5623/fe-rail/main/.claude-plugin/plugin.json"
 
 _is_stale() {
