@@ -28,7 +28,7 @@ claude
 
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
-| `session-init.sh` | SessionStart | 플러그인 버전 체크 + 캐시 동기화 + 새 버전 알림 (GitHub, 하루 1회) | — |
+| `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
