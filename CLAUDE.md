@@ -32,7 +32,7 @@ fe-rail/
 │   ├── fe-perf-auditor.md ← review: 성능 정밀 감사
 │   ├── fe-test-runner.md  ← review: 테스트 실행·분류
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
-│   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
+│   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
 │   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create`
 ├── hooks/
 │   └── hooks.json         ← Pre/PostToolUse·Stop 훅
