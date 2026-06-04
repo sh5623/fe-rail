@@ -32,8 +32,8 @@ fe-rail/
 │   ├── fe-perf-auditor.md ← review: 성능 정밀 감사
 │   ├── fe-test-runner.md  ← review: 테스트 실행·분류
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
-│   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징
-│   └── fe-pr-author.md    ← PR: PR 본문 작성·생성
+│   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
+│   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create`
 ├── hooks/
 │   └── hooks.json         ← Pre/PostToolUse·Stop 훅
 ├── skills/
@@ -191,10 +191,10 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 ### 검증 명령어
 
 ```bash
-# 프로젝트 루트 또는 앱 디렉토리에서 실행
-pnpm tsc --noEmit    # 타입 에러
-pnpm lint            # 린트 (ESLint 또는 Biome — 프로젝트 설정에 따라)
-pnpm test --run      # 테스트
+# 프로젝트 루트 또는 앱 디렉토리에서 실행 (패키지 매니저 자동 감지)
+npx tsc --noEmit          # 타입 에러 (npm 환경) / pnpm tsc --noEmit (pnpm 환경)
+npm run lint              # 린트 (ESLint 또는 Biome — 프로젝트 설정에 따라)
+npm test -- --run         # 테스트 (vitest 기준)
 ```
 
 ---
