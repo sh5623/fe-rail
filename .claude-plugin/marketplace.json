@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "fe-rail",
-      "description": "Frontend 프로젝트 전용 하네스. Next.js/TypeScript 환경 최적화, spec→build→review 사이클 강제, gstack 디자인 품질 기준 내장.",
+      "description": "Frontend 프로젝트 전용 하네스. Next.js App Router / Vite SPA + TypeScript, Tailwind v3/v4, shadcn/ui 지원. spec→build→review→PR 사이클 자동화.",
       "version": "1.5.2",
       "category": "engineering",
       "tags": ["frontend", "nextjs", "typescript", "harness", "workflow"],
