@@ -1,6 +1,6 @@
 ---
 name: fe-git-operator
-description: git 작업 전담 — 커밋 분리·메시지 규칙·안전한 스테이징. fe-pr-author가 PR을, 이 agent가 커밋을 책임. 파괴 명령 금지.
+description: git 작업 전담 — 커밋 분리·안전한 스테이징 + Conventional Commits 본문 작성(fix=증상·원인·해결 / feat=추가·핵심·영향). fe-pr-author가 PR을, 이 agent가 커밋을 책임. 파괴 명령 금지.
 tools: Read, Grep, Glob, Bash
 disallowedTools:
   - Write
@@ -51,20 +51,24 @@ PM="npm"; PX="npx"
 
 > `$PX` — 바이너리 직접 실행 (`tsc` 등) / `$PM` — npm 스크립트 실행 (`lint` 등)
 
-## 커밋 메시지 형식
+## 커밋 메시지 형식 (Conventional Commits)
 
 ```
-{type}: {제목}
+<type>(<scope>)?: <제목>      ← 50자 권장 / 72자 한도, 명령형, 마침표 없음
 
-{본문 — 5개 파일 이상 시 권장}
+<본문>                        ← 한 줄 띄우고 시작, 72자에서 줄바꿈, "무엇을·왜" 설명
+
+<푸터>                        ← (선택) BREAKING CHANGE / Closes #N
 ```
 
 | 규칙 | 설명 |
 |------|------|
 | type 화이트리스트 | `feat` / `fix` / `refactor` / `style` / `docs` / `test` / `chore` / `perf` / `ci` |
-| scope | 사용하지 않음 |
-| 제목 | 마침표 없음, 명령형 동사 (한국어 가능) |
-| 본문 | 5개 파일 이상이면 변경 내용 bullet 추가 |
+| 제목 길이 | 50자 권장, 72자 한도 |
+| 제목 형식 | 명령형 동사("추가"·"수정"), 마침표 없음, 한국어 가능 |
+| scope | 선택 — 모노레포·범위 명확화에 한해 사용 (예: `fix(auth):`) |
+| 본문 | `fix`·`feat`·`perf`·breaking 은 **필수**, 그 외 자명한 변경은 생략 가능 — "무엇을·왜"를 쓰고 "어떻게"는 코드에 맡긴다 |
+| 푸터 | 호환성 깨짐 → `BREAKING CHANGE: <설명>` / 이슈 연결 → `Closes #N` |
 
 ---
 
@@ -81,6 +85,57 @@ PM="npm"; PX="npx"
 | `chore` | 설정, 의존성, 빌드 관련 |
 | `perf` | 성능 개선 |
 | `ci` | CI/CD 설정 |
+
+---
+
+## 본문 작성 — type별 필수 내용
+
+> **핵심 원칙**: 버그는 "왜 틀렸고 어떻게 고쳤는지", 기능은 "무엇이 생겼고 어떻게 동작하는지"를 본문이 스스로 설명한다. 6개월 뒤 이 커밋만 보고도 맥락이 복원돼야 한다. 추측·일반론 금지 — 실제 diff에 근거해 작성한다.
+
+### fix — 버그 수정 (증상 → 원인 → 해결)
+
+```
+fix: 토큰 만료 시 무한 리다이렉트 루프 제거
+
+증상: 액세스 토큰 만료 후 /login 진입 시 리다이렉트가 무한 반복돼
+      페이지가 멈춤 (콘솔 ERR_TOO_MANY_REDIRECTS).
+원인: axios 응답 인터셉터가 401 을 받으면 /login 으로 보내는데,
+      /login 의 prefetch 요청도 401 을 반환해 같은 인터셉터가
+      재귀적으로 발동 — 예외 가드가 없었음.
+해결: 인터셉터에 `config.url === '/login'` 예외를 추가하고,
+      _retry 플래그로 토큰 재발급을 1회만 허용하도록 변경.
+```
+
+| 본문 항목 | 내용 |
+|----------|------|
+| **증상** | 사용자/시스템이 관측한 잘못된 동작 — 에러 메시지·재현 조건 포함 |
+| **원인** | 코드·로직상 실제 근본 원인 (어느 파일·어떤 조건에서 발생했는지) |
+| **해결** | 무엇을 어떻게 바꿔 원인을 제거했는지 + 필요 시 부작용 없음 근거 |
+
+### feat — 신규 기능 (무엇을 → 핵심 동작 → 영향)
+
+```
+feat: 종목 검색 자동완성 추가
+
+추가: 종목 검색 input 에 디바운스 자동완성 드롭다운 신설.
+핵심: TanStack Query 로 `/search?q=` 를 300ms 디바운스 호출,
+      keyboard(↑/↓/Enter) 탐색과 ARIA combobox 패턴 적용.
+      결과는 staleTime 60s 로 캐시해 동일 쿼리 재요청 방지.
+영향: 기존 SearchableStockChart 가 이 컴포넌트를 소비하도록 교체.
+      새 의존성 없음.
+```
+
+| 본문 항목 | 내용 |
+|----------|------|
+| **추가** | 어떤 기능·컴포넌트·엔드포인트가 새로 생겼는가 |
+| **핵심** | 동작 방식·주요 설계 결정 (상태/데이터 흐름·접근성·성능 고려) |
+| **영향** | 기존 코드와의 연결, 새 의존성·마이그레이션·breaking 여부 |
+
+### 기타 type
+
+`refactor`·`docs`·`chore` 등은 1–3줄 bullet 로 충분. 단:
+- `perf` — **측정값**(before/after 수치)을 본문에 명시
+- `refactor` — **동작 불변 보장 근거**(테스트 통과·동일 출력)를 한 줄 덧붙임
 
 ---
 
@@ -112,6 +167,8 @@ PM="npm"; PX="npx"
 | clean 확인 | 커밋 후 `git status` clean 여부 |
 | HEREDOC 사용 | 커밋 메시지에 `$(cat <<'EOF' ... EOF)` 형태 |
 | type 다르면 별도 커밋 | `feat`와 `test`는 분리 |
+| type별 본문 | `fix`는 증상·원인·해결 / `feat`는 추가·핵심·영향 — diff 근거로 작성 (위 "본문 작성" 참조) |
+| 근거 기반 | 본문 내용은 실제 변경 파일·diff에서 확인 가능한 사실만 — 추측 금지 |
 
 </required>
 
@@ -152,22 +209,37 @@ $PM lint 2>&1 | grep -c "error" || echo "0"
 ```
 
 ### Step 4: 그룹별 커밋 (HEREDOC)
+
+먼저 변경 성격(fix/feat/…)을 판단하고, 위 "본문 작성" 규칙에 맞춰 본문을 채운다.
+
 ```bash
-# 예시
+# feat 예시 — 추가·핵심·영향
 git add src/components/ProductCard.tsx src/hooks/useProducts.ts
 git commit -m "$(cat <<'EOF'
 feat: 상품 카드 컴포넌트 및 데이터 훅 추가
 
-- ProductCard: 이미지·가격·좋아요 표시
-- useProducts: TanStack Query 기반 데이터 fetching
+추가: 상품 목록용 ProductCard 컴포넌트와 useProducts 훅 신설.
+핵심: useProducts 는 TanStack Query 로 상품 목록을 fetch·캐시하고,
+      ProductCard 는 이미지(lazy)·가격·좋아요만 렌더하는 표현 전용.
+영향: 기존 div 기반 목록 마크업을 대체. 새 의존성 없음.
 EOF
 )"
 
-git add src/components/ProductCard.test.tsx
+# fix 예시 — 증상·원인·해결
+git add src/lib/api-client.ts
 git commit -m "$(cat <<'EOF'
-test: ProductCard 컴포넌트 테스트 추가
+fix: 좋아요 토글 시 목록 전체가 리렌더되는 문제 수정
+
+증상: 카드 하나의 좋아요를 누르면 목록 전체가 깜빡이며 리렌더됨.
+원인: useProducts 가 매 렌더마다 새 onToggle 함수를 생성해
+      모든 ProductCard 의 memo 가 무효화됨.
+해결: onToggle 을 useCallback 으로 감싸 참조를 고정.
 EOF
 )"
+
+# test 는 별도 커밋 (자명 → 본문 생략 가능)
+git add src/components/ProductCard.test.tsx
+git commit -m "test: ProductCard 컴포넌트 테스트 추가"
 ```
 
 ### Step 5: clean 확인
@@ -190,10 +262,11 @@ git log --oneline -3
 - 새 파일: N개
 
 ### 생성된 커밋
-| 순서 | SHA (앞 7자) | type | 제목 | 파일 수 |
-|------|------------|------|------|-------|
-| 1 | `a1b2c3d` | feat | 상품 카드 컴포넌트 추가 | 2 |
-| 2 | `e4f5g6h` | test | ProductCard 테스트 추가 | 1 |
+| 순서 | SHA (앞 7자) | type | 제목 | 본문 | 파일 수 |
+|------|------------|------|------|------|-------|
+| 1 | `a1b2c3d` | feat | 상품 카드 컴포넌트 추가 | 추가·핵심·영향 | 2 |
+| 2 | `e4f5g6h` | fix | 좋아요 토글 리렌더 수정 | 증상·원인·해결 | 1 |
+| 3 | `i7j8k9l` | test | ProductCard 테스트 추가 | (생략) | 1 |
 
 ### 종료 상태
 - working tree: clean ✓

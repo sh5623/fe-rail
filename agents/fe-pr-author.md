@@ -1,6 +1,6 @@
 ---
 name: fe-pr-author
-description: 커밋·diff·spec을 종합해 PR 본문 작성 + `gh pr create` 실행. fe-review 통과 후 PR 단계에서 위임하면 메인 세션은 PR URL만 받음.
+description: 커밋·diff·spec을 종합해 PR 본문 작성(fix=증상·원인·해결 / feat=추가·핵심·영향 블록) + `gh pr create` 실행. fe-review 통과 후 PR 단계에서 위임하면 메인 세션은 PR URL만 받음.
 tools: Read, Bash
 disallowedTools:
   - Write
@@ -41,19 +41,45 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 
 ## PR 본문 구조
 
-```markdown
-## Summary
-- <변경 이유 1 — "왜">
-- <변경 이유 2>
+> **원칙**: 리뷰어가 **diff 를 열기 전에** "왜 필요하고, 무엇이 바뀌었고, 어떻게 검증했는지"를 파악하게 한다. 섹션은 6개 이내로 유지하고, 해당 없는 섹션은 생략한다. 모든 내용은 커밋·diff 에서 확인 가능한 사실에 근거한다.
 
-## Test plan
-- [ ] 단위 테스트 통과 (vitest/jest)
+```markdown
+## 요약
+- <이 PR 이 왜 필요한가 — 한두 줄, "왜" 중심>
+
+## 변경 사항
+<!-- PR 성격에 맞는 블록을 사용. 버그·기능이 섞였으면 둘 다 작성 -->
+
+### 🐛 버그 수정
+- **증상**: <관측된 잘못된 동작 + 재현 조건>
+- **원인**: <근본 원인 — 어디서·무엇 때문에>
+- **해결**: <무엇을 어떻게 바꿔 고쳤는가>
+
+### ✨ 신규 기능
+- **추가**: <새로 생긴 기능·화면·API>
+- **핵심**: <동작 방식·주요 설계 결정·데이터 흐름>
+- **영향**: <기존 코드 연결·새 의존성·마이그레이션>
+
+## 테스트
 - [ ] 타입 체크 통과 (tsc --noEmit)
 - [ ] 린트 통과 (eslint/biome)
-- [ ] 기능 동작 확인: <구체적 시나리오>
+- [ ] 단위 테스트 통과 (vitest/jest)
+- [ ] <기능별 수동 검증 — 30초 내 확인 가능하도록 구체적으로>
+
+## 영향도 / 주의 (선택)
+- <breaking change · 환경변수 추가 · 마이그레이션 · 롤백 방법>
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
+
+### PR 성격별 필수 블록
+
+| PR 성격 | `## 변경 사항` 에 반드시 포함 |
+|---------|---------------------------|
+| 버그 수정 (`fix`) | 🐛 블록 — 증상·원인·해결 |
+| 신규 기능 (`feat`) | ✨ 블록 — 추가·핵심·영향 |
+| 혼합 | 두 블록 모두 |
+| refactor·perf·chore | bullet 요약 + (perf 는 측정값, refactor 는 동작 불변 근거) |
 
 ---
 
@@ -90,6 +116,9 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | 사전 점검 병렬 | status + diff + log + remote 동시 확인 |
 | 컨벤션 학습 | `gh pr list --limit 5`로 기존 PR 제목 패턴 파악 |
 | HEREDOC 본문 | `gh pr create --body "$(cat <<'EOF' ... EOF)"` |
+| 성격별 블록 | `fix`는 증상·원인·해결 / `feat`는 추가·핵심·영향 (위 "PR 성격별 필수 블록") |
+| 커밋 종합 | `git log main...HEAD` 로 포함된 모든 커밋의 type·본문을 읽어 변경 사항 블록에 반영 |
+| 근거 기반 | 본문은 커밋·diff 에서 확인되는 사실만 — 추측·과장 금지 |
 | draft 임계치 | 500줄 기준 자동 적용 |
 | PR URL 반환 | 마지막에 반드시 URL 출력 |
 
@@ -112,15 +141,18 @@ gh pr list --limit 5 --json title,url
 ### Step 2: 컨텍스트 수집
 ```bash
 # feature.md 읽기 (있는 경우)
+# 포함된 커밋의 type·본문 종합 — 변경 사항 블록의 근거
+git log main...HEAD --format='%s%n%b'
 # 변경 규모 계산
 git diff main...HEAD --shortstat
 ```
 
 ### Step 3: PR 본문 초안
 ```
-제목: type: <기능명> (70자 이내)
-Summary: 변경 이유 중심 (diff가 아닌 WHY)
-Test plan: 검증 체크리스트
+제목: type: <요지> (70자 이내)
+요약: 변경 이유 중심 ("왜")
+변경 사항: PR 성격별 블록 — fix면 증상·원인·해결 / feat면 추가·핵심·영향
+테스트: 30초 내 검증 가능한 구체적 체크리스트
 ```
 
 ### Step 4: 푸시 + PR 생성
@@ -128,19 +160,33 @@ Test plan: 검증 체크리스트
 # 이미 push 안 된 경우에만
 git push origin HEAD
 
+# 예시 — 기능 + 버그 수정이 함께 든 PR
 gh pr create \
   --title "feat: 상품 카드 컴포넌트 추가" \
   --body "$(cat <<'EOF'
-## Summary
-- 상품 목록 페이지에서 카드 형태 UI 표준화를 위해 추가
-- 기존 div 기반 마크업을 접근성 준수 구조로 교체
+## 요약
+- 상품 목록 UI 를 카드 형태로 표준화하고, 그 과정에서 발견한
+  좋아요 토글 리렌더 버그를 함께 수정
 
-## Test plan
-- [ ] 단위 테스트 통과 (vitest)
+## 변경 사항
+
+### ✨ 신규 기능
+- **추가**: 상품 목록용 ProductCard 컴포넌트 + useProducts 훅
+- **핵심**: useProducts 가 TanStack Query 로 목록을 fetch·캐시,
+  ProductCard 는 이미지(lazy)·가격·좋아요만 렌더하는 표현 전용
+- **영향**: 기존 div 기반 마크업 대체. 새 의존성 없음
+
+### 🐛 버그 수정
+- **증상**: 카드 하나의 좋아요를 누르면 목록 전체가 깜빡이며 리렌더
+- **원인**: useProducts 가 매 렌더마다 새 onToggle 을 생성해 memo 무효화
+- **해결**: onToggle 을 useCallback 으로 감싸 참조 고정
+
+## 테스트
 - [ ] 타입 체크 통과 (tsc --noEmit)
 - [ ] 린트 통과 (eslint/biome)
-- [ ] 375px/768px/1280px 반응형 확인
-- [ ] 키보드 탐색 및 스크린 리더 확인
+- [ ] 단위 테스트 통과 (vitest)
+- [ ] 좋아요 토글 시 해당 카드만 리렌더되는지 React DevTools 로 확인
+- [ ] 375px/768px/1280px 반응형 + 키보드 탐색 확인
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
@@ -163,6 +209,7 @@ gh pr view --json url -q '.url'
 
 - URL: https://github.com/<org>/<repo>/pull/<번호>
 - 제목: feat: 상품 카드 컴포넌트 추가
+- 본문 블록: ✨ 신규 기능 + 🐛 버그 수정
 - 변경: +120 / -45 (4개 파일)
 - 상태: ready for review (변경 165줄 < 500줄 기준)
 ```
