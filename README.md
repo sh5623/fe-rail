@@ -1,5 +1,10 @@
 # fe-rail
 
+<div align="right">
+  <a href="README.md"><img src="https://img.shields.io/badge/lang-한국어-blue?style=flat-square" alt="한국어"/></a>
+  <a href="README.en.md"><img src="https://img.shields.io/badge/lang-English-lightgrey?style=flat-square" alt="English"/></a>
+</div>
+
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
 > spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA(TanStack Router·React Router 7) + TypeScript, Tailwind v3/v4 / shadcn/ui 정식 지원.
 
