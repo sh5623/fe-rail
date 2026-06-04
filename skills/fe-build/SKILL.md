@@ -103,9 +103,15 @@ function CampaignList() {
 ### Phase 4 — 구현 후 자동 검증
 구현 완료 후 반드시 실행:
 ```bash
-pnpm tsc --noEmit          # 타입 에러 확인
-pnpm lint                   # 린트 확인 (ESLint 또는 Biome)
-pnpm test --run             # 테스트 실행
+# PM 감지 (PX=바이너리 실행, npm일 때 npx / PM=스크립트 실행)
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+
+$PX tsc --noEmit           # 타입 에러 확인 (tsc는 바이너리)
+$PM lint                    # 린트 확인 (npm 스크립트)
+$PM test --run              # 테스트 실행 (npm 스크립트)
 ```
 
 **성공 출력은 침묵, 실패만 보고합니다.**

@@ -40,6 +40,17 @@ maxTurns: 30
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+```
+
+> `$PX` — 바이너리 직접 실행 (`tsc` 등) / `$PM` — npm 스크립트 실행 (`lint` 등)
+
 ## 커밋 메시지 형식
 
 ```
@@ -130,8 +141,14 @@ git diff --name-only HEAD
 
 ### Step 3: 검증 상태 확인
 ```bash
-pnpm tsc --noEmit 2>&1 | grep -c "error" || echo "0"
-pnpm lint 2>&1 | grep -c "error" || echo "0"
+# 패키지 매니저 감지 (PX=바이너리, PM=스크립트)
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+
+$PX tsc --noEmit 2>&1 | grep -c "error" || echo "0"
+$PM lint 2>&1 | grep -c "error" || echo "0"
 ```
 
 ### Step 4: 그룹별 커밋 (HEREDOC)

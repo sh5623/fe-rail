@@ -1,7 +1,7 @@
 {
   "name": "fe-rail",
   "description": "Frontend 프로젝트 전용 하네스. spec → build → review → PR 사이클을 자동화. React / Next.js + TypeScript.",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": {
     "name": "승호",
     "email": "seungho5623@gmail.com"

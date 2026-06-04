@@ -40,6 +40,15 @@ maxTurns: 30
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+```
+
 ## 4축 검토 기준
 
 ### 타입 안전성
@@ -125,8 +134,14 @@ git diff --name-only HEAD
 
 ### Step 2: 4축 점검
 ```bash
+# 패키지 매니저 감지 (PX=바이너리 실행용, npm은 npx)
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+
 # 타입 확인
-pnpm tsc --noEmit 2>&1 | head -50
+$PX tsc --noEmit 2>&1 | head -50
 
 # 변경된 파일 내용 읽기 (Read 도구)
 # 각 파일에 대해 4축 기준 적용

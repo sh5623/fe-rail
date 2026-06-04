@@ -40,14 +40,26 @@ maxTurns: 30
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+# lockfile 기준 감지. npm은 바이너리 직접 실행 불가 → PX=npx
+PM="npm"; PX="npx"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
+[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+```
+
+> `$PM` — npm scripts 실행 (`test`, `lint` 등) / `$PX` — 바이너리 직접 실행 (`vitest`, `jest`, `playwright`)
+
 ## 러너 감지 우선순위
 
 | 순위 | 조건 | 명령 |
 |------|------|------|
-| 1 | `package.json` `scripts.test` 명시 | `pnpm test` |
-| 2 | `vitest` devDependencies | `pnpm vitest run` |
-| 3 | `jest` devDependencies | `pnpm jest` |
-| 4 | `@playwright/test` dependencies | `pnpm playwright test` |
+| 1 | `package.json` `scripts.test` 명시 | `$PM test` |
+| 2 | `vitest` devDependencies | `$PX vitest run` |
+| 3 | `jest` devDependencies | `$PX jest` |
+| 4 | `@playwright/test` dependencies | `$PX playwright test` |
 
 ---
 
@@ -105,11 +117,11 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx|ts|js)$'
 
 ### Step 3: 테스트 실행
 ```bash
-# vitest 예시
-pnpm vitest run --reporter=verbose 2>&1
+# vitest 예시 ($PX = 바이너리 실행)
+$PX vitest run --reporter=verbose 2>&1
 
 # jest 예시
-pnpm jest --findRelatedTests <변경파일들> 2>&1
+$PX jest --findRelatedTests <변경파일들> 2>&1
 ```
 
 ### Step 4: 결과 분류

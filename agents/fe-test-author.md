@@ -30,6 +30,15 @@ BDD 시나리오 도출과 TDD 사이클을 이끄는 프론트엔드 테스트 
 
 ---
 
+## 패키지 매니저 감지
+
+```bash
+PM="npm"
+[ -f "pnpm-lock.yaml" ] && PM="pnpm"
+[ -f "yarn.lock" ]      && PM="yarn"
+[ -f "bun.lockb" ]      && PM="bun"
+```
+
 ## Persona
 
 - **[Identity]** 사용자 행동 시나리오로 생각하는 테스트 설계 전문가
@@ -124,21 +133,23 @@ Then: 기대 결과 (DOM 변화, API 호출)
 ### Step 3-A: generate 모드
 ```typescript
 // 1) 테스트 파일 생성
-// 2) pnpm test --run <파일명> 으로 검증
+// 2) $PM test --run <파일명> 으로 검증 (PM 감지: pnpm-lock.yaml→pnpm, yarn.lock→yarn, bun.lockb→bun, 없으면 npm)
 // 3) 컴파일 에러 자체 수정 (최대 5회)
 ```
 
 ### Step 3-B: tdd 모드
 ```typescript
 // Red: 실패하는 테스트 먼저 작성
-// pnpm test --run <파일명> → 실패 확인
+// $PM test --run <파일명> → 실패 확인
 // Green: 최소 구현으로 통과
 // Refactor: 코드 정리 후 테스트 재실행
 ```
 
 ### Step 4: 검증 보고
 ```bash
-pnpm test --run <파일명> 2>&1 | tail -20
+# PM 감지 후 실행 ($PM test = npm 스크립트)
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
+$PM test --run <파일명> 2>&1 | tail -20
 ```
 
 </workflow>
