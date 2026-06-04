@@ -79,8 +79,8 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 ### PR 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-git-operator` | 커밋 분리·메시지 규칙·안전한 스테이징 | sonnet | 도구 (Write/Edit 금지) |
-| `fe-pr-author` | PR 본문 작성 + `gh pr create` | sonnet | 컨텍스트 + 도구 |
+| `fe-git-operator` | 커밋 분리·안전한 스테이징 + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) | sonnet | 도구 (Write/Edit 금지) |
+| `fe-pr-author` | PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create` | sonnet | 컨텍스트 + 도구 |
 
 ## 워크플로우
 

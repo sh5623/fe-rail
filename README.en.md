@@ -79,8 +79,8 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 ### PR stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
-| `fe-git-operator` | Commit splitting · message conventions · safe staging | sonnet | Tool (Write/Edit blocked) |
-| `fe-pr-author` | PR body writing + `gh pr create` | sonnet | Context + Tool |
+| `fe-git-operator` | Commit splitting · safe staging + body authoring (fix = symptom·cause·fix / feat = added·core·impact) | sonnet | Tool (Write/Edit blocked) |
+| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type) + `gh pr create` | sonnet | Context + Tool |
 
 ## Workflow
 
