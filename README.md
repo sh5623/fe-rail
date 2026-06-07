@@ -3,6 +3,7 @@
 <div align="right">
   <a href="README.md"><img src="https://img.shields.io/badge/lang-한국어-blue?style=flat-square" alt="한국어"/></a>
   <a href="README.en.md"><img src="https://img.shields.io/badge/lang-English-lightgrey?style=flat-square" alt="English"/></a>
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"/>
 </div>
 
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
@@ -111,6 +112,10 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
 | **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회 활성화 (미설치 시 로컬 이미지·WebSearch로 fallback) | Figma MCP(서버명 `Figma`) / Context7 플러그인 설치 |
 | **검증 스크립트** | Phase 3 자동 검증이 `package.json`의 `typecheck`/`lint`/`test` 스크립트를 사용 | 해당 스크립트 정의 권장 |
+
+## 라이선스
+
+[MIT](LICENSE) © 2026 이승호
 
 ## 기반 레퍼런스
 
