@@ -1,15 +1,17 @@
 #!/bin/bash
-# [fe-rail] write-guard.sh — PreToolUse:Write|Edit
+# [fe-rail] write-guard.sh — PreToolUse:Write|Edit|MultiEdit
 # 민감한 파일 생성·수정을 차단합니다. exit 2 = 도구 실행 차단.
 # .env.example 은 허용됩니다.
 
-# 파일 경로 추출: TOOL_INPUT_FILE_PATH 우선, fallback으로 TOOL_INPUT JSON 파싱
-# Edit 도구는 file_path, Write 도구도 file_path 동일 키 사용
-FILE_PATH="${TOOL_INPUT_FILE_PATH}"
-if [ -z "$FILE_PATH" ] && [ -n "$TOOL_INPUT" ]; then
-  FILE_PATH=$(echo "$TOOL_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+HOOK_INPUT=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+else
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
               | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 fi
+FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 [ -z "$FILE_PATH" ] && exit 0
 

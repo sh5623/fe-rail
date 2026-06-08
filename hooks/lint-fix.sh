@@ -6,12 +6,15 @@
 #   - Prettier: prettier --write (Biome 미감지 시에만 — 이중 포맷 충돌 방지)
 # tsc 는 quality-gate.sh(Stop)에서 한 번만 실행하여 중복 방지.
 
-# 파일 경로 추출
-FILE_PATH="${TOOL_INPUT_FILE_PATH}"
-if [ -z "$FILE_PATH" ] && [ -n "$TOOL_INPUT" ]; then
-  FILE_PATH=$(echo "$TOOL_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+HOOK_INPUT=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+else
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
               | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 fi
+FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 [ -z "$FILE_PATH" ] && exit 0
 [ ! -f "$FILE_PATH" ] && exit 0
@@ -30,8 +33,6 @@ LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 [ -f "$LIB_DIR/scripts/lint-lib.sh" ] && . "$LIB_DIR/scripts/lint-lib.sh"
 
 # ── Biome (lint + format 통합) ───────────────────────────────────────────────
-# --write 로 safe fix + format 적용. 남은 진단은 종료코드(0=clean)로 판별.
-# biome check 는 성공 시에도 요약 줄을 출력하므로 출력 유무가 아닌 종료코드로 게이트.
 if fe_has_biome "$PROJECT_ROOT"; then
   fe_run_biome "$PROJECT_ROOT" check --write --no-errors-on-unmatched "$FILE_PATH" >/dev/null 2>&1
   REMAINING=$(fe_run_biome "$PROJECT_ROOT" check --no-errors-on-unmatched "$FILE_PATH" 2>&1)
