@@ -191,10 +191,26 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 ### 검증 명령어
 
 ```bash
-# 프로젝트 루트 또는 앱 디렉토리에서 실행 (패키지 매니저 자동 감지)
-npx tsc --noEmit          # 타입 에러 (npm 환경) / pnpm tsc --noEmit (pnpm 환경)
-npm run lint              # 린트 (ESLint 또는 Biome — 프로젝트 설정에 따라)
-npm test -- --run         # 테스트 (vitest 기준)
+# lock 파일로 패키지 매니저를 먼저 감지한 뒤 아래 대응 명령어를 실행
+# pnpm-lock.yaml → pnpm / yarn.lock → yarn / bun.lock(b) → bun / 없으면 → npm
+
+# 타입 체크
+npx tsc --noEmit          # npm
+pnpm tsc --noEmit         # pnpm
+yarn tsc --noEmit         # yarn
+bun tsc --noEmit          # bun
+
+# 린트 (ESLint 또는 Biome — 프로젝트 설정에 따라)
+npm run lint              # npm
+pnpm lint                 # pnpm
+yarn lint                 # yarn
+bun run lint              # bun
+
+# 테스트 (vitest 기준)
+npm test -- --run         # npm
+pnpm test --run           # pnpm
+yarn test --run           # yarn
+bun test                  # bun
 ```
 
 ---
