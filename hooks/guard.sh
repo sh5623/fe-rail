@@ -25,10 +25,14 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+add[[:space:]]+(-A|--all|\.)([[:space:
 fi
 
 # 2. git push --force / -f  (--force-with-lease 는 안전하므로 허용)
-if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space:]]|$)' \
-   && ! echo "$CMD" | grep -q -- '--force-with-lease'; then
-  echo "[fe-rail] BLOCKED: force push 금지. 원격 히스토리가 손상됩니다. (--force-with-lease 는 허용)"
-  exit 2
+# allowlist 체크는 git push 호출 자체에만 적용 —
+# "git push --force && echo '--force-with-lease'" 같은 연결 명령 우회 방지
+if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space:];&|]|$)'; then
+  PUSH_INVOC=$(echo "$CMD" | grep -oE 'git[[:space:]]+push[^;&|`$]*' | head -1)
+  if ! echo "$PUSH_INVOC" | grep -qF -- '--force-with-lease'; then
+    echo "[fe-rail] BLOCKED: force push 금지. 원격 히스토리가 손상됩니다. (--force-with-lease 는 허용)"
+    exit 2
+  fi
 fi
 
 # 3. git commit --no-verify

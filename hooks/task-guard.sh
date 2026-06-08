@@ -32,7 +32,7 @@ for pattern in \
   "do anything now" \
   "dan mode" \
   "new instructions:"; do
-  if echo "$SEARCH_LOWER" | grep -qF "$pattern"; then
+  if echo "$SEARCH_LOWER" | grep -qF -- "$pattern"; then
     echo "[fe-rail] ❌ BLOCKED [task-guard]: 서브에이전트 프롬프트에 인젝션 패턴 감지"
     echo "[fe-rail]   패턴: $pattern"
     echo "[fe-rail]   에이전트 체인을 통한 가드 우회 시도는 차단됩니다."
@@ -41,9 +41,15 @@ for pattern in \
 done
 
 # ── 차단: 서브에이전트에 위험 명령 위임 시도 ─────────────────────────────────
-# "run rm -rf" / "execute git reset --hard" 처럼 실행 동사+위험 명령 조합만 차단.
-# 코드 리뷰·분석 프롬프트에서 위험 명령어를 언급만 해도 차단되는 오탐을 방지한다.
-EXEC_VERBS='(실행|run|execute|perform|do)[[:space:]]+'
+# 코드 펜스(```) 내부는 코드 예시로 보고 검사에서 제외.
+# 펜스 외부에서 위험 명령어가 발견되면 실행 동사 불문 무조건 차단.
+# (exec 동사만 체크하면 "next step: rm -rf" 같은 변형으로 우회 가능)
+fe_strip_fences() {
+  printf '%s\n' "$1" | awk '/^```/{f=!f;next} !f{print}'
+}
+SEARCH_NO_FENCE=$(fe_strip_fences "$SEARCH_IN")
+SEARCH_NO_FENCE_LOWER=$(echo "$SEARCH_NO_FENCE" | tr '[:upper:]' '[:lower:]')
+
 for pattern in \
   "rm -rf" \
   "git push --force" \
@@ -53,12 +59,11 @@ for pattern in \
   "--no-verify" \
   "git stash drop" \
   "git stash clear"; do
-  # 실행 동사 + 위험 명령 조합
-  combined_pattern="${EXEC_VERBS}.*$(echo "$pattern" | sed 's/[.]/[.]/g; s/[-]/[-]/g; s/ /[[:space:]]+/g')"
-  if echo "$SEARCH_LOWER" | grep -qE "$combined_pattern"; then
+  if echo "$SEARCH_NO_FENCE_LOWER" | grep -qF -- "$pattern"; then
     echo "[fe-rail] ❌ BLOCKED [task-guard]: 서브에이전트에 위험 명령 위임 감지"
     echo "[fe-rail]   패턴: $pattern"
     echo "[fe-rail]   guard.sh 차단 대상 명령을 Task를 통해 우회할 수 없습니다."
+    echo "[fe-rail]   코드 예시라면 \`\`\` 펜스 블록 안에 넣어 주세요."
     exit 2
   fi
 done
@@ -73,7 +78,7 @@ for pattern in \
   "api_key" \
   "api key" \
   "access token"; do
-  if echo "$SEARCH_LOWER" | grep -qF "$pattern"; then
+  if echo "$SEARCH_LOWER" | grep -qF -- "$pattern"; then
     echo "[fe-rail] ⚠️  WARNING [task-guard]: 서브에이전트 프롬프트에 민감 정보 접근 패턴 감지" >&2
     echo "[fe-rail]   패턴: $pattern" >&2
     echo "[fe-rail]   서브에이전트가 민감한 파일이나 정보를 다루지 않도록 확인하세요." >&2
