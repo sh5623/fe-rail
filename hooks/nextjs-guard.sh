@@ -2,12 +2,15 @@
 # [fe-rail] nextjs-guard.sh — PostToolUse:Edit|Write|MultiEdit
 # Next.js RSC 경계 위반(훅·브라우저 API·DOM 이벤트)을 감지합니다. 차단 없음(exit 0).
 
-# 파일 경로 추출
-FILE_PATH="${TOOL_INPUT_FILE_PATH}"
-if [ -z "$FILE_PATH" ] && [ -n "$TOOL_INPUT" ]; then
-  FILE_PATH=$(echo "$TOOL_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+HOOK_INPUT=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
+else
+  FILE_PATH=$(printf '%s' "$HOOK_INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
               | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 fi
+FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 [ -z "$FILE_PATH" ] && exit 0
 [ ! -f "$FILE_PATH" ] && exit 0
@@ -26,7 +29,6 @@ case "$FILE_PATH" in
   *) exit 0 ;;
 esac
 
-BASENAME=$(basename "$FILE_PATH")
 WARNINGS=""
 
 # 'use client' 여부 확인 (첫 10줄)

@@ -2,17 +2,21 @@
 # [fe-rail] guard.sh — PreToolUse:Bash
 # 비가역적 위험 명령어를 차단합니다. exit 2 = 도구 실행 차단.
 
-# 명령어 추출: TOOL_INPUT_COMMAND 우선, fallback으로 TOOL_INPUT JSON 파싱
-CMD="${TOOL_INPUT_COMMAND}"
-if [ -z "$CMD" ] && [ -n "$TOOL_INPUT" ]; then
-  CMD=$(echo "$TOOL_INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+# Claude Code 는 hook 입력을 stdin JSON 으로 전달한다.
+# 환경변수 fallback 은 로컬 테스트 전용 — 실제 실행 시에는 stdin 이 사용된다.
+HOOK_INPUT=$(cat)
+
+if command -v jq >/dev/null 2>&1; then
+  CMD=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
+else
+  CMD=$(printf '%s' "$HOOK_INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
         | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
 fi
+CMD="${CMD:-${TOOL_INPUT_COMMAND}}"
 
-# 명령어가 비어 있으면 통과
 [ -z "$CMD" ] && exit 0
 
-# ─── 차단 패턴 9개 ───────────────────────────────────────────────────────────
+# ─── 차단 패턴 ───────────────────────────────────────────────────────────────
 
 # 1. git add . / git add -A / git add --all
 if echo "$CMD" | grep -qE 'git[[:space:]]+add[[:space:]]+(-A|--all|\.)([[:space:]]|$)'; then
@@ -20,10 +24,15 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+add[[:space:]]+(-A|--all|\.)([[:space:
   exit 2
 fi
 
-# 2. git push --force / --force-with-lease / -f
-if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|--force-with-lease|-f)([[:space:]]|$)'; then
-  echo "[fe-rail] BLOCKED: force push 금지. 원격 히스토리가 손상됩니다."
-  exit 2
+# 2. git push --force / -f  (--force-with-lease 는 안전하므로 허용)
+# allowlist 체크는 git push 호출 자체에만 적용 —
+# "git push --force && echo '--force-with-lease'" 같은 연결 명령 우회 방지
+if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space:];&|]|$)'; then
+  PUSH_INVOC=$(echo "$CMD" | grep -oE 'git[[:space:]]+push[^;&|`$]*' | head -1)
+  if ! echo "$PUSH_INVOC" | grep -qF -- '--force-with-lease'; then
+    echo "[fe-rail] BLOCKED: force push 금지. 원격 히스토리가 손상됩니다. (--force-with-lease 는 허용)"
+    exit 2
+  fi
 fi
 
 # 3. git commit --no-verify
