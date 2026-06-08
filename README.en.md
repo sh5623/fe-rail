@@ -3,6 +3,7 @@
 <div align="right">
   <a href="README.md"><img src="https://img.shields.io/badge/lang-한국어-lightgrey?style=flat-square" alt="한국어"/></a>
   <a href="README.en.md"><img src="https://img.shields.io/badge/lang-English-blue?style=flat-square" alt="English"/></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"/></a>
 </div>
 
 > Frontend-focused Claude Code plugin  
@@ -111,6 +112,10 @@ Plugin agents read and reason from the **consumer project's context**. Setting t
 | **Bash permissions** | Prevents permission prompts on every `fe-git-operator` · `fe-pr-author` action | Add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
 | **MCP (optional)** | Enables `fe-vision` Figma direct queries and `fe-researcher` Context7 doc lookups (falls back to local images · WebSearch if not installed) | Install Figma MCP (server name `Figma`) / Context7 plugin |
 | **Validation scripts** | Phase 3 auto-validation uses `package.json` `typecheck`/`lint`/`test` scripts | Define those scripts |
+
+## License
+
+[MIT](LICENSE) © 2026 이승호
 
 ## References
 
