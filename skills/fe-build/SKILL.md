@@ -28,6 +28,7 @@ allowed-tools:
 구현 시작 전 반드시 확인:
 1. `feature.md` 또는 스펙 문서가 존재하고 승인됐는가?
 2. 기술 스택 확인 (package.json 참조)
+3. **레포의 정전(canonical) 모범 파일을 먼저 읽고 그 shape 를 복사한다** — 신규 코드는 이 스킬의 산문 예시가 아니라 소비자 레포의 실제 패턴을 1차 소스로 따른다. 데이터 계층은 `src/features/*/api.ts`(쿼리/뮤테이션 형태)·`src/lib/query-keys.ts`(키 팩토리)·`src/lib/api/client.ts`(타입드 클라이언트·인터셉터)를, UI 는 `src/components/ui/*`(shadcn 프리미티브)를 grep·Read 해 동일 컨벤션으로 작성한다. 해당 파일이 없으면 이 스킬의 예시를 폴백으로.
 
 코드베이스 탐색은 직접 하지 않고 에이전트에 위임한다:
 
@@ -65,13 +66,16 @@ const handleData = (data: any) => {}
 
 **데이터 fetch**
 ```typescript
-// ✅ Good - TanStack Query
-const { data, isLoading, error } = useQuery({
-  queryKey: ['campaigns'],
-  queryFn: fetchCampaigns,
+// ✅ Good - TanStack Query + 중앙 키 팩토리 (인라인 ad-hoc 키 금지)
+const { data, isPending, isError } = useQuery({
+  queryKey: queryKeys.campaigns.list(params),
+  queryFn: () => fetchCampaigns(params),
 })
 
-// ❌ Bad - useEffect fetch 금지
+// 생성 API 클라이언트(openapi-fetch) 감지 시 — 자체 백엔드는 타입드 클라이언트 경유:
+//   queryFn: async () => { const { data, error } = await api.GET('/campaigns'); if (error) throw ...; return data }
+
+// ❌ Bad - useEffect fetch / 인라인 ad-hoc 키(`['campaigns']`) / 스키마를 as any 로 무마
 useEffect(() => {
   fetch('/api/campaigns').then(...)
 }, [])
@@ -95,8 +99,9 @@ function CampaignList() {
 
 **UI 컴포넌트 기준**
 - 새 UI 컴포넌트 작성 시 변형 2개 이상 먼저 제안
-- system-ui / -apple-system 주 폰트 금지
-- shadcn/ui 컴포넌트 우선 활용
+- **화면 충실도 존중** — feature.md 「화면 흐름」의 등급을 따른다. 와이어프레임/스케치면 배치·구조만 재현하고 색·타이포·간격은 디자인 토큰/시스템 기본값으로(시안에 없는 수치 임의 생성 금지). 고증 시안이면 fe-vision 추출값으로 충실 재현
+- 폰트는 프로젝트 DESIGN.md 의 결정을 따른다 (system 폰트 스택을 의도적으로 채택했으면 허용). Next.js 는 next/font 로딩 권장
+- shadcn/ui 컴포넌트 우선 활용 — **Vite + shadcn 이면 CLI 실행 전 루트 `tsconfig.json` 에 `baseUrl`+`paths`(`@/*`→`./src/*`) 확인**. 없으면 CLI 가 alias 를 못 풀어 literal `@` 폴더 생성(`paths` 가 `tsconfig.app.json` 에만 있는 게 흔한 원인)
 - Tailwind 조건부 클래스는 `cn()` (clsx + tailwind-merge) 사용 — 문자열 직접 조합 금지
 - 변수 보간 클래스(`` `bg-${color}-500` ``) 금지 — 정적 매핑 사용
 
@@ -109,9 +114,14 @@ PM="npm"; PX="npx"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
 [ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
 
-$PX tsc --noEmit           # 타입 에러 확인 (tsc는 바이너리)
-$PM lint                    # 린트 확인 (npm 스크립트)
-$PM test --run              # 테스트 실행 (npm 스크립트)
+# 타입: typecheck 스크립트 우선 (솔루션 tsconfig/references 에서 bare tsc 는 검사 안 함)
+if grep -q '"typecheck"' package.json; then $PM run typecheck
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b
+else $PX tsc --noEmit; fi
+# 린트: 스크립트가 있을 때만 — $PM lint 가 아니라 $PM run lint (npm 에서 bare 'lint' 는 무효)
+if grep -q '"lint"' package.json; then $PM run lint; fi
+# 테스트: test 스크립트가 있으면 그것만, 없으면 vitest 폴백 (watch 아님 — 비대화형 셸은 run 모드로 동작)
+if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 ```
 
 **성공 출력은 침묵, 실패만 보고합니다.**

@@ -50,7 +50,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 | null 안전 | `Object is possibly undefined` | 옵셔널 체이닝 `?.` 또는 `?? ''` |
 | 타입 불일치 | `Type X is not assignable to Y` | 정확한 타입 정의 또는 `satisfies` |
 | import 경로 | `Cannot find module` | 경로 수정 또는 `@` 별칭 사용 |
-| 누락 속성 | `Property X does not exist` | 타입 보완 또는 옵셔널 필드 추가 |
+| 누락 속성 | `Property X does not exist` | 타입 보완 또는 옵셔널 필드 추가 (단, 생성된 API/스키마 타입이면 손대지 말고 gen:api 재생성 — 아래 forbidden) |
 | 미사용 변수 | `X is declared but never used` | 삭제 또는 `_` 접두사 |
 
 ---
@@ -65,6 +65,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 | `@ts-ignore` / `@ts-expect-error` 남발 | 오류를 숨기는 것은 해결이 아님 |
 | 새 기능 추가 | 오류 수정에 집중 |
 | Write 도구 사용 | 기존 파일 Edit만 허용 (새 파일 생성 금지) |
+| 생성 파일 직접 편집 (schema.d.ts 등 codegen 산출물) | API/스키마 불일치는 손편집이 아니라 소비자 프로젝트의 gen:api(openapi-typescript) 재생성으로 해결 — 생성물은 read-only |
 
 </forbidden>
 
@@ -97,8 +98,10 @@ PM="npm"; PX="npx"
 
 ### Step 1: 병렬 오류 수집
 ```bash
-# 동시 실행 ($PX=바이너리 실행, $PM=스크립트 실행)
-$PX tsc --noEmit 2>&1
+# 타입체크: typecheck 스크립트 우선 (솔루션 tsconfig/references 에서 bare tsc 는 no-op)
+if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1
+else $PX tsc --noEmit 2>&1; fi
 $PM lint 2>&1
 ```
 
@@ -119,7 +122,10 @@ $PM lint 2>&1
 
 ### Step 4: 전체 검증
 ```bash
-$PX tsc --noEmit 2>&1 | grep -c "error"
+# 타입: Step 1 과 동일 기준 (typecheck 스크립트/`tsc -b`)
+if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | grep -c "error"
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1 | grep -c "error"
+else $PX tsc --noEmit 2>&1 | grep -c "error"; fi
 $PM lint 2>&1 | grep -c "error"
 ```
 
