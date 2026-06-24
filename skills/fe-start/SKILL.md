@@ -111,6 +111,11 @@ BLOCK 0 은 Phase 4.5 진행의 필요조건일 뿐, 최종 종료 판정은 Pha
 
 2. 무거운 게이트(build·e2e)는 여기서 1회만 실행한다 — 재위임 루프 안에서 반복하지 않는다.
 ```bash
+# PM/PX 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있으므로 독립 선언)
+PM=npm; PX=npx
+[ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
+[ -f yarn.lock ]      && PM=yarn && PX=yarn
+{ [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
 if grep -q '"build"' package.json; then $PM run build; fi
 if [ -d e2e ] && grep -q '@playwright/test' package.json; then $PX playwright test; fi
 ```

@@ -65,7 +65,7 @@ fe-rail/
 
 | MCP | 설치 형태 | 연결 에이전트 | 도구 접두사 | 없을 때 fallback |
 |-----|----------|-------------|-----------|----------------|
-| **Figma** | 프로젝트/사용자 `.mcp.json` 서버 (이름: `Figma`) | `fe-vision` | `mcp__Figma__get_figma_data`<br>`mcp__Figma__download_figma_images` | 로컬 스크린샷(PNG/JPG)만 분석 |
+| **Figma** | claude.ai Figma 커넥터 (OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_metadata`<br>`mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_variable_defs`<br>`mcp__claude_ai_Figma__get_screenshot` | 로컬 스크린샷(PNG/JPG)만 분석 |
 | **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs` | WebSearch + WebFetch로 문서 조회 |
 
 > **도구 접두사는 설치 형태에 따라 달라진다.** 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (위 표는 각각의 설치 형태 기준으로 검증된 접두사다.)
@@ -73,7 +73,7 @@ fe-rail/
 ### 설치
 
 - **Context7** (플러그인): `/plugin install context7@<marketplace>` → `/reload-plugins`. 도구는 `mcp__plugin_context7_context7__*` 로 등록된다.
-- **Figma** (프로젝트 MCP 서버): 프로젝트 `.mcp.json` 에 `Figma` 라는 이름으로 서버를 등록한다 (예: `figma-developer-mcp`, 토큰은 환경변수로 주입). 도구는 `mcp__Figma__*` 로 등록된다.
+- **Figma** (claude.ai 커넥터): claude.ai 설정에서 Figma OAuth 커넥터를 연결한다. 도구는 `mcp__claude_ai_Figma__*` 로 등록된다.
 
 ---
 

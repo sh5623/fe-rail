@@ -36,7 +36,7 @@ BDD 시나리오 도출과 TDD 사이클을 이끄는 프론트엔드 테스트 
 PM="npm"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn"
-[ -f "bun.lockb" ]      && PM="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"
 ```
 
 ## Persona
@@ -146,7 +146,7 @@ Then: 기대 결과 (DOM 변화, API 호출)
 ### Step 3-A: generate 모드
 ```typescript
 // 1) 테스트 파일 생성
-// 2) $PM test --run <파일명> 으로 검증 (PM 감지: pnpm-lock.yaml→pnpm, yarn.lock→yarn, bun.lockb→bun, 없으면 npm)
+// 2) $PM test --run <파일명> 으로 검증 (PM 감지: pnpm-lock.yaml→pnpm, yarn.lock→yarn, bun.lockb/bun.lock→bun, 없으면 npm)
 // 3) 컴파일 에러 자체 수정 (최대 5회)
 ```
 
@@ -161,7 +161,7 @@ Then: 기대 결과 (DOM 변화, API 호출)
 ### Step 4: 검증 보고
 ```bash
 # PM 감지 후 실행 ($PM test = npm 스크립트)
-PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun" && PX="bun"
 $PM test --run <파일명> 2>&1 | tail -20
 ```
 

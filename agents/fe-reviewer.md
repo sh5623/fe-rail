@@ -46,7 +46,7 @@ maxTurns: 30
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 ```
 
 ## 4축 검토 기준
@@ -163,7 +163,7 @@ git diff --name-only HEAD
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
 # 타입 확인 (typecheck 스크립트 우선 — 솔루션 tsconfig/references 에서 bare tsc 는 검사 안 함)
 if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | head -50

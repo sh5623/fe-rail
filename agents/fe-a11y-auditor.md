@@ -129,7 +129,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | 필수 | 기준 |
 |------|------|
 | 변경 파일 기준 | `git diff --name-only` 기준 범위 결정 |
-| 린터 a11y 규칙 활용 | 감지된 린터(Biome a11y 그룹 / ESLint jsx-a11y)의 `$PM lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`→bun) |
+| 린터 a11y 규칙 활용 | 감지된 린터(Biome a11y 그룹 / ESLint jsx-a11y)의 `$PM lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun) |
 | file:line 참조 | 모든 발견사항에 위치 명시 |
 | Before/After 예시 | BLOCK과 WARN에 수정 예시 |
 | WCAG 기준 번호 | 모든 항목에 기준 번호 표기 |
@@ -148,7 +148,7 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
 ### Step 2: 정적 분석 (병렬)
 ```bash
 # 패키지 매니저 감지
-PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun" && PX="bun"
 
 # a11y 린트 — 린터 감지 후 실행 (Biome a11y 그룹 ↔ ESLint jsx-a11y)
 if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then

@@ -15,7 +15,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 
 > **린터 감지**: 소비자 `package.json` 의 `lint` 스크립트와 설정 파일(`biome.json` ↔ `.eslintrc.*`/`eslint.config.*`)로 어떤 린터인지 판별한다. 진단·검증은 가능하면 프로젝트의 `$PM lint` 스크립트를 그대로 사용하고, 없으면 감지된 린터를 직접 호출한다.
 
-> **패키지 매니저 감지**: `pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`→bun / 없으면 npm. 모든 실행 명령은 감지된 `$PM` 을 사용한다.
+> **패키지 매니저 감지**: `pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun / 없으면 npm. 모든 실행 명령은 감지된 `$PM` 을 사용한다.
 
 ---
 
@@ -93,7 +93,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 ```
 
 ### Step 1: 병렬 오류 수집

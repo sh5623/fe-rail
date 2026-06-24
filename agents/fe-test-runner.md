@@ -47,7 +47,7 @@ maxTurns: 30
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 ```
 
 > `$PM` — npm scripts 실행 (`test`, `lint` 등) / `$PX` — 바이너리 직접 실행 (`vitest`, `jest`, `playwright`)
