@@ -1,5 +1,6 @@
 {
   "name": "fe-rail-market",
+  "description": "프론트엔드 전용 Claude Code 플러그인 마켓플레이스 — fe-rail",
   "owner": {
     "name": "승호",
     "email": "seungho5623@gmail.com"
@@ -8,7 +9,6 @@
     {
       "name": "fe-rail",
       "description": "Frontend 프로젝트 전용 하네스. Next.js App Router / Vite SPA + TypeScript, Tailwind v3/v4, shadcn/ui 지원. spec→build→review→PR 사이클 자동화.",
-      "version": "1.5.3",
       "category": "engineering",
       "tags": ["frontend", "nextjs", "typescript", "harness", "workflow"],
       "source": {

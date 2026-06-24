@@ -46,7 +46,7 @@ maxTurns: 30
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 ```
 
 ## 4축 검토 기준
@@ -66,7 +66,7 @@ PM="npm"; PX="npx"
 | 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음 | 공통 |
 | 무거운 import | barrel export, 사용하지 않는 import | 공통 |
 | Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
-| RR7 데이터 소유 위반 | `react-router` `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7) |
+| RR7 데이터 소유 위반 | RR7(`react-router`/`react-router-dom`) `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7) |
 | RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
 
 ### 접근성 (a11y)
@@ -91,7 +91,32 @@ PM="npm"; PX="npx"
 | 긴 className 직접 조합 | `cn()` (clsx + tailwind-merge) 미사용 — 충돌 시 불명확 | Tailwind |
 | Tailwind v4 구식 유틸 | `bg-gradient-to-*`(→`bg-linear-to-*`), `outline-none`(→`outline-hidden`), `flex-shrink-*`/`flex-grow-*`(→`shrink-*`/`grow-*`), `shadow`·`rounded` 스케일 이동 | Tailwind v4 |
 | Tailwind v4 진입 디렉티브 | `@tailwind base/components/utilities` 사용 — v4 는 `@import "tailwindcss"` (CSS 진입점 한정) | Tailwind v4 |
-| shadcn 컴포넌트 직접 수정 | `components/ui/*` 소스 변경 — 업그레이드 불가, 래핑으로 대체 | shadcn |
+| shadcn 무분별 수정 | `components/ui/*` 를 재테마 목적 변경(CLI 재추가 시 충돌) — 도메인 확장은 래핑 권장, 의도적 커스터마이징은 허용 | shadcn |
+| Vite+shadcn alias 미해석 | 루트 `tsconfig.json` 에 `paths` 없음 → shadcn CLI 가 `@/` 못 풀고 literal `@` 폴더(`./@/components/ui/*`) 생성 → import 깨짐. `paths` 가 `tsconfig.app.json` 에만 있는 게 흔한 원인. 루트 tsconfig 에 `baseUrl`+`paths` 추가하고 기존 파일은 `src/` 로 이동 | vite+shadcn |
+
+### 생성 API 클라이언트 / 데이터 패턴 (감지 시 — 심각도 기준)
+
+> 적용 조건: 각 항목의 신호가 있을 때만. 없으면 침묵.
+
+| 체크 항목 | 심각도 | 적용 |
+|---------|-------|------|
+| `as any`/`as unknown as`/`@ts-expect-error` 로 API·스키마 타입 우회 | **BLOCK** | openapi-fetch + 생성 schema 존재 |
+| 자체 백엔드에 손수 `fetch`/`axios` (외부 API·업로드·SSE/스트리밍은 예외) | **WARN** | 타입드 클라이언트 존재 |
+| 없는 엔드포인트/필드 "지어내기" | tsc 위임 | openapi-fetch — 경로·필드는 컴파일타임 검증, reviewer 는 위 우회만 본다 |
+| 인라인 ad-hoc 쿼리 키 (`queryKey: ['x']`) | **WARN** | 중앙 키 팩토리 존재 |
+| `import.meta.env` 직접 접근 | **WARN** | 검증 env 모듈 존재 (env 모듈 자신은 예외) |
+
+### 디자인 계약 (소비자 레포에 DESIGN.md 존재 시 — 값은 DESIGN.md 에 위임)
+
+> 적용 조건: 소비자 레포 루트에 `DESIGN.md` 가 있을 때만. 먼저 Read 해 그 Bans·규칙을 1차 소스로 대조한다 (수치·토큰을 여기 복제하지 않는다 — 드리프트 방지). 없으면 이 섹션 전체 침묵.
+
+| 체크 항목 | 심각도 | 적용 |
+|---------|-------|------|
+| DESIGN.md 가 금지한 그림자 (`shadow-xl`/`shadow-2xl`/임의 `shadow-[…]`) | **WARN** | DESIGN.md 존재 |
+| 상태를 색만으로 표현 — 텍스트·아이콘 보강 없음 | **WARN** | DESIGN.md 존재 |
+| 인터랙티브 요소가 DESIGN.md 의 최소 터치 타깃 미달 (예: ≥44px) | **WARN** | DESIGN.md 존재 |
+| 토큰이 있는데 하드코딩 색/그림자 (DESIGN.md Bans 위반) | **WARN** | DESIGN.md 존재 |
+| DESIGN.md Bans 섹션이 명시한 그 외 패턴 | **WARN** | DESIGN.md 존재 |
 
 ---
 
@@ -138,13 +163,18 @@ git diff --name-only HEAD
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
-# 타입 확인
-$PX tsc --noEmit 2>&1 | head -50
+# 타입 확인 (typecheck 스크립트 우선 — 솔루션 tsconfig/references 에서 bare tsc 는 검사 안 함)
+if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | head -50
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1 | head -50
+else $PX tsc --noEmit 2>&1 | head -50; fi
+
+# 디자인 계약: 소비자 레포에 DESIGN.md 가 있으면 Read 해 Bans·규칙을 대조 기준으로 (없으면 디자인 점검 침묵)
+[ -f "DESIGN.md" ] && echo "DESIGN.md present — load its Bans/rules as the design-contract source"
 
 # 변경된 파일 내용 읽기 (Read 도구)
-# 각 파일에 대해 4축 기준 적용
+# 각 파일에 대해 4축 기준 + (DESIGN.md 존재 시) 디자인 계약 대조
 ```
 
 ### Step 3: 분류 출력
@@ -177,7 +207,10 @@ BLOCK → WARN → INFO 순서
 
 ---
 **요약:** BLOCK 1개 / WARN 1개 / INFO 1개
-BLOCK 해결 후 커밋 가능합니다.
+
+> 본 리뷰는 git diff 기반 정적 4축 분석이며 앱을 기동하지 않았다 — 런타임 동작은
+> fe-start Phase 4.5(완료기준 게이트)/CI 에서만 검증된다. BLOCK 0 = 정적 리뷰 통과일 뿐 "완료" 아님.
+BLOCK 해결은 커밋의 필요조건이다 (충분조건은 완료 기준 통과).
 ```
 
 </output>

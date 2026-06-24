@@ -21,7 +21,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 **목표:**
 - 커밋 히스토리·diff·feature.md를 종합하여 PR 제목과 본문 작성
 - `gh pr create` 실행 후 PR URL 반환
-- 변경 500줄 초과 시 자동으로 `--draft` 적용
+- PR 은 변경 규모와 무관하게 기본 draft 로 생성 (에이전트 생성물 → 사람이 검토 후 ready 전환). `--no-draft` 면 즉시 ready
 
 **사용 시점:**
 - fe-start Phase 6-2 — fe-git-operator의 커밋·푸시 완료 후
@@ -61,10 +61,14 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 - **영향**: <기존 코드 연결·새 의존성·마이그레이션>
 
 ## 테스트
-- [ ] 타입 체크 통과 (tsc --noEmit)
+<!-- feature.md '완료 기준'을 1차 소스로. 자동 실행 항목은 실제 결과로 [x]/[ ] 표기. -->
+- [ ] 타입 체크 통과 (typecheck / tsc --noEmit)
 - [ ] 린트 통과 (eslint/biome)
 - [ ] 단위 테스트 통과 (vitest/jest)
-- [ ] <기능별 수동 검증 — 30초 내 확인 가능하도록 구체적으로>
+- [ ] 빌드 통과 (build)
+- [ ] E2E 통과 (playwright) — 또는 "미실행: <사유>"
+- [ ] 반응형·접근성·다크모드 (사람 확인)
+- [ ] <feature.md '완료 기준'의 시나리오별 수동 검증 — 30초 내 확인 가능하도록>
 
 ## 영향도 / 주의 (선택)
 - <breaking change · 환경변수 추가 · 마이그레이션 · 롤백 방법>
@@ -83,14 +87,16 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 
 ---
 
-## Draft 임계치
+## Draft 정책
+
+에이전트가 생성한 PR 은 변경 규모와 무관하게 기본 draft 로 만든다 — 사람이 검토 후
+직접 ready for review 로 전환한다. fe-start 의 두 승인 게이트와 같은 "사람이 한 번 더 본다" 철학과 일관.
 
 | 조건 | PR 상태 |
 |------|--------|
-| 변경 500줄 이하 | ready for review |
-| 변경 500줄 초과 | `--draft` |
-| `--no-draft` 플래그 | 항상 ready |
-| `--draft` 플래그 | 항상 draft |
+| 기본 (플래그 없음) | `--draft` |
+| `--no-draft` 플래그 | ready for review |
+| `--draft` 플래그 | `--draft` |
 
 ---
 
@@ -104,6 +110,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | main 직접 푸시 | PR 없는 직접 머지 금지 |
 | 본문에 비밀 노출 | 즉시 중단 + 사용자 보고 |
 | 빈 PR (변경사항 없음) | `git diff main...HEAD` 확인 후 없으면 중단 |
+| 미실행 항목을 [x] 통과로 표기 | 검증 위장 — STOP·PR 정직성 위반 |
 
 </forbidden>
 
@@ -119,8 +126,9 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | 성격별 블록 | `fix`는 증상·원인·해결 / `feat`는 추가·핵심·영향 (위 "PR 성격별 필수 블록") |
 | 커밋 종합 | `git log main...HEAD` 로 포함된 모든 커밋의 type·본문을 읽어 변경 사항 블록에 반영 |
 | 근거 기반 | 본문은 커밋·diff 에서 확인되는 사실만 — 추측·과장 금지 |
-| draft 임계치 | 500줄 기준 자동 적용 |
+| draft 기본 | 항상 `--draft` 로 생성, `--no-draft` 일 때만 ready |
 | PR URL 반환 | 마지막에 반드시 URL 출력 |
+| 완료 기준 반영 | feature.md '완료 기준'을 체크리스트에 매핑, 자동 실행 결과를 [x]/[ ]·미실행으로 정직 표기 |
 
 </required>
 
@@ -161,7 +169,7 @@ git diff main...HEAD --shortstat
 git push origin HEAD
 
 # 예시 — 기능 + 버그 수정이 함께 든 PR
-gh pr create \
+gh pr create --draft \
   --title "feat: 상품 카드 컴포넌트 추가" \
   --body "$(cat <<'EOF'
 ## 요약
@@ -182,9 +190,11 @@ gh pr create \
 - **해결**: onToggle 을 useCallback 으로 감싸 참조 고정
 
 ## 테스트
-- [ ] 타입 체크 통과 (tsc --noEmit)
+- [ ] 타입 체크 통과 (typecheck / tsc --noEmit)
 - [ ] 린트 통과 (eslint/biome)
 - [ ] 단위 테스트 통과 (vitest)
+- [ ] 빌드 통과 (build)
+- [ ] E2E 통과 (playwright) — 또는 "미실행: <사유>"
 - [ ] 좋아요 토글 시 해당 카드만 리렌더되는지 React DevTools 로 확인
 - [ ] 375px/768px/1280px 반응형 + 키보드 탐색 확인
 
@@ -211,7 +221,7 @@ gh pr view --json url -q '.url'
 - 제목: feat: 상품 카드 컴포넌트 추가
 - 본문 블록: ✨ 신규 기능 + 🐛 버그 수정
 - 변경: +120 / -45 (4개 파일)
-- 상태: ready for review (변경 165줄 < 500줄 기준)
+- 상태: draft (기본 정책 — 검토 후 ready 전환)
 ```
 
 </output>

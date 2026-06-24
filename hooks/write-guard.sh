@@ -33,8 +33,10 @@ case "$BASENAME" in
     echo "[fe-rail] BLOCKED: 자격증명 파일 생성 금지."
     exit 2
     ;;
-  *secret*|*credential*)
-    echo "[fe-rail] BLOCKED: 자격증명 파일 생성 금지 (파일명에 secret/credential 포함)."
+  # 시크릿/자격증명 '페이로드 파일' 형태만 차단 — 소스 파일명에 secret/credential 이 들어가는 경우
+  # (CredentialForm.tsx, useSecret.ts, features/credentials/ 등)는 통과시킨다 (오탐 방지).
+  *.secret|*.secrets|*secret*.json|*secrets*.json|*credential*.json|*credentials*.json)
+    echo "[fe-rail] BLOCKED: 시크릿/자격증명 페이로드 파일 생성 금지 (예: *.secret, *credentials*.json)."
     exit 2
     ;;
 esac

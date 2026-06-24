@@ -103,7 +103,8 @@ maxTurns: 30
 ### Step 1: 병렬 컨텍스트 수집
 ```
 병렬 실행:
-- CLAUDE.md 읽기 (프레임워크·규칙 파악)
+- CLAUDE.md 읽기 (프레임워크·규칙 파악). @AGENTS.md 스텁이면 AGENTS.md 도 읽기
+- DESIGN.md(있으면 1차 디자인 컨텍스트)·PRODUCT.md(있으면 보조 — 제품/유저/보이스) 읽기 (read-if-present)
 - feature.md 또는 요구사항 문서 읽기
 - 관련 기존 컴포넌트·타입·훅 탐색 (Grep/Glob)
 ```

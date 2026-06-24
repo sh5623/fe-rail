@@ -49,10 +49,11 @@ React/TypeScript 아키텍처 분석·자문 전문 에이전트 — 코드를 �
 |---------|----------|---------|
 | `"next"` 의존성 있음 | Next.js App Router | RSC/Client 경계, next/image, next/font |
 | `"vite"` + `"@tanstack/react-router"` | Vite SPA (TanStack Router) | 라우트 loader 데이터 흐름, Zustand slice |
-| `"vite"` + `"react-router"`(v7), TanStack Router 없음 | Vite SPA (React Router 7) | **TanStack Query 단독 데이터 소유**(RR7 loader 데이터 fetch 금지), Zustand slice |
+| `"vite"` + (`"react-router"` 또는 `"react-router-dom"`) v7, TanStack Router 없음 | Vite SPA (React Router 7) | **TanStack Query 단독 데이터 소유**(RR7 loader 데이터 fetch 금지), Zustand slice |
 | 그 외 React | Generic React | 공통 규칙만 적용 |
 | `"tailwindcss"` 의존성 (직교) | + Tailwind (major 로 v3/v4 분기) | 디자인 토큰 일관성, 임의값 사용 비율, `@apply` 범위, content/purge(v4 는 자동감지) — v4 면 CSS-first(`@theme`)·gradient rename 도 |
 | `"class-variance-authority"` + `components/ui/` (직교) | + shadcn/ui | UI primitives 격리, variant 정의 위치, 래핑 패턴 |
+| openapi-fetch/openapi-typescript + 생성 schema.d.ts (직교) | + 생성 API 클라이언트 | 자체 백엔드는 생성 클라이언트 단독 소유, 손수 fetch/axios 지양(외부·업로드·스트리밍 예외), 스키마 무마(as any) 금지 |
 
 ---
 
@@ -113,8 +114,9 @@ React/TypeScript 아키텍처 분석·자문 전문 에이전트 — 코드를 �
 ### Step 1: 프레임워크 감지 + 컨텍스트 수집
 ```
 병렬 실행:
-- package.json 읽기 → "next" / "vite"+("@tanstack/react-router" | "react-router" v7) 판별, "tailwindcss" major(v3/v4)
-- CLAUDE.md 읽기 (프로젝트 규칙)
+- package.json 읽기 → "next" / "vite"+("@tanstack/react-router" | "react-router"|"react-router-dom" v7) 판별, "tailwindcss" major(v3/v4), "openapi-fetch" 유무
+- CLAUDE.md 읽기 (프로젝트 규칙). CLAUDE.md 가 @AGENTS.md 스텁이면 AGENTS.md 도 읽기
+- DESIGN.md(있으면 1차 디자인 컨텍스트) / PRODUCT.md(있으면 보조) 읽기 — read-if-present
 - tsconfig.json 읽기 (경로 별칭·strict 설정)
 - [Next.js] next.config.* 읽기 / [Vite SPA] vite.config.* 읽기
 ```

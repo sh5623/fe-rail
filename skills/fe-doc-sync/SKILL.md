@@ -44,8 +44,8 @@ cat package.json 2>/dev/null | grep -E '"workspaces"|"packageManager"'
 |--------------------|------|
 | `next` | Next.js 앱 (App Router 여부는 `app/` vs `pages/` 존재로 추가 판별) |
 | `vite` + `@tanstack/react-router` | Vite SPA (TanStack Router) |
-| `vite` + `react-router`(v7) | Vite SPA (React Router 7) — 데이터는 TanStack Query 단독 소유 |
-| `vite` + `react-router-dom`(v6 이하) | Vite SPA (React Router 레거시) |
+| `vite` + (`react-router` 또는 `react-router-dom`) v7 | Vite SPA (React Router 7) — 데이터는 TanStack Query 단독 소유 |
+| `vite` + `react-router-dom` v6 이하 | Vite SPA (React Router 레거시) |
 | `workspaces` 필드 존재 + `apps/`·`packages/` | 모노레포 |
 | `react-native` | RN Web (참고만, fe-rail 주 대상 아님) |
 
@@ -105,8 +105,10 @@ cat package.json | grep -oE '"(next|vite|@tanstack/react-router|react-router|@ta
 `CLAUDE.md`와 `README.md` 가 존재하면 전체를 읽어 **현재 문서화된 내용**을 파악한다.
 
 ```bash
-ls -la CLAUDE.md README.md 2>/dev/null
+ls -la CLAUDE.md README.md AGENTS.md DESIGN.md PRODUCT.md 2>/dev/null
 ```
+
+> AGENTS.md 단일 소스 패턴 주의: CLAUDE.md 가 @AGENTS.md 만 담은 스텁(몇 줄)이면 컨벤션의 단일 소스는 AGENTS.md 다. 이때 스택표·디렉토리 트리 등을 CLAUDE.md 스텁에 끼워 넣지 말고 AGENTS.md 를 동기화 대상으로 삼는다(스텁은 건드리지 않음). DESIGN.md(디자인 계약)·PRODUCT.md(제품/브랜드)·biome.json 은 있으면 함께 점검, 없으면 건너뛴다.
 
 체크 대상:
 - 프로젝트 개요·기술 스택 표
@@ -140,6 +142,7 @@ ls -la CLAUDE.md README.md 2>/dev/null
 | 모노레포 | 새 `apps/admin` 추가 | apps 매트릭스 누락 | 추가 |
 | 모노레포 | 새 `packages/ui` 추가 | 공유 패키지 표 누락 | 추가 |
 | 테스트 | Vitest→Jest 전환 | 테스트 섹션 도구명 | 수정 |
+| 린터 | ESLint→Biome 전환 | lint 도구·명령(`pnpm check`/`biome ci`) | 수정 |
 | 빌드 출력 | `out/` → `dist/` | 배포 가이드 경로 | 수정 |
 
 **원칙**: 사용자 프로젝트의 코드가 진실이다. 문서가 다르면 문서를 고친다.

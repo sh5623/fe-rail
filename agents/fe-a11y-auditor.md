@@ -21,7 +21,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 **목표:**
 - Semantic HTML·ARIA·키보드 탐색·Form·Image·Focus·Landmark·Color Contrast 8개 카테고리 정밀 감사
 - WCAG AA 기준 위반 사항을 BLOCK/WARN/INFO로 분류
-- eslint-plugin-jsx-a11y·axe-core 기준과 교차 검증
+- 린터 a11y 규칙(Biome a11y 그룹 또는 eslint-plugin-jsx-a11y)·axe-core 기준과 교차 검증
 - Tailwind 사용 시 팔레트 조합 기준 정적 대비 점검 추가
 
 **사용 시점:**
@@ -129,7 +129,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | 필수 | 기준 |
 |------|------|
 | 변경 파일 기준 | `git diff --name-only` 기준 범위 결정 |
-| eslint-plugin-jsx-a11y 활용 | `$PM lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`→bun) |
+| 린터 a11y 규칙 활용 | 감지된 린터(Biome a11y 그룹 / ESLint jsx-a11y)의 `$PM lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun) |
 | file:line 참조 | 모든 발견사항에 위치 명시 |
 | Before/After 예시 | BLOCK과 WARN에 수정 예시 |
 | WCAG 기준 번호 | 모든 항목에 기준 번호 표기 |
@@ -148,10 +148,14 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
 ### Step 2: 정적 분석 (병렬)
 ```bash
 # 패키지 매니저 감지
-PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; [ -f "bun.lockb" ] && PM="bun" && PX="bun"
+PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun" && PX="bun"
 
-# ESLint a11y 플러그인 실행
-$PM lint --rule 'jsx-a11y/*: error' 2>&1
+# a11y 린트 — 린터 감지 후 실행 (Biome a11y 그룹 ↔ ESLint jsx-a11y)
+if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then
+  $PM lint 2>&1 # Biome: a11y 규칙군이 기본 recommended 에 포함 (useAltText·useValidAnchorElement·useKeyWithClickEvents 등) — 별도 플래그 불필요
+else
+  $PM lint --rule 'jsx-a11y/*: error' 2>&1 # ESLint + eslint-plugin-jsx-a11y
+fi
 
 # 패턴 검색
 Grep: "div.*onClick|span.*onClick"

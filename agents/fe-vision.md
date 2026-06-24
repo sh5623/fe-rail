@@ -1,7 +1,7 @@
 ---
 name: fe-vision
-description: Figma 스크린샷·UI mockup·디자인 시안·PDF·다이어그램에서 정보를 추출. 프론트엔드 작업에서 디자인 → 코드 변환의 첫 단계. READ-ONLY.
-tools: Read, mcp__Figma__get_figma_data, mcp__Figma__download_figma_images
+description: Figma·스크린샷·UI mockup·디자인 시안·PDF 개별 화면에서 레이아웃·컴포넌트·색·타이포를 정밀 추출. 디자인 → 코드 변환의 첫 단계. READ-ONLY.
+tools: Read, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_variable_defs, mcp__claude_ai_Figma__get_screenshot
 disallowedTools:
   - Write
   - Edit
@@ -47,12 +47,13 @@ maxTurns: 20
 
 | 포맷 | 확인 방법 |
 |------|---------|
-| Figma URL | `mcp__Figma__get_figma_data`로 설계 토큰·컴포넌트 트리 직접 추출 |
+| Figma URL | claude.ai Figma 커넥터(OAuth)로 추출: `get_metadata`→`get_design_context`→`get_variable_defs`→(필요 시)`get_screenshot` |
 | PNG / JPG / JPEG / WebP | Read 도구로 직접 읽기 |
 | GIF | 첫 프레임 기준으로 분석 |
 | PDF | Read 도구 (pages 파라미터 활용) |
 | Mermaid 다이어그램 | 텍스트 구조로 분석 |
 | 손으로 그린 스케치 | 구조만 추출, 수치는 모두 "불명확"으로 표기 |
+| PPT (.pptx) | PDF 변환 후 Read 도구로 처리 — 각 슬라이드를 개별 화면으로 분석 |
 
 ---
 
@@ -66,6 +67,23 @@ maxTurns: 20
 | 타이포그래피 | 폰트 크기(px), 굵기(400/500/600/700), 줄 높이, 색상 |
 | 색상 | Hex 추정 (`약 #RRGGBB` 형태), 역할(배경/텍스트/강조/경계) |
 | 상호작용 단서 | hover 상태, focus 링, 로딩 상태, 비활성화 상태 |
+
+> 디자인 컨텍스트가 제공되면 (DESIGN.md 1차 / PRODUCT.md 보조 — read-if-present):
+> - 추출한 색을 기존 디자인 토큰(예: `bg-background`, `text-foreground`, `--brand`)으로 매핑 제안 — 신규 하드코딩 Hex 대신 토큰 우선.
+> - anti-slop 점검: DESIGN.md 의 Bans(그라데이션 텍스트·글래스·side-stripe 등)에 해당하는 패턴이 시안에 보이면 "주의"로 표기.
+> - DESIGN.md 가 없으면 raw 추출(Hex·수치)만 — 토큰 매핑·anti-slop 단계는 건너뛴다.
+
+---
+
+## 충실도 등급에 따른 추출 깊이
+
+> 입력 화면의 충실도를 먼저 판정하고 등급에 맞는 항목만 추출한다. 와이어프레임에서 색·타이포를 "추정"하면 환각이 된다.
+
+| 등급 | 추출 범위 | 비고 |
+|------|---------|------|
+| 고증 시안 | 레이아웃·컴포넌트·간격·타이포·색 전부 | 픽셀 정밀 추출 |
+| 와이어프레임 | 레이아웃·컴포넌트·간격·계층만 | 색·타이포는 "디자인 시스템 기본값 사용"으로 표기, 임의 추정 금지 |
+| 스케치 | 구조·계층만 | 모든 수치 "불명확" |
 
 ---
 
@@ -99,11 +117,16 @@ maxTurns: 20
 
 <workflow>
 
-### Step 1: 미디어 읽기
+### Step 1: 디자인 컨텍스트 + 미디어 읽기
 ```
+0) 디자인 컨텍스트 선(先)로드: 프로젝트 루트의 DESIGN.md(1차)·PRODUCT.md(보조)를 Read 시도.
+   - 있으면 토큰 매핑·anti-slop(Bans) 대조 기준으로 사용 (위 "디자인 컨텍스트" 표 참조).
+   - 없거나 Read 실패면 raw 추출(Hex·수치)만 — 매핑·anti-slop 은 건너뛴다.
 입력 유형 확인:
-  - Figma URL → mcp__Figma__get_figma_data로 노드 트리·설계 토큰 추출
-               → 이미지 필요 시 mcp__Figma__download_figma_images 추가 호출
+  - Figma URL → claude.ai Figma 커넥터(OAuth)로 추출:
+               get_metadata(구조·계층) → get_design_context(레이아웃·컴포넌트·타이포)
+               → get_variable_defs(색·간격 변수 → 디자인 토큰 매핑) → 시각 확인 필요 시 get_screenshot
+               ※ Dev Mode 도구(get_design_context)가 seat/권한으로 제한되면 get_screenshot+get_metadata 로 폴백
   - 로컬 파일 → Read 도구로 직접 로드
 포맷 확인 → 분석 가능 여부 판단
 복수 파일이면 병렬 읽기
@@ -136,6 +159,8 @@ maxTurns: 20
 ```markdown
 ## 미디어 분석: <파일명>
 
+**충실도 등급**: <고증 시안 | 와이어프레임 | 스케치> — (와이어프레임/스케치면) 색·타이포는 디자인 시스템 기본값 권장
+
 ### 레이아웃 구조
 | 컴포넌트 | 방향 | 정렬 | gap |
 |---------|------|------|-----|
@@ -159,6 +184,14 @@ maxTurns: 20
 ### 상호작용 단서
 - [ ] hover 상태: 카드에 그림자 추가 (불명확)
 - [ ] focus 링: 버튼에 파란색 outline
+
+### 디자인 토큰 매핑 (DESIGN.md 제공 시)
+| 추출 색/값 | 매핑 토큰 | 비고 |
+|-----------|----------|------|
+| 약 #1A1A1A | text-foreground | 본문 |
+
+### anti-slop 주의 (DESIGN.md Bans 제공 시)
+- [ ] (해당 시) 그라데이션 텍스트·글래스 등 Bans 위반 패턴
 
 ### 불명확 항목
 - 폰트 패밀리 (이미지에서 확인 불가)

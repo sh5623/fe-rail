@@ -46,8 +46,15 @@ if fe_has_eslint "$PROJECT_ROOT"; then
 fi
 
 # ── TypeScript ───────────────────────────────────────────────────────────────
-# fe_run_tsc: PROJECT_ROOT 기준으로 tsc 를 실행하는 인라인 헬퍼.
-# 바이너리 경로를 문자열 변수에 담아 비인용 실행하지 않음(공백 안전).
+# 솔루션 스타일 tsconfig(files:[]+references)에서는 bare `tsc -p tsconfig.json` 가
+# 아무 파일도 검사하지 않으므로(no-op), typecheck 스크립트 → `tsc -b` → `tsc -p` 순으로 폴백한다.
+# 바이너리/PM 경로를 문자열 변수에 담아 비인용 실행하지 않음(공백 안전).
+_fe_pm() {  # 패키지 매니저 감지 (lock 파일 기준)
+  if   [ -f "$PROJECT_ROOT/pnpm-lock.yaml" ]; then echo pnpm
+  elif [ -f "$PROJECT_ROOT/yarn.lock" ];      then echo yarn
+  elif [ -f "$PROJECT_ROOT/bun.lockb" ] || [ -f "$PROJECT_ROOT/bun.lock" ]; then echo bun
+  else echo npm; fi
+}
 _fe_has_tsc() {
   [ -f "$PROJECT_ROOT/tsconfig.json" ] || return 1
   [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ] || command -v npx >/dev/null 2>&1
@@ -63,7 +70,16 @@ _fe_run_tsc() {
 }
 
 if _fe_has_tsc; then
-  TSC_OUT=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1 | head -20)
+  if grep -q '"typecheck"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
+    # 프로젝트가 의도한 config 사용 — 가장 안전 (예: tsc -p tsconfig.app.json)
+    PM=$(_fe_pm)
+    TSC_OUT=$( ( cd "$PROJECT_ROOT" && "$PM" run typecheck ) 2>&1 | head -20)
+  elif grep -q '"references"' "$PROJECT_ROOT/tsconfig.json" 2>/dev/null; then
+    # 솔루션 스타일 → build 모드라야 참조 프로젝트를 검사
+    TSC_OUT=$(_fe_run_tsc -b --pretty false 2>&1 | head -20)
+  else
+    TSC_OUT=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1 | head -20)
+  fi
   [ -n "$TSC_OUT" ] && OUTPUT="${OUTPUT}[TypeScript]\n${TSC_OUT}\n"
 fi
 
