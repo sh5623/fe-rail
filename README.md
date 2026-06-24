@@ -36,12 +36,12 @@ claude
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
-| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`, `*.pem`, `*.key`, `*secret*` 등 민감 파일 생성·수정 차단 (`.env.example`은 허용) | ✅ |
+| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`, `*.pem`, `*.key`, `*.secret`, `*secret*.json`, `*credential*.json` 등 민감 파일 생성·수정 차단 (소스 파일명에 secret/credential 포함된 경우는 통과) | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
 | `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
-| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + `tsc --noEmit` 실행 후 경고 출력 | — |
+| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + typecheck(`typecheck` 스크립트 → `tsc -b` → `tsc --noEmit` 폴백) 실행 후 경고 출력 | — |
 | `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
@@ -57,7 +57,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
 | `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
-| `fe-vision` | Figma·UI 스크린샷·PDF·다이어그램 분석 (Figma URL → MCP 직접 조회) | sonnet | 책임 (read-only) |
+| `fe-vision` | Figma·UI 스크린샷·PDF 개별 화면 분석 (Figma URL → claude.ai 커넥터 OAuth 조회, 충실도 등급별 추출) | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn (직교 감지) | opus | 책임 (read-only) |
 
@@ -110,7 +110,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 |------|------|------|
 | **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않음) | `/init` 또는 `/fe-rail:fe-doc-sync` |
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
-| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회 활성화 (미설치 시 로컬 이미지·WebSearch로 fallback) | Figma MCP(서버명 `Figma`) / Context7 플러그인 설치 |
+| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회 활성화 (미연결 시 로컬 이미지·WebSearch로 fallback) | Figma: claude.ai 설정에서 Figma OAuth 커넥터 연결 / Context7: 플러그인 설치 |
 | **검증 스크립트** | Phase 3 자동 검증이 `package.json`의 `typecheck`/`lint`/`test` 스크립트를 사용 | 해당 스크립트 정의 권장 |
 
 ## 라이선스
