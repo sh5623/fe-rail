@@ -22,10 +22,10 @@ claude
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document |
+| fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document. Phase 3 presents a radio UI to choose the next step (full auto · build only · revise spec) — selecting "full auto" hands off directly to the fe-start pipeline |
 | fe-build | `/fe-rail:fe-build` | Frontend implementation (types → logic → components → tests) |
 | fe-review | `/fe-rail:fe-review` | 4-axis code review: types · performance · a11y · quality |
-| fe-start | `/fe-rail:fe-start feature.md` | All-in-one — automates through PR creation |
+| fe-start | `/fe-rail:fe-start feature.md` | All-in-one — automates through PR creation. Phase 1 · 5 use radio UI to confirm implementation and commit intent |
 | fe-doc-sync | `/fe-rail:fe-doc-sync` | Scans the **consumer project** (routes · deps · structure · ENV) → proposes updates to that project's CLAUDE.md · README.md |
 
 ## Hooks
@@ -56,8 +56,8 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 ### Spec stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
-| `fe-analyst` | Requirements gap analysis (6 gaps / 7 sections) | opus | Scoped (read-only) |
-| `fe-vision` | Figma · UI screenshots · PDFs · diagrams (Figma URL → direct MCP query) | sonnet | Scoped (read-only) |
+| `fe-analyst` | Requirements gap analysis (6 gaps / 7 sections); parallel scan of CLAUDE.md · DESIGN.md · PRODUCT.md · AGENTS.md | opus | Scoped (read-only) |
+| `fe-vision` | Figma · UI screenshots · PDFs (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) | sonnet | Scoped (read-only) |
 | `fe-researcher` | External docs · library research (Context7 MCP preferred, WebSearch/WebFetch fallback) | sonnet | Tool (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS architecture — Next.js (RSC boundaries) / Vite SPA (TanStack Router · React Router 7 · Zustand) + Tailwind v3/v4 · shadcn (orthogonal detection) | opus | Scoped (read-only) |
 
@@ -85,10 +85,16 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 
 ## Workflow
 
-**All-in-one automation**
+**All-in-one automation (fe-start)**
 ```
-Write feature.md → /fe-rail:fe-start feature.md → Approve "Implement?" → Approve "Commit?" → PR created
+Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [radio] "Commit?" → PR created
 ```
+
+**fe-spec → full-auto handoff**
+```
+/fe-rail:fe-spec → [radio] select "Full auto" → fe-start Phase 2 directly → [radio] "Commit?" → PR created
+```
+> Selecting "Full auto" in fe-spec Phase 3 counts as the implementation approval, so fe-start Phase 1 is skipped. Two human touch-points are still maintained.
 
 **Step-by-step manual control**
 ```

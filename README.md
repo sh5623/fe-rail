@@ -22,10 +22,10 @@ claude
 
 | 스킬 | 명령어 | 설명 |
 |------|--------|------|
-| fe-spec | `/fe-rail:fe-spec` | 기능 요구사항 → 구조화된 스펙 문서 생성 |
+| fe-spec | `/fe-rail:fe-spec` | 기능 요구사항 → 구조화된 스펙 문서 생성. Phase 3 에서 다음 단계(풀 자동·구현만·스펙 수정)를 라디오 UI로 선택 — "풀 자동" 선택 시 fe-start 파이프라인으로 자동 연결 |
 | fe-build | `/fe-rail:fe-build` | 프론트엔드 코드 구현 (타입→로직 분리→컴포넌트→테스트) |
 | fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
-| fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화 |
+| fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화. Phase 1·5 가 라디오 UI로 진행 여부·커밋 방식 확인 |
 | fe-doc-sync | `/fe-rail:fe-doc-sync` | **설치된 사용자 프로젝트** 스캔 (라우트·의존성·구조·ENV) → 그 프로젝트의 CLAUDE.md·README.md 수정안 제안 |
 
 ## 포함된 Hooks
@@ -56,8 +56,8 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 ### spec 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션) | opus | 책임 (read-only) |
-| `fe-vision` | Figma·UI 스크린샷·PDF 개별 화면 분석 (Figma URL → claude.ai 커넥터 OAuth 조회, 충실도 등급별 추출) | sonnet | 책임 (read-only) |
+| `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션); CLAUDE.md·DESIGN.md·PRODUCT.md·AGENTS.md 병렬 탐색 | opus | 책임 (read-only) |
+| `fe-vision` | Figma·UI 스크린샷·PDF 개별 화면 분석 (Figma URL → `get_metadata`·`get_design_context`·`get_variable_defs`·`get_screenshot`; DESIGN.md Bans anti-slop 점검) | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn (직교 감지) | opus | 책임 (read-only) |
 
@@ -85,10 +85,16 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 
 ## 워크플로우
 
-**원스톱 자동화**
+**원스톱 자동화 (fe-start)**
 ```
-feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → PR 생성 완료
+feature.md 작성 → /fe-rail:fe-start feature.md → [라디오] "구현할까요?" → [라디오] "커밋할까요?" → PR 생성 완료
 ```
+
+**fe-spec → 풀 자동 핸드오프**
+```
+/fe-rail:fe-spec → [라디오] "풀 자동" 선택 → fe-start Phase 2 바로 진행 → [라디오] "커밋할까요?" → PR 생성 완료
+```
+> fe-spec Phase 3 "풀 자동" 선택이 구현 시작 승인을 겸하므로, fe-start Phase 1 확인은 생략됩니다. 사람 개입은 2회 유지.
 
 **단계별 수동 제어**
 ```

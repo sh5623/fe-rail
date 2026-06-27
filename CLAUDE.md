@@ -118,6 +118,8 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 **원스톱 자동화**: `fe-start` 스킬이 위 전체 흐름을 자동으로 처리한다.
 사람 개입은 "구현할까요?"와 "커밋할까요?" 두 번뿐이다.
 
+fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "풀 자동"을 고르면 fe-start 로 이어진다. 이때 "구현할까요?"는 fe-spec 게이트가 대신하므로 fe-start 는 "커밋할까요?"만 묻는다(전체 승인 2회 유지).
+
 ---
 
 ## 다른 프로젝트에 적용하기
@@ -193,6 +195,10 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 ```bash
 # lock 파일로 패키지 매니저를 먼저 감지한 뒤 아래 대응 명령어를 실행
 # pnpm-lock.yaml → pnpm / yarn.lock → yarn / bun.lock(b) → bun / 없으면 → npm
+#
+# 타입 체크는 프로젝트 `typecheck` 스크립트가 있으면 그것을 우선 사용한다.
+# (솔루션 스타일 tsconfig — files:[] + references — 에서는 bare `tsc --noEmit` 이
+#  아무 파일도 검사하지 않으므로 `typecheck` 스크립트 또는 `tsc -b` 를 써야 한다.)
 
 # 타입 체크
 npx tsc --noEmit          # npm
@@ -222,7 +228,7 @@ bun test                  # bun
 - **스펙 먼저** — `feature.md` 없이 코드 작성 시작 금지
 - **사용자 승인 두 번** — 구현 시작 전, 커밋 전
 - **타입 먼저** — 구현 순서: 타입 정의 → 훅/서비스 → 컴포넌트 → 테스트
-- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) 통과 후 완료 선언
+- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) + 완료 기준 게이트(`build`/`e2e` 존재 시, fe-start Phase 4.5) 통과 후 완료 선언. "완료"는 `feature.md` 의 완료 기준 충족이다 (리뷰 BLOCK 0 ≠ 완료)
 
 ### 하지 말 것
 

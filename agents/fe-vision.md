@@ -47,7 +47,7 @@ maxTurns: 20
 
 | 포맷 | 확인 방법 |
 |------|---------|
-| Figma URL | claude.ai Figma 커넥터(OAuth)로 추출: `get_metadata`→`get_design_context`→`get_variable_defs`→(필요 시)`get_screenshot` |
+| Figma URL | claude.ai Figma 커넥터(OAuth)로 추출: `get_metadata`(구조)·`get_design_context`(레이아웃·컴포넌트·타이포)·`get_variable_defs`(색·간격 변수→토큰)·`get_screenshot`(시각 참조) |
 | PNG / JPG / JPEG / WebP | Read 도구로 직접 읽기 |
 | GIF | 첫 프레임 기준으로 분석 |
 | PDF | Read 도구 (pages 파라미터 활용) |
@@ -70,7 +70,7 @@ maxTurns: 20
 
 > 디자인 컨텍스트가 제공되면 (DESIGN.md 1차 / PRODUCT.md 보조 — read-if-present):
 > - 추출한 색을 기존 디자인 토큰(예: `bg-background`, `text-foreground`, `--brand`)으로 매핑 제안 — 신규 하드코딩 Hex 대신 토큰 우선.
-> - anti-slop 점검: DESIGN.md 의 Bans(그라데이션 텍스트·글래스·side-stripe 등)에 해당하는 패턴이 시안에 보이면 "주의"로 표기.
+> - anti-slop 점검: DESIGN.md 의 Bans(그라데이션 텍스트·글래스·side-stripe·01/02/03 마커·동일 카드 떡칠 등)에 해당하는 패턴이 시안에 보이면 "주의"로 표기. PRODUCT.md 의 anti-references 는 보조.
 > - DESIGN.md 가 없으면 raw 추출(Hex·수치)만 — 토큰 매핑·anti-slop 단계는 건너뛴다.
 
 ---
