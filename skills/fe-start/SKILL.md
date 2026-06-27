@@ -10,6 +10,7 @@ allowed-tools:
   - Write
   - Edit
   - Bash
+  - AskUserQuestion
 ---
 
 # FE Start — 원스톱 자동화 스킬
@@ -46,9 +47,28 @@ feature.md 존재 확인 → 없으면: "feature.md가 없습니다. fe-spec 스
 - 예상 소요 단계
 
 ### Phase 1 — 첫 번째 확인 ⛔ STOP
-> **"위 내용으로 구현을 시작할까요?"**
 
-사용자 승인 전 코드 작성 금지.
+Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는다 (자유 텍스트 아님 — 단일 선택 라디오). 승인 전 코드 작성 금지.
+
+```jsonc
+// AskUserQuestion 호출 — 단일 선택(라디오)
+{
+  "questions": [{
+    "header": "구현 시작",
+    "question": "위 내용으로 구현을 시작할까요?",
+    "multiSelect": false,
+    "options": [
+      { "label": "구현 시작", "description": "Phase 2 로 진행" },
+      { "label": "계획만",   "description": "구현 없이 분석 결과만 확인하고 멈춤" },
+      { "label": "중단",     "description": "작업을 멈추고 사용자 지시를 기다림" }
+    ]
+  }]
+}
+```
+
+- 구현 시작 → Phase 2 로 진행. 그 외(계획만·중단·Other) → 코드 작성 없이 멈추고 사용자 지시를 기다린다.
+
+> 예외 (중복 확인 방지): fe-spec Phase 3 의 "풀 자동" 선택으로 진입한 경우, 구현 시작 승인을 이미 받은 것이므로 이 질문은 생략하고 Phase 2 부터 시작한다. (standalone fe-start feature.md 진입은 그대로 이 확인을 거친다.)
 
 ---
 
@@ -117,7 +137,11 @@ PM=npm; PX=npx
 [ -f yarn.lock ]      && PM=yarn && PX=yarn
 { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
 if grep -q '"build"' package.json; then $PM run build; fi
-if [ -d e2e ] && grep -q '@playwright/test' package.json; then $PX playwright test; fi
+# E2E: 디렉터리 + 의존성 있을 때만 (브라우저 미설치 대비 install)
+if [ -d e2e ] && grep -q '@playwright/test' package.json; then
+  $PX playwright install --with-deps chromium >/dev/null 2>&1
+  if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
+fi
 ```
 
 3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
@@ -129,14 +153,32 @@ if [ -d e2e ] && grep -q '@playwright/test' package.json; then $PX playwright te
 
 ### Phase 5 — 두 번째 확인 ⛔ STOP
 
-STOP 문구는 실제 실행된 검증만 보고한다 ("검증 완료" 같은 포괄 표현 금지). Phase 3·4.5 결과를 그대로 채운다:
+**먼저** 실제 실행된 검증만 텍스트로 보고하고("검증 완료" 같은 포괄 표현 금지 — Phase 3·4.5 결과를 그대로 채운다), **그다음 `AskUserQuestion` 으로 커밋·PR 여부를 묻는다** (단일 선택 라디오).
 
+보고(질문 앞 본문):
 > "자동 검증 — 타입·린트·단위: {통과/실패}, 빌드: {통과/실패/미실행}, E2E: {통과/실패/미실행(사유)}.
-> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}.
-> 로컬에서 동작을 직접 확인하셨다면 커밋·PR 을 진행할까요?"
+> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."
 
-- E2E 미실행/미검증이면 그대로 노출한다 (예: "E2E: 미실행 — 로컬 미수행·CI 미연결").
-- `--ci-live` 면: "E2E·빌드는 push 후 CI 에서 검증" 으로 표기.
+```jsonc
+// AskUserQuestion 호출 — 단일 선택(라디오)
+{
+  "questions": [{
+    "header": "커밋·PR",
+    "question": "로컬에서 동작을 직접 확인하셨다면, 커밋·PR 을 진행할까요?",
+    "multiSelect": false,
+    "options": [
+      { "label": "커밋·PR 진행", "description": "커밋·푸시 후 PR 생성 (Phase 6 전체)" },
+      { "label": "커밋만",       "description": "커밋·푸시만, PR 생성 안 함 (--no-pr 와 동일)" },
+      { "label": "중단",         "description": "커밋하지 않고 멈춤" }
+    ]
+  }]
+}
+```
+
+- **커밋·PR 진행** → Phase 6 전체. **커밋만** → 6-1 만(PR 생략). **중단·Other** → 커밋하지 않고 멈춘다.
+- E2E 미실행/미검증이면 보고에 그대로 노출한다 (예: "E2E: 미실행 — 로컬 미수행·CI 미연결").
+- `--ci-live` 면: 보고에 "E2E·빌드는 push 후 CI 에서 검증" 으로 표기.
+- `--no-pr` 가 이미 켜져 있으면 "커밋·PR 진행" 대신 "커밋 진행"으로 좁혀 묻는다(PR 항목 제외).
 
 ---
 
