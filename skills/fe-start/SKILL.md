@@ -4,7 +4,7 @@ description: >-
   feature.md 파일을 받아 스펙 확인 → 구현 → 리뷰 → 커밋 → PR까지 자동으로 진행합니다.
   Use when: "fe-start feature.md" 또는 "feature.md로 시작해줘"라고 말할 때.
   Do NOT load for: 단발 버그 핫픽스·1줄 변경·탐색성 작업·통과/실패 신호가 모호한 작업 (단일 스킬 또는 직접 프롬프트가 낫다).
-  사람 개입은 두 번: "구현할까요?", "커밋할까요?" (재위임 상한 소진 시 예외 에스컬레이션 STOP 가능)
+  사람 개입은 두 번: "구현할까요?", "커밋할까요?" — fe-spec 풀 자동 핸드오프로 진입 시는 "커밋할까요?" 한 번(fe-spec Phase 3 선택이 첫 승인을 겸함, 총합 2회 유지). 재위임 상한 소진 시 예외 에스컬레이션 STOP 가능.
 allowed-tools:
   - Read
   - Write
@@ -68,7 +68,7 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 
 - 구현 시작 → Phase 2 로 진행. 그 외(계획만·중단·Other) → 코드 작성 없이 멈추고 사용자 지시를 기다린다.
 
-> 예외 (중복 확인 방지): fe-spec Phase 3 의 "풀 자동" 선택으로 진입한 경우, 구현 시작 승인을 이미 받은 것이므로 이 질문은 생략하고 Phase 2 부터 시작한다. (standalone fe-start feature.md 진입은 그대로 이 확인을 거친다.)
+> 예외 (중복 확인 방지): fe-spec Phase 3 의 "풀 자동" 선택으로 진입한 경우, 구현 시작 승인을 이미 받은 것이므로 Phase 1 STOP(이 질문)을 생략한다. Phase 0(feature.md 읽기·코드베이스 분석)은 그대로 실행하고, Phase 1 STOP 없이 바로 Phase 2 로 진행한다. (standalone fe-start feature.md 진입은 그대로 이 확인을 거친다.)
 
 ---
 
@@ -135,11 +135,11 @@ BLOCK 0 은 Phase 4.5 진행의 필요조건일 뿐, 최종 종료 판정은 Pha
 PM=npm; PX=npx
 [ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
 [ -f yarn.lock ]      && PM=yarn && PX=yarn
-{ [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
+{ [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bunx
 if grep -q '"build"' package.json; then $PM run build; fi
 # E2E: 디렉터리 + 의존성 있을 때만 (브라우저 미설치 대비 install)
 if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-  $PX playwright install --with-deps chromium >/dev/null 2>&1
+  $PX playwright install --with-deps chromium >/dev/null
   if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
 fi
 ```
@@ -178,7 +178,7 @@ fi
 - **커밋·PR 진행** → Phase 6 전체. **커밋만** → 6-1 만(PR 생략). **중단·Other** → 커밋하지 않고 멈춘다.
 - E2E 미실행/미검증이면 보고에 그대로 노출한다 (예: "E2E: 미실행 — 로컬 미수행·CI 미연결").
 - `--ci-live` 면: 보고에 "E2E·빌드는 push 후 CI 에서 검증" 으로 표기.
-- `--no-pr` 가 이미 켜져 있으면 "커밋·PR 진행" 대신 "커밋 진행"으로 좁혀 묻는다(PR 항목 제외).
+- `--no-pr` 가 이미 켜져 있으면 위 JSON 대신 옵션을 2개로 좁혀 묻는다: `{ "label": "커밋 진행", "description": "커밋·푸시만 (PR 없음)" }`, `{ "label": "중단", "description": "커밋하지 않고 멈춤" }`. "커밋만" 과 "커밋·PR 진행" 두 항목이 모두 동일한 결과를 가리키므로 하나로 통합한다.
 
 ---
 
