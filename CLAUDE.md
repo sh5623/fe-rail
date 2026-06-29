@@ -19,9 +19,10 @@ React + TypeScript 환경(Next.js App Router / Vite SPA 모두)을 대상으로 
 ```
 fe-rail/
 ├── CLAUDE.md              ← 에이전트 컨텍스트 (이 파일)
-├── agents/                ← 14개 서브에이전트 (spec·build·review·PR 단계별)
+├── agents/                ← 15개 서브에이전트 (spec·build·review·PR 단계별)
 │   ├── fe-analyst.md      ← spec: 요구사항 갭 분석
-│   ├── fe-vision.md       ← spec: Figma·스크린샷 분석
+│   ├── fe-deck-reader.md  ← spec: PPT 기획서 분해 (정책·화면·흐름)
+│   ├── fe-vision.md       ← spec: 화면 분석 · verify: 시각 충실도 대조(visual-verdict)
 │   ├── fe-researcher.md   ← spec: 외부 문서 조사
 │   ├── fe-architect.md    ← spec: 아키텍처 자문
 │   ├── fe-explorer.md     ← build: 코드베이스 탐색
@@ -52,7 +53,7 @@ fe-rail/
 |--------|------|------|
 | **CLAUDE.md** | 이 파일 | 에이전트가 프로젝트를 이해하는 최우선 컨텍스트 |
 | **Skills** | `skills/*/SKILL.md` | 작업 유형별 전문화된 지침 (도구 제한 포함) |
-| **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (14개) |
+| **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (15개) |
 | **Hooks** | `hooks/hooks.json` | Pre/PostToolUse·Stop 이벤트 자동 실행 사이드이펙트 |
 | **Permissions** | `settings.local.json` | Bash 명령어 화이트리스트로 에이전트 권한 제한 |
 
@@ -100,7 +101,7 @@ fe-rail/
     │
     ▼
 fe-spec  →  feature.md 생성 (사용자 승인 필요)
-            └─ 에이전트: fe-analyst·fe-vision·fe-researcher·fe-architect
+            └─ 에이전트: fe-analyst·fe-deck-reader·fe-vision·fe-researcher·fe-architect
     │
     ▼
 fe-build →  타입 → 비즈니스 로직 분리 → 컴포넌트 → 테스트 순서로 구현
@@ -228,7 +229,7 @@ bun test                  # bun
 - **스펙 먼저** — `feature.md` 없이 코드 작성 시작 금지
 - **사용자 승인 두 번** — 구현 시작 전, 커밋 전
 - **타입 먼저** — 구현 순서: 타입 정의 → 훅/서비스 → 컴포넌트 → 테스트
-- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) + 완료 기준 게이트(`build`/`e2e` 존재 시, fe-start Phase 4.5) 통과 후 완료 선언. "완료"는 `feature.md` 의 완료 기준 충족이다 (리뷰 BLOCK 0 ≠ 완료)
+- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) + 완료 기준 게이트(`build`/`e2e` 존재 시 · 고증 화면이면 시각 충실도 대조, fe-start Phase 4.5) 통과 후 완료 선언. "완료"는 `feature.md` 의 완료 기준 충족이다 (리뷰 BLOCK 0 ≠ 완료)
 
 ### 하지 말 것
 
