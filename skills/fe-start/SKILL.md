@@ -139,7 +139,7 @@ PM=npm; PX=npx
 if grep -q '"build"' package.json; then $PM run build; fi
 # E2E: 디렉터리 + 의존성 있을 때만 (브라우저 미설치 대비 install)
 if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-  $PX playwright install --with-deps chromium >/dev/null
+  $PX playwright install chromium >/dev/null
   if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
 fi
 ```
@@ -149,9 +149,9 @@ fi
 
 4. (고증 화면 한정) 시각 충실도 게이트 — 화면 흐름 충실도 등급=고증 시안 이고 레퍼런스 가 있는 화면만.
    (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
-   캡처: 빌드/dev 서버 기동 후 해당 라우트를 레퍼런스와 동일 뷰포트로 스크린샷(Playwright page.screenshot() 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 "미검증"(통과 아님)으로 기록.
+   캡처: dev 서버를 **백그라운드로 기동**하고 포트가 열릴 때까지 대기한 후 해당 라우트를 레퍼런스와 동일 뷰포트로 스크린샷(Playwright page.screenshot() 또는 chrome-devtools MCP). 캡처 완료 후 백그라운드 프로세스를 반드시 종료(cleanup)한다. 앱 미기동·라우트 부재면 "미검증"(통과 아님)으로 기록.
    판정: fe-vision 대조 모드에 reference_images+generated_screenshot+category_hint(Figma=figma-hifi / PPT-PDF=ppt-layout)를 넘겨 JSON 판정을 받는다.
-   루프: score < 임계 면 differences/suggestions 를 fe-build(또는 fe-build-fixer)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 "재위임 상한"(같은 화면 3회) 으로 bound, 초과 시 출구로.
+   루프: verdict 가 `"pass"` 가 아니면(`"revise"` 또는 `"fail"`) differences/suggestions 를 fe-build(또는 fe-build-fixer)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 "재위임 상한"(같은 화면 3회) 으로 bound, 초과 시 출구로.
    최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
 
 > `--ci-live` 면 build·e2e 를 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.

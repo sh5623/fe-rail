@@ -113,6 +113,7 @@ maxTurns: 20
 - `differences[]`: 불일치를 **토큰·간격·타이포 단위**로 (예: `"nav 좌우 padding 시안 대비 약 4px 좁음"`, `"primary 버튼 font-weight 500→600"`). 생 Hex 나열 대신 DESIGN.md 토큰으로 — 추출 모드의 토큰 매핑을 그대로 재사용.
 - `suggestions[]`: `differences` 에 1:1 대응하는 실행 가능한 수정(토큰/유틸 단위).
 - `verdict`: `score ≥ 임계` → `pass`, 수정 여지 → `revise`, 카테고리 자체 불일치 → `fail`.
+- `category_match`: 입력된 `category_hint` 가 실제 이미지 분석 결과와 부합하는지 여부 (`true` | `false`). `false` 면 힌트를 재검토해야 한다.
 
 **환각 방지 (하드룰)**:
 - **레퍼런스와 구현 스크린샷이 모두 실재할 때만** 판정한다. 하나라도 없으면 점수를 만들지 말고 `"판정 불가(입력 부족)"` 를 반환한다.
