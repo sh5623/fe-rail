@@ -169,7 +169,7 @@ Grep: "className=\{`.*\$\{.*\}.*`\}" (변수 보간 클래스 — purge 위험)
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
 # Next.js (next는 바이너리 → $PX)
 $PX next build 2>&1 | grep -E "Route|Size|First Load"

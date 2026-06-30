@@ -59,9 +59,9 @@ PM="npm"; PX="npx"
 | 1 | `package.json` `scripts.test` 명시 | `$PM test` |
 | 2 | `vitest` devDependencies | `$PX vitest run` |
 | 3 | `jest` devDependencies | `$PX jest` |
-| 4 | `@playwright/test` (dev)Dependencies + `e2e/` 존재 | `$PX playwright test` |
+| 4 | `@playwright/test` (dev)Dependencies **+ `e2e/` 존재** | `$PX playwright test` |
 
-> E2E 는 무겁고 preview 빌드 대상이라, 변경파일 quick 루프가 아니라 fe-start Phase 4.5 에서 1회 구동한다.
+> E2E 는 무겁고 preview 빌드 대상이라, 변경파일 quick 루프가 아니라 **fe-start Phase 4.5 에서 1회** 구동한다.
 
 ---
 
