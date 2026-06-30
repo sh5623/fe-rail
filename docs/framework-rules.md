@@ -59,13 +59,13 @@ useQuery({ queryKey: ['products'], queryFn: fetchProducts })
 > - 스키마 불일치를 `as any`/`as unknown as T`/`@ts-expect-error` 로 무마 금지 → `pnpm gen:api` 재생성. (경로·필드는 생성 타입이 컴파일타임 검증)
 > - 자체 백엔드에 손수 `fetch`/`axios` 지양. 단 외부 API·파일 업로드·SSE/스트리밍은 정당한 예외.
 >
-> 인증·세션은 `client.use()` 미들웨어 한곳에서 처리한다 — 호출부마다 토큰 부착/401 처리를 재발명하지 않는다.
+> 인증·세션은 `client.use()` 미들웨어 한곳에서 처리한다 — 호출부마다 토큰 부착/401 처리를 재발명하지 않는다. 토큰 부착은 onRequest, 만료(401)는 onResponse:
 >
 > ```typescript
 > // ✅ 클라이언트 생성 직후 1회 등록 — 모든 호출에 적용 (호출부는 api.GET/POST 만)
 > api.use({
 >   onRequest({ request }) {
->     const token = getToken() // 토큰 저장은 전용 모듈(@/lib/auth/token)로 격리
+>     const token = getToken() // 토큰 저장은 전용 모듈(@/lib/auth/token)로 격리 — 호출부에서 localStorage 직접 접근 금지
 >     if (token) request.headers.set('Authorization', `Bearer ${token}`)
 >     return request
 >   },
@@ -76,7 +76,7 @@ useQuery({ queryKey: ['products'], queryFn: fetchProducts })
 > })
 > ```
 >
-> - 401 redirect 대상 라우트는 실재해야 한다 — 없는 경로로 보내면 dead-link. 라우트를 먼저 만들고 연결한다.
+> - 401 redirect 대상 라우트는 실재해야 한다 — 없는 경로(/login 미정의 등)로 보내면 dead-link. 라우트를 먼저 만들고 연결한다.
 
 ### 타입
 
@@ -300,7 +300,7 @@ export function Button({ className, variant, size, ...props }: ButtonProps) {
 // ❌ variant 마다 if-else / switch 로 클래스 분기 — cva() 사용
 ```
 
-> Vite 환경 설치 시 주의: shadcn CLI 의 `@/` alias 해석은 split tsconfig 함정이 있다 — 루트 `tsconfig.json` 에 `paths` 가 없으면 CLI 가 alias 를 못 풀고 literal `@` 폴더를 만든다. → 아래 Vite + React SPA 전용 규칙 › shadcn/ui CLI — alias 해석 참조.
+> **Vite 환경 설치 시 주의**: shadcn CLI 의 `@/` alias 해석은 split tsconfig 함정이 있다 — 루트 `tsconfig.json` 에 `paths` 가 없으면 CLI 가 alias 를 못 풀고 literal `@` 폴더를 만든다. → 아래 **Vite + React SPA 전용 규칙 › shadcn/ui CLI — alias 해석** 참조.
 
 ---
 

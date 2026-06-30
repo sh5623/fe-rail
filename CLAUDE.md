@@ -66,15 +66,17 @@ fe-rail/
 
 | MCP | 설치 형태 | 연결 에이전트 | 도구 접두사 | 없을 때 fallback |
 |-----|----------|-------------|-----------|----------------|
-| **Figma** | claude.ai Figma 커넥터 (OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_metadata`<br>`mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_variable_defs`<br>`mcp__claude_ai_Figma__get_screenshot` | 로컬 스크린샷(PNG/JPG)만 분석 |
+| **Figma** | claude.ai 계정 커넥터 (`/mcp` → "claude.ai Figma", OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_screenshot` (외 get_metadata·get_variable_defs) | 로컬 스크린샷(PNG/JPG)만 분석 |
 | **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs` | WebSearch + WebFetch로 문서 조회 |
 
-> **도구 접두사는 설치 형태에 따라 달라진다.** 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (위 표는 각각의 설치 형태 기준으로 검증된 접두사다.)
+> Microsoft 365 (선택 보조): OneDrive/SharePoint 의 PPT 기획서를 가져오는 용도. 단 인터랙티브 OAuth 인증이 필요하고 슬라이드를 시각적으로 렌더해 주지 않을 수 있어, 화면 분석에는 PDF 변환이 더 안전하다. 특정 에이전트에 직접 연결하지 않으며, 가져온 파일은 부모 세션이 PDF/이미지로 변환해 fe-deck-reader 에 전달한다.
+
+> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (위 표는 각각의 설치 형태 기준으로 검증된 접두사다.)
 
 ### 설치
 
 - **Context7** (플러그인): `/plugin install context7@<marketplace>` → `/reload-plugins`. 도구는 `mcp__plugin_context7_context7__*` 로 등록된다.
-- **Figma** (claude.ai 커넥터): claude.ai 설정에서 Figma OAuth 커넥터를 연결한다. 도구는 `mcp__claude_ai_Figma__*` 로 등록된다.
+- **Figma** (claude.ai 계정 커넥터): `/mcp` 실행 → "claude.ai Figma" 선택 → OAuth 인증. 공식 Figma MCP(mcp.figma.com)를 claude.ai가 프록시하며, 도구는 `mcp__claude_ai_Figma__*` 로 등록된다. (Dev Mode 계열 도구는 Dev/Full seat 필요)
 
 ---
 
@@ -159,7 +161,7 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 |------|----------|------|
 | Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
 | Vite + React (TanStack Router) | ✅ | 라우트 loader·Zustand 규칙 내장 |
-| Vite + React (React Router 7) | ✅ | 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
+| Vite + React (React Router 7) | ✅ | react-router/react-router-dom 둘 다 인식 · 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
 | Tailwind CSS v3 / v4 (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — v4 는 CSS-first(`@theme`)·gradient rename·`@reference` 추가 분기 |
 | shadcn/ui (직교) | ✅ | UI primitives 격리·`cva()` variant·래핑 패턴 — Tailwind 위에서 동작 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |

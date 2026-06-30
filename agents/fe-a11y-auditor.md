@@ -152,9 +152,9 @@ PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yar
 
 # a11y 린트 — 린터 감지 후 실행 (Biome a11y 그룹 ↔ ESLint jsx-a11y)
 if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then
-  $PM lint 2>&1 # Biome: a11y 규칙군이 기본 recommended 에 포함 (useAltText·useValidAnchorElement·useKeyWithClickEvents 등) — 별도 플래그 불필요
+  $PM lint 2>&1                              # Biome: a11y 규칙군이 기본 recommended 에 포함 (useAltText·useValidAnchorElement·useKeyWithClickEvents 등) — 별도 플래그 불필요
 else
-  $PM lint --rule 'jsx-a11y/*: error' 2>&1 # ESLint + eslint-plugin-jsx-a11y
+  $PM lint --rule 'jsx-a11y/*: error' 2>&1   # ESLint + eslint-plugin-jsx-a11y
 fi
 
 # 패턴 검색
