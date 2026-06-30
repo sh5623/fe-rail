@@ -132,16 +132,16 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
      → 실행하지 않고 STOP 에서 사람 확인 대상으로 노출.
 2. **무거운 게이트(build·e2e)는 여기서 1회만** 실행한다 — 재위임 루프 안에서 반복하지 않는다.
    ```bash
-   # PM 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있어 독립 선언)
-   PM=npm
-   [ -f pnpm-lock.yaml ] && PM=pnpm
-   [ -f yarn.lock ]      && PM=yarn
-   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun
+   # PM/PX 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있어 독립 선언)
+   PM=npm; PX=npx
+   [ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
+   [ -f yarn.lock ]      && PM=yarn && PX=yarn
+   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bunx
    if grep -q '"build"' package.json; then $PM run build; fi
    # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 디렉터리+의존성 있을 때만
    if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-     $PM exec playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비 (실패 stderr 보존)
-     if grep -q '"e2e"' package.json; then $PM run e2e; else $PM exec playwright test; fi
+     $PX playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비 (bun exec 미지원 → PX=bunx)
+     if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
    fi
    ```
 3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
