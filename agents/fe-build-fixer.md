@@ -50,7 +50,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 | null 안전 | `Object is possibly undefined` | 옵셔널 체이닝 `?.` 또는 `?? ''` |
 | 타입 불일치 | `Type X is not assignable to Y` | 정확한 타입 정의 또는 `satisfies` |
 | import 경로 | `Cannot find module` | 경로 수정 또는 `@` 별칭 사용 |
-| 누락 속성 | `Property X does not exist` | 타입 보완 또는 옵셔널 필드 추가 (단, 생성된 API/스키마 타입이면 손대지 말고 gen:api 재생성 — 아래 forbidden) |
+| 누락 속성 | `Property X does not exist` | 타입 보완 또는 옵셔널 필드 추가 (단, **생성된 API/스키마 타입**이면 손대지 말고 `gen:api` 재생성 — 아래 forbidden) |
 | 미사용 변수 | `X is declared but never used` | 삭제 또는 `_` 접두사 |
 
 ---
@@ -65,7 +65,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 | `@ts-ignore` / `@ts-expect-error` 남발 | 오류를 숨기는 것은 해결이 아님 |
 | 새 기능 추가 | 오류 수정에 집중 |
 | Write 도구 사용 | 기존 파일 Edit만 허용 (새 파일 생성 금지) |
-| 생성 파일 직접 편집 (schema.d.ts 등 codegen 산출물) | API/스키마 불일치는 손편집이 아니라 소비자 프로젝트의 gen:api(openapi-typescript) 재생성으로 해결 — 생성물은 read-only |
+| 생성 파일 직접 편집 (`schema.d.ts` 등 codegen 산출물) | API/스키마 불일치는 손편집이 아니라 소비자 프로젝트의 `gen:api`(openapi-typescript) 재생성으로 해결 — 생성물은 read-only |
 
 </forbidden>
 

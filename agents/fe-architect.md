@@ -53,7 +53,7 @@ React/TypeScript 아키텍처 분석·자문 전문 에이전트 — 코드를 �
 | 그 외 React | Generic React | 공통 규칙만 적용 |
 | `"tailwindcss"` 의존성 (직교) | + Tailwind (major 로 v3/v4 분기) | 디자인 토큰 일관성, 임의값 사용 비율, `@apply` 범위, content/purge(v4 는 자동감지) — v4 면 CSS-first(`@theme`)·gradient rename 도 |
 | `"class-variance-authority"` + `components/ui/` (직교) | + shadcn/ui | UI primitives 격리, variant 정의 위치, 래핑 패턴 |
-| openapi-fetch/openapi-typescript + 생성 schema.d.ts (직교) | + 생성 API 클라이언트 | 자체 백엔드는 생성 클라이언트 단독 소유, 손수 fetch/axios 지양(외부·업로드·스트리밍 예외), 스키마 무마(as any) 금지 |
+| `openapi-fetch`/`openapi-typescript` + 생성 `schema.d.ts` (직교) | + 생성 API 클라이언트 | 자체 백엔드는 생성 클라이언트 단독 소유, 손수 fetch/axios 지양(외부·업로드·스트리밍 예외), 스키마 무마(`as any`) 금지 |
 
 ---
 
