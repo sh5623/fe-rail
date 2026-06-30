@@ -58,9 +58,9 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
     "question": "위 내용으로 구현을 시작할까요?",
     "multiSelect": false,
     "options": [
-      { "label": "구현 시작", "description": "Phase 2 로 진행" },
-      { "label": "계획만",   "description": "구현 없이 분석 결과만 확인하고 멈춤" },
-      { "label": "중단",     "description": "작업을 멈추고 사용자 지시를 기다림" }
+      { "label": "구현 시작", "description": "스펙대로 Phase 2 부터 구현 진행" },
+      { "label": "계획만",    "description": "코드 작성 없이 계획만 확인하고 멈춤 (--plan-only 와 동일)" },
+      { "label": "중단",      "description": "시작하지 않고 멈춤" }
     ]
   }]
 }
@@ -68,7 +68,7 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 
 - 구현 시작 → Phase 2 로 진행. 그 외(계획만·중단·Other) → 코드 작성 없이 멈추고 사용자 지시를 기다린다.
 
-> 예외 (중복 확인 방지): fe-spec Phase 3 의 "풀 자동" 선택으로 진입한 경우, 구현 시작 승인을 이미 받은 것이므로 Phase 1 STOP(이 질문)을 생략한다. Phase 0(feature.md 읽기·코드베이스 분석)은 그대로 실행하고, Phase 1 STOP 없이 바로 Phase 2 로 진행한다. (standalone fe-start feature.md 진입은 그대로 이 확인을 거친다.)
+> 예외 (중복 확인 방지): fe-spec Phase 3 의 "풀 자동" 선택으로 진입한 경우, 구현 시작 승인을 이미 받은 것이므로 이 질문은 생략하고 Phase 2 부터 시작한다. (standalone fe-start feature.md 진입은 그대로 이 확인을 거친다.)
 
 ---
 
@@ -107,7 +107,7 @@ if grep -q '"test"' package.json; then $PM run test; else $PM exec vitest run; f
 ```
 
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
-같은 오류 군 3회 초과 시 → 위 "재위임 상한·실패 출구"로 (무한 수정 루프 차단).
+**같은 오류 군 3회 초과 시 → 위 "재위임 상한·실패 출구"로** (무한 수정 루프 차단).
 
 ### Phase 4 — 리뷰 (에이전트 위임)
 
@@ -116,55 +116,55 @@ if grep -q '"test"' package.json; then $PM run test; else $PM exec vitest run; f
 성능 BLOCK/WARN 발생 시 → `fe-perf-auditor` 추가 위임 (Tailwind 감지 시 purge·@apply 감사 포함).
 
 결과를 받아 BLOCK/WARN/INFO 항목을 간략 보고한다.
-BLOCK이 있으면 수정 후 재위임하되 같은 BLOCK 군 3회 초과 시 → "재위임 상한·실패 출구"로.
-BLOCK 0 은 Phase 4.5 진행의 필요조건일 뿐, 최종 종료 판정은 Phase 4.5 의 완료 기준 통과로 한다
+BLOCK이 있으면 수정 후 재위임하되 **같은 BLOCK 군 3회 초과 시 → "재위임 상한·실패 출구"로**.
+BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은 Phase 4.5 의 완료 기준 통과로 한다
 (BLOCK 0 = "리뷰어가 그만 지적함" ≠ "완료").
 
 ### Phase 4.5 — 완료 기준 게이트 (런타임 검증)
 
-> "완료"의 정의는 feature.md 의 '완료 기준'(Acceptance Criteria)이다. (fe-spec 생성 feature.md 는 항상 포함.)
+> **"완료"의 정의는 `feature.md` 의 '완료 기준'(Acceptance Criteria)이다.** (fe-spec 생성 feature.md 는 항상 포함.)
 
-1. `## 완료 기준 (Acceptance Criteria)` 섹션을 읽어 두 부류로 처리한다.
-   섹션이 없으면(fe-spec 우회·손작성) "완료 기준 미정의"로 기록하고 자동 게이트만 돌린 뒤 STOP 에 표기한다.
+1. `## 완료 기준 (Acceptance Criteria)` 섹션을 읽어 **두 부류로** 처리한다 (문구를 명령으로 파싱하지 않고
+   고정 체크리스트를 표준 게이트에 매핑). 섹션이 없으면(fe-spec 우회·손작성) "완료 기준 미정의"로 기록하고
+   자동 게이트만 돌린 뒤 STOP 에 표기한다.
    - **자동 실행 항목** ← 타입·린트·단위(Phase 3 결과 재사용) + 빌드·E2E(아래).
    - **사람 검증 항목** ← 자동 불가: 반응형(375/768/1280)·접근성(키보드·aria·대비)·다크모드·DESIGN.md Bans
-
-2. 무거운 게이트(build·e2e)는 여기서 1회만 실행한다 — 재위임 루프 안에서 반복하지 않는다.
-```bash
-# PM/PX 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있으므로 독립 선언)
-PM=npm; PX=npx
-[ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
-[ -f yarn.lock ]      && PM=yarn && PX=yarn
-{ [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bunx
-if grep -q '"build"' package.json; then $PM run build; fi
-# E2E: 디렉터리 + 의존성 있을 때만 (브라우저 미설치 대비 install)
-if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-  $PX playwright install chromium >/dev/null
-  if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
-fi
-```
-
+     → 실행하지 않고 STOP 에서 사람 확인 대상으로 노출.
+2. **무거운 게이트(build·e2e)는 여기서 1회만** 실행한다 — 재위임 루프 안에서 반복하지 않는다.
+   ```bash
+   # PM 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있어 독립 선언)
+   PM=npm
+   [ -f pnpm-lock.yaml ] && PM=pnpm
+   [ -f yarn.lock ]      && PM=yarn
+   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun
+   if grep -q '"build"' package.json; then $PM run build; fi
+   # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 디렉터리+의존성 있을 때만
+   if [ -d e2e ] && grep -q '@playwright/test' package.json; then
+     $PM exec playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비 (실패 stderr 보존)
+     if grep -q '"e2e"' package.json; then $PM run e2e; else $PM exec playwright test; fi
+   fi
+   ```
 3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
-   미실행을 통과로 표기하지 않는다.
-
-4. (고증 화면 한정) 시각 충실도 게이트 — 화면 흐름 충실도 등급=고증 시안 이고 레퍼런스 가 있는 화면만.
+   **미실행을 통과로 표기하지 않는다.**
+4. **(고증 화면 한정) 시각 충실도 게이트** — `화면 흐름` 충실도 등급=**고증 시안** 이고 `레퍼런스` 가 있는 화면만.
    (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
-   캡처: dev 서버를 **백그라운드로 기동**하고 포트가 열릴 때까지 대기한 후 해당 라우트를 레퍼런스와 동일 뷰포트로 스크린샷(Playwright page.screenshot() 또는 chrome-devtools MCP). 캡처 완료 후 백그라운드 프로세스를 반드시 종료(cleanup)한다. 앱 미기동·라우트 부재면 "미검증"(통과 아님)으로 기록.
-   판정: fe-vision 대조 모드에 reference_images+generated_screenshot+category_hint(Figma=figma-hifi / PPT-PDF=ppt-layout)를 넘겨 JSON 판정을 받는다.
-   루프: verdict 가 `"pass"` 가 아니면(`"revise"` 또는 `"fail"`) differences/suggestions 를 fe-build(또는 fe-build-fixer)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 "재위임 상한"(같은 화면 3회) 으로 bound, 초과 시 출구로.
-   최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
+   - **캡처**: 빌드/dev 서버 기동 후 해당 라우트를 레퍼런스와 **동일 뷰포트**로 스크린샷(Playwright `page.screenshot()` 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 **"미검증"**(통과 아님)으로 기록.
+   - **판정**: `fe-vision` **대조 모드**에 `reference_images`+`generated_screenshot`+`category_hint`(Figma=`figma-hifi` / PPT-PDF=`ppt-layout`)를 넘겨 JSON 판정을 받는다.
+   - **루프**: `score < 임계` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
+   - 최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
 
-> `--ci-live` 면 build·e2e 를 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.
-> 기본(플래그 없음)은 로컬 실행이 floor — buildspec.yml·.github/workflows 등 설정 파일 존재만으로 CI 가 살아있다고 가정하지 않는다.
-> `--skip-e2e` 면 e2e 생략하되 STOP·PR 에 "E2E 미검증" 을 명시한다.
+> **CI 위임(A안)**: `--ci-live` 면 build·e2e 를 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.
+> 기본(플래그 없음)은 로컬 실행(B안)이 floor — `buildspec.yml`·`.github/workflows` 등 *설정 파일 존재*만으로
+> CI 가 살아있다고 가정하지 않는다.
+> **건너뛰기**: `--skip-e2e` 면 e2e 생략하되 STOP·PR 에 "E2E 미검증" 을 명시한다.
 
 ### Phase 5 — 두 번째 확인 ⛔ STOP
 
 **먼저** 실제 실행된 검증만 텍스트로 보고하고("검증 완료" 같은 포괄 표현 금지 — Phase 3·4.5 결과를 그대로 채운다), **그다음 `AskUserQuestion` 으로 커밋·PR 여부를 묻는다** (단일 선택 라디오).
 
 보고(질문 앞 본문):
-> "자동 검증 — 타입·린트·단위: {통과/실패}, 빌드: {통과/실패/미실행}, E2E: {통과/실패/미실행(사유)}{, 시각 충실도: {점수/미검증} — 고증 화면 시}.
-> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."
+> **"자동 검증 — 타입·린트·단위: {통과/실패}, 빌드: {통과/실패/미실행}, E2E: {통과/실패/미실행(사유)}{, 시각 충실도: {점수/미검증} — 고증 화면 시}.
+> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."**
 
 ```jsonc
 // AskUserQuestion 호출 — 단일 선택(라디오)
@@ -185,7 +185,7 @@ fi
 - **커밋·PR 진행** → Phase 6 전체. **커밋만** → 6-1 만(PR 생략). **중단·Other** → 커밋하지 않고 멈춘다.
 - E2E 미실행/미검증이면 보고에 그대로 노출한다 (예: "E2E: 미실행 — 로컬 미수행·CI 미연결").
 - `--ci-live` 면: 보고에 "E2E·빌드는 push 후 CI 에서 검증" 으로 표기.
-- `--no-pr` 가 이미 켜져 있으면 위 JSON 대신 옵션을 2개로 좁혀 묻는다: `{ "label": "커밋 진행", "description": "커밋·푸시만 (PR 없음)" }`, `{ "label": "중단", "description": "커밋하지 않고 멈춤" }`. "커밋만" 과 "커밋·PR 진행" 두 항목이 모두 동일한 결과를 가리키므로 하나로 통합한다.
+- `--no-pr` 가 이미 켜져 있으면 "커밋·PR 진행" 대신 "커밋 진행"으로 좁혀 묻는다(PR 항목 제외).
 
 ---
 
@@ -231,5 +231,5 @@ fi
 | `--ci-live` | push 후 CI 가 build·e2e 를 실제로 돌린다고 선언 → Phase 4.5 무거운 게이트를 로컬 대신 CI 에 위임 |
 | `--skip-e2e` | Phase 4.5 로컬 E2E 생략 (STOP·PR 에 "E2E 미검증" 명시) |
 
-> 신규 도입 순서(권장): `--plan-only`(계획만) → `--no-pr`(커밋까지) → 풀 파이프라인.
+> **신규 도입 순서(권장)**: `--plan-only`(계획만) → `--no-pr`(커밋까지) → 풀 파이프라인.
 > 핵심 워크플로에 전면 적용하기 전, 제한 범위에서 비용·효과를 먼저 확인한다.
