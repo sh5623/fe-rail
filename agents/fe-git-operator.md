@@ -46,7 +46,7 @@ maxTurns: 30
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 ```
 
 > `$PX` — 바이너리 직접 실행 (`tsc` 등) / `$PM` — npm 스크립트 실행 (`lint` 등)
@@ -203,7 +203,7 @@ git diff --name-only HEAD
 PM="npm"; PX="npx"
 [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
-[ -f "bun.lockb" ]      && PM="bun"  && PX="bun"
+{ [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
 $PX tsc --noEmit 2>&1 | grep -c "error" || echo "0"
 $PM lint 2>&1 | grep -c "error" || echo "0"
