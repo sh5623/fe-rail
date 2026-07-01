@@ -18,6 +18,40 @@ claude
 /plugin install fe-rail@fe-rail-market
 ```
 
+![fe-rail 워크플로우: spec, build, review, PR](docs/assets/workflow.svg)
+
+## 사용 예시
+
+```
+$ claude
+> /fe-rail:fe-spec
+
+[fe-spec] 요구사항 분석 중... (fe-analyst, fe-architect)
+✔ feature.md 생성 완료 — 7개 섹션, 미해결 질문 3건 해소
+
+다음 단계?
+  ❯ 풀 자동 (추천) — fe-start 파이프라인으로 자동 연결
+    구현만 — 스펙 먼저 검토
+    스펙 수정
+
+> 풀 자동
+
+[fe-start] Phase 2 — 타입 → 훅 → 컴포넌트 → 테스트 구현 중
+✔ 12개 파일 생성, tsc 통과, lint 통과, 테스트 8개 통과
+
+커밋하고 PR을 열까요?
+  ❯ 예 — type별로 분리해서 드래프트 PR 생성
+    아니오 — 변경사항만 남기고 종료
+
+> 예
+
+✔ 커밋 2개 생성
+✔ feat/product-search-autocomplete 브랜치로 푸시
+✔ 드래프트 PR: https://github.com/you/your-app/pull/42
+```
+
+사람이 개입하는 지점은 **"구현할까요?"**와 **"커밋할까요?"** 단 두 번 — 나머지는 전부 자동으로 진행됩니다.
+
 ## 포함된 스킬
 
 | 스킬 | 명령어 | 설명 |
