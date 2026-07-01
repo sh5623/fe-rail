@@ -22,7 +22,9 @@ fe_hook_enabled() {
   local name="$1" min="${2:-standard}"
 
   # 1) 명시적 비활성 목록 (콤마/공백 제거 후 ,name, 매칭)
-  local disabled=",${FE_RAIL_DISABLED_HOOKS//[[:space:],]/,},"
+  #    set -u 환경에서 FE_RAIL_DISABLED_HOOKS 미설정 시 unbound variable 방지 위해 기본값 적용
+  local disabled_val="${FE_RAIL_DISABLED_HOOKS:-}"
+  local disabled=",${disabled_val//[[:space:],]/,},"
   case "$disabled" in
     *",$name,"*) return 1 ;;
   esac

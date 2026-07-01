@@ -39,8 +39,26 @@ FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 [ -z "$FILE_PATH" ] && exit 0
 
-# ── 대상 설정 파일인가? (basename 기준) ──────────────────────────────────────
 BASE=$(basename "$FILE_PATH")
+
+block() {
+  echo "[fe-rail] BLOCKED [config-protection]: 설정 약화 편집이 감지되었습니다 — $BASE"
+  echo "[fe-rail]   사유: $1"
+  echo "[fe-rail]   품질 게이트(타입/린트)를 무력화하는 대신 코드를 수정하세요."
+  echo "[fe-rail]   의도적 설정 변경이라면 에이전트가 아니라 직접(수동) 편집하세요."
+  exit 2
+}
+
+# 1) 소스 파일에서 @ts-nocheck 검사 (파일 전체 타입체크 무력화 방지)
+#    tsconfig 등 "설정 파일"이 아니라 .ts/.tsx/.js/.jsx 소스 상단에 오는 지시어라
+#    아래 IS_CONFIG 조기 종료보다 먼저 검사해야 한다.
+case "$BASE" in
+  *.ts|*.tsx|*.js|*.jsx)
+    printf '%s\n' "$NEW_TEXT" | grep -qE '@ts-nocheck' && block "@ts-nocheck (파일 전체 타입체크 비활성화)"
+    ;;
+esac
+
+# ── 대상 설정 파일인가? (basename 기준) ──────────────────────────────────────
 IS_CONFIG=0
 case "$BASE" in
   tsconfig.json|tsconfig.*.json) IS_CONFIG=1 ;;                                                               # TypeScript
@@ -50,29 +68,20 @@ esac
 [ "$IS_CONFIG" -eq 0 ] && exit 0
 
 # ── 약화 신호 검사 (편집 후 텍스트에 새로 등장하는 무력화 패턴) ──────────────
-# 공백 허용 정규식. 하나라도 걸리면 차단.
-block() {
-  echo "[fe-rail] BLOCKED [config-protection]: 설정 약화 편집이 감지되었습니다 — $BASE"
-  echo "[fe-rail]   사유: $1"
-  echo "[fe-rail]   품질 게이트(타입/린트)를 무력화하는 대신 코드를 수정하세요."
-  echo "[fe-rail]   의도적 설정 변경이라면 에이전트가 아니라 직접(수동) 편집하세요."
-  exit 2
-}
-
-# 1) 파일 전체 타입체크 무력화
-echo "$NEW_TEXT" | grep -qE '@ts-nocheck' && block "@ts-nocheck (파일 전체 타입체크 비활성화)"
+# ["']? 로 따옴표를 선택적으로 허용 — JSON(`"strict":false`)·JS flat config(무따옴표/홑따옴표 키) 모두 매칭.
+# \b 는 대상 단어 자체의 경계(예: "strict" 가 "unstrict" 의 일부로 오탐되지 않도록).
 
 # 2) TypeScript strict 계열 플래그를 false 로 설정
-if echo "$NEW_TEXT" | grep -qE '"(strict|noImplicitAny|strictNullChecks|strictFunctionTypes|strictBindCallApply|noImplicitThis|alwaysStrict)"[[:space:]]*:[[:space:]]*false'; then
+if printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\b(strict|noImplicitAny|strictNullChecks|strictFunctionTypes|strictBindCallApply|noImplicitThis|alwaysStrict)\\b[\"']?[[:space:]]*:[[:space:]]*false"; then
   block "TypeScript strict 계열 옵션을 false 로 설정"
 fi
 
 # 3) 린터 recommended 룰셋 통째로 off (ESLint/Biome 공통 약화 신호)
-echo "$NEW_TEXT" | grep -qE '"recommended"[[:space:]]*:[[:space:]]*false' && block "린터 recommended 룰셋 비활성화"
+printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\brecommended\\b[\"']?[[:space:]]*:[[:space:]]*false" && block "린터 recommended 룰셋 비활성화"
 
 # 4) strict:true 를 편집으로 제거/뒤집기 (편집 전엔 있었는데 편집 후 사라짐)
-if echo "$OLD_TEXT" | grep -qE '"strict"[[:space:]]*:[[:space:]]*true' \
-   && ! echo "$NEW_TEXT" | grep -qE '"strict"[[:space:]]*:[[:space:]]*true'; then
+if printf '%s\n' "$OLD_TEXT" | grep -qE "[\"']?\\bstrict\\b[\"']?[[:space:]]*:[[:space:]]*true" \
+   && ! printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\bstrict\\b[\"']?[[:space:]]*:[[:space:]]*true"; then
   block "기존 \"strict\": true 를 제거/변경"
 fi
 

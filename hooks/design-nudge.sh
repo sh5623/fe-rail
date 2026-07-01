@@ -44,11 +44,11 @@ PROJECT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev
 # ── 정제된 slop 신호 검사 (편집으로 새로 들어온 텍스트) ───────────────────────
 FINDINGS=""
 # 1) 무겁거나 임의값인 그림자 (DESIGN Bans 상습 항목)
-if echo "$NEW_TEXT" | grep -qE 'shadow-(xl|2xl)\b|shadow-\['; then
+if printf '%s\n' "$NEW_TEXT" | grep -qE '\bshadow-(xl|2xl)\b|shadow-\['; then
   FINDINGS="${FINDINGS}  - 무겁거나 임의값 그림자(shadow-xl/2xl/shadow-[…]) — 깊이는 레이어링/대비로\n"
 fi
 # 2) AI 기본 보라·인디고 그라디언트 (제네릭 slop의 대표 신호)
-if echo "$NEW_TEXT" | grep -qE '\b(from|via|to)-(purple|violet|indigo|fuchsia)-[0-9]'; then
+if printf '%s\n' "$NEW_TEXT" | grep -qE '\b(from|via|to)-(purple|violet|indigo|fuchsia)-[0-9]'; then
   FINDINGS="${FINDINGS}  - 기본 보라/인디고 그라디언트(from/to-purple·violet·indigo) — 도메인에 맞는 팔레트로\n"
 fi
 

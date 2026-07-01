@@ -68,6 +68,8 @@ assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/tsconfig.
 assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/biome.json","content":"{\"linter\":{\"rules\":{\"recommended\":false}}}"}}' "config-protection: biome recommended:false 차단"
 assert_hook ALLOW config-protection.sh '{"tool_input":{"file_path":"/p/tsconfig.json","old_string":"\"paths\":{}","new_string":"\"paths\":{\"@/*\":[\"src/*\"]}"}}' "config-protection: 경로 alias 추가 허용"
 assert_hook ALLOW config-protection.sh '{"tool_input":{"file_path":"/p/src/Card.tsx","content":"{\"strict\":false}"}}'          "config-protection: 비설정 파일 허용"
+assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/src/Card.tsx","content":"// @ts-nocheck\nexport const x = 1"}}' "config-protection: 소스파일 @ts-nocheck 차단"
+assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/eslint.config.js","content":"export default { rules: { recommended: false } }"}}' "config-protection: JS flat config 무따옴표 recommended:false 차단"
 
 echo "━━━ A. 경고 훅 (read-guard / design-nudge) ━━━"
 assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "read-guard: .env 읽기 경고"
@@ -100,17 +102,19 @@ fi
 # agent model 별칭 ∈ {opus,sonnet,haiku}
 bad=0
 for a in "$ROOT"/agents/*.md; do
+  [ -e "$a" ] || continue   # glob 매칭 실패 시(디렉토리 비어있음) literal 패턴 문자열이 넘어오는 것 방지
   m=$(grep -m1 -E '^model:' "$a" | sed 's/^model:[[:space:]]*//; s/[[:space:]]*$//')
   case "$m" in opus|sonnet|haiku) ;; *) ng "agent $(basename "$a") model 별칭 이상: '$m'"; bad=1 ;; esac
 done
-[ $bad -eq 0 ] && ok "모든 agent model 별칭 ∈ {opus,sonnet,haiku} ($(ls "$ROOT"/agents/*.md | wc -l | tr -d ' ')개)"
+[ $bad -eq 0 ] && ok "모든 agent model 별칭 ∈ {opus,sonnet,haiku} ($(ls "$ROOT"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')개)"
 # skill frontmatter (name + description)
 bad=0
 for s in "$ROOT"/skills/*/SKILL.md; do
+  [ -e "$s" ] || continue
   grep -qE '^name:' "$s"        || { ng "skill $(basename "$(dirname "$s")") name 누락"; bad=1; }
   grep -qE '^description:' "$s" || { ng "skill $(basename "$(dirname "$s")") description 누락"; bad=1; }
 done
-[ $bad -eq 0 ] && ok "모든 skill frontmatter(name+description) OK ($(ls -d "$ROOT"/skills/*/ | wc -l | tr -d ' ')개)"
+[ $bad -eq 0 ] && ok "모든 skill frontmatter(name+description) OK ($(ls -d "$ROOT"/skills/*/ 2>/dev/null | wc -l | tr -d ' ')개)"
 # 프로파일 배선: 모든 입력구동 훅에 fe_hook_enabled 존재
 bad=0
 for h in guard write-guard read-guard task-guard config-protection lint-fix nextjs-guard design-nudge quality-gate doc-sync-check; do
