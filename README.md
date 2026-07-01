@@ -1,15 +1,15 @@
 # fe-rail
 
 <div align="right">
-  <a href="README.md"><img src="https://img.shields.io/badge/lang-한국어-blue?style=flat-square" alt="한국어"/></a>
-  <a href="README.en.md"><img src="https://img.shields.io/badge/lang-English-lightgrey?style=flat-square" alt="English"/></a>
+  <a href="README.ko.md"><img src="https://img.shields.io/badge/lang-한국어-lightgrey?style=flat-square" alt="한국어"/></a>
+  <a href="README.md"><img src="https://img.shields.io/badge/lang-English-blue?style=flat-square" alt="English"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"/></a>
 </div>
 
-> 프론트엔드 프로젝트 전용 Claude Code 플러그인
-> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA(TanStack Router·React Router 7) + TypeScript, Tailwind v3/v4 / shadcn/ui 정식 지원.
+> Frontend-focused Claude Code plugin
+> Automated spec → build → review → PR workflow for Next.js App Router / Vite SPA (TanStack Router · React Router 7) + TypeScript, with full Tailwind v3/v4 / shadcn/ui support.
 
-## 설치
+## Installation
 
 ```bash
 claude
@@ -18,116 +18,138 @@ claude
 /plugin install fe-rail@fe-rail-market
 ```
 
-## 포함된 스킬
+## Skills
 
-| 스킬 | 명령어 | 설명 |
-|------|--------|------|
-| fe-spec | `/fe-rail:fe-spec` | 기능 요구사항 → 구조화된 스펙 문서 생성. Phase 3 에서 다음 단계(풀 자동·구현만·스펙 수정)를 라디오 UI로 선택 — "풀 자동" 선택 시 fe-start 파이프라인으로 자동 연결 |
-| fe-build | `/fe-rail:fe-build` | 프론트엔드 코드 구현 (타입→로직 분리→컴포넌트→테스트) |
-| fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
-| fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 — PR까지 자동화. Phase 1·5 가 라디오 UI로 진행 여부·커밋 방식 확인 |
-| fe-doc-sync | `/fe-rail:fe-doc-sync` | **설치된 사용자 프로젝트** 스캔 (라우트·의존성·구조·ENV) → 그 프로젝트의 CLAUDE.md·README.md 수정안 제안 |
+| Skill | Command | Description |
+|-------|---------|-------------|
+| fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document. Phase 3 presents a radio UI to choose the next step (full auto · build only · revise spec) — selecting "full auto" hands off directly to the fe-start pipeline |
+| fe-build | `/fe-rail:fe-build` | Frontend implementation (types → logic → components → tests) |
+| fe-review | `/fe-rail:fe-review` | 4-axis code review: types · performance · a11y · quality |
+| fe-start | `/fe-rail:fe-start feature.md` | All-in-one — automates through PR creation. Phase 1 · 5 use radio UI to confirm implementation and commit intent |
+| fe-doc-sync | `/fe-rail:fe-doc-sync` | Scans the **consumer project** (routes · deps · structure · ENV) → proposes updates to that project's CLAUDE.md · README.md |
 
-## 포함된 Hooks
+## Hooks
 
-정책: **위험은 차단(exit 2), 품질은 경고(stderr)**.
+Policy: **Block dangers (exit 2), warn on quality issues (stderr)**.
 
-| Hook | 이벤트 | 역할 | 차단 |
-|------|--------|------|------|
-| `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
-| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
-| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
-| `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
-| `task-guard.sh` | PreToolUse:Task\|Agent | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 | — |
-| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
-| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력 | — |
-| `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
-| `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
+| Hook | Event | Role | Blocks |
+|------|-------|------|--------|
+| `session-init.sh` | SessionStart | Remote version check + new version notification (GitHub, once/day) | — |
+| `guard.sh` | PreToolUse:Bash | Blocks `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, etc. | ✅ |
+| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks creating/editing sensitive files: `.env*`, certificates (`*.pem`/`*.key`, etc.), secret-payload files (`*.secret`, `*credentials*.json`, etc.) — source files like `.env.example`, `CredentialForm.tsx` are allowed | ✅ |
+| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks only **weakening** edits to linter/formatter/TS config — `strict:false`, `@ts-nocheck`, linter `recommended:false`, removing an existing `strict:true`. Normal edits (path aliases, adding plugins, etc.) pass through | ✅ |
+| `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env`, `*.pem`, `*.key`, `*credential*`, etc.) | — |
+| `task-guard.sh` | PreToolUse:Task\|Agent | Blocks injection patterns and dangerous command delegation in sub-agent prompts | ✅ |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | Auto-detects consumer env → runs Biome `check --write` **or** ESLint `--fix` (+ Prettier) | — |
+| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Detects React hooks/browser API/DOM events in Server Components; warns when `page`/`layout` in the app router is missing `'use client'` | — |
+| `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | Warns on generic/templated (AI-slop) signals in frontend edits (heavy/arbitrary shadows, default purple/indigo gradients). **Silent if DESIGN.md exists** (fe-reviewer's DESIGN Bans is the source of truth in that case) | — |
+| `quality-gate.sh` | Stop | Runs linter (Biome **or** ESLint) + type check (prefers the project's `typecheck` script, falls back to `tsc -b` for solution-style tsconfig) on changed files, outputs warnings | — |
+| `doc-sync-check.sh` | Stop | Detects changes to consumer project code / package.json / config files → suggests `/fe-rail:fe-doc-sync` (includes last 5 commits) | — |
+| `notify.sh` | (Optional) Notification | macOS terminal-notifier banner — activate with `bash hooks/scripts/setup-notifier.sh` | — |
 
-## 포함된 Agents
+### Hook profiles & toggles (intensity control)
 
-각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
-frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`)로 구성됩니다.
+Hook intensity can be tuned via **environment variables** (no plugin file edits needed — set in the consumer project's shell/`.claude` environment).
 
-> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용합니다. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
-> 티어 배분: **opus**(고판단 — `fe-analyst`·`fe-architect`·`fe-reviewer`·`fe-refactor-advisor`) / **haiku**(저비용 탐색 — `fe-explorer`) / **sonnet**(나머지 실행·도구 계열).
+| Env var | Value | Effect |
+|---|---|---|
+| `FE_RAIL_HOOK_PROFILE` | `minimal` | Only the irreversible-risk **blockers** (`guard`, `write-guard`, `task-guard`, `config-protection`). Quality warnings, auto-cleanup, and doc-sync prompts are turned off |
+| | `standard` (default) | The above + all quality warnings/auto-cleanup/doc-sync |
+| | `strict` | One tier above `standard` (currently a superset, reserved for stricter behavior in the future) |
+| `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
 
-### spec 단계
-| Agent | 위임 시점 | 모델 | 격리 |
-|-------|----------|------|------|
-| `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션); CLAUDE.md·DESIGN.md·PRODUCT.md·AGENTS.md 병렬 탐색 | opus | 책임 (read-only) |
-| `fe-deck-reader` | PPT/기획서 분해 — 다중 슬라이드를 정책·화면·흐름으로 (PDF/PNG 변환 경유) | sonnet | 책임 (read-only) |
-| `fe-vision` | (추출) Figma·UI 스크린샷·PDF·PPT(변환) 개별 화면 분석 (Figma URL → `get_metadata`·`get_design_context`·`get_variable_defs`·`get_screenshot`; DESIGN.md Bans anti-slop 점검) · (대조) 구현 스크린샷 ↔ 레퍼런스 시각 충실도 판정 (visual-verdict — Figma=픽셀/PPT=구조, fe-start Phase 4.5) | sonnet | 책임 (read-only) |
-| `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
-| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn·openapi-fetch (직교 감지) | opus | 책임 (read-only) |
+> **Downgrading the profile to `minimal` does not disable the safety blockers** — to turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` ("no-compromise blocking" + an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 
-### build 단계
-| Agent | 위임 시점 | 모델 | 격리 |
-|-------|----------|------|------|
-| `fe-explorer` | 코드베이스 탐색 3쿼리 이상 | haiku | 컨텍스트 |
-| `fe-test-author` | BDD 시나리오 도출 + TDD Red-Green-Refactor | sonnet | 책임 (구현) |
-| `fe-build-fixer` | tsc·린터(ESLint/Biome) 오류 최소 diff 수정 | sonnet | 도구 (Edit+Grep, Write/MultiEdit 금지) |
+### Regression eval
 
-### review 단계
-| Agent | 위임 시점 | 모델 | 격리 |
-|-------|----------|------|------|
-| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시) 포함) | opus | 책임 (read-only) |
-| `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast — Tailwind 팔레트 기준 포함) | sonnet | 책임 (read-only) |
-| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply) | sonnet | 책임 (read-only) |
-| `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
-| `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | opus | 책임 (read-only) |
-
-### PR 단계
-| Agent | 위임 시점 | 모델 | 격리 |
-|-------|----------|------|------|
-| `fe-git-operator` | 커밋 분리·안전한 스테이징 + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) | sonnet | 도구 (Write/Edit 금지) |
-| `fe-pr-author` | PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create` | sonnet | 컨텍스트 + 도구 |
-
-## 워크플로우
-
-**원스톱 자동화**
-```
-feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → PR 생성 완료
+```bash
+bash eval/run.sh   # exits 1 on failure (CI-ready)
 ```
 
-> 재위임이 같은 항목을 3회 반복해도 안 풀리면 자동 진행을 멈추고 진단을 보고하는 예외 STOP 이 한 번 더 걸릴 수 있습니다.
+Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
 
-**fe-spec 에서 이어가기 (핸드오프)**
+## Agents
+
+Each agent runs in an isolated context, protecting the main session from noise.
+Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags (`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`).
+
+> **Model tiers are aliases.** Each agent's `model` is set to `opus`/`sonnet`/`haiku` — automatically using the latest tier on model family updates (e.g. Opus 4.7 → 4.8). Behavior may vary even with the same plugin version; run regression checks on each release if reproducibility matters.
+> Tier allocation: **opus** (high-judgment — `fe-analyst` · `fe-architect` · `fe-reviewer` · `fe-refactor-advisor`) / **haiku** (low-cost exploration — `fe-explorer`) / **sonnet** (all other execution/tool agents).
+
+### Spec stage
+| Agent | When to delegate | Model | Isolation |
+|-------|-----------------|-------|-----------|
+| `fe-analyst` | Requirements gap analysis (6 gaps / 7 sections); parallel scan of CLAUDE.md · DESIGN.md · PRODUCT.md · AGENTS.md | opus | Scoped (read-only) |
+| `fe-deck-reader` | PPT/deck decomposition — breaks multi-slide specs into policies · screens · flows (via PDF/PNG conversion) | sonnet | Scoped (read-only) |
+| `fe-vision` | (Extract) Figma · UI screenshots · PDF · PPT (via conversion) per-screen analysis (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) · (Contrast) implementation screenshot ↔ reference visual fidelity judgment (visual-verdict — Figma=pixel/PPT=layout, fe-start Phase 4.5) | sonnet | Scoped (read-only) |
+| `fe-researcher` | External docs · library research (Context7 MCP preferred, WebSearch/WebFetch fallback) | sonnet | Tool (Context7/WebSearch/WebFetch) |
+| `fe-architect` | React/TS architecture — Next.js (RSC boundaries) / Vite SPA (TanStack Router · React Router 7 · Zustand) + Tailwind v3/v4 · shadcn · openapi-fetch (orthogonal detection) | opus | Scoped (read-only) |
+
+### Build stage
+| Agent | When to delegate | Model | Isolation |
+|-------|-----------------|-------|-----------|
+| `fe-explorer` | Codebase exploration (3+ queries) | haiku | Context |
+| `fe-test-author` | BDD scenario derivation + TDD Red-Green-Refactor | sonnet | Scoped (implementation) |
+| `fe-build-fixer` | tsc · linter (ESLint/Biome) error fixes with minimal diff | sonnet | Tool (Edit+Grep, Write/MultiEdit blocked) |
+
+### Review stage
+| Agent | When to delegate | Model | Isolation |
+|-------|-----------------|-------|-----------|
+| `fe-reviewer` | 4-axis review (type · performance · a11y · quality; includes Tailwind anti-patterns · openapi-fetch patterns · DESIGN.md design contract, if present) | opus | Scoped (read-only) |
+| `fe-a11y-auditor` | 8-axis a11y audit (Color Contrast — Tailwind palette-based included) | sonnet | Scoped (read-only) |
+| `fe-perf-auditor` | Performance audit — Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply) | sonnet | Scoped (read-only) |
+| `fe-test-runner` | Test execution + failure classification | sonnet | Context |
+| `fe-refactor-advisor` | 6-dimension refactoring analysis + Before/After | opus | Scoped (read-only) |
+
+### PR stage
+| Agent | When to delegate | Model | Isolation |
+|-------|-----------------|-------|-----------|
+| `fe-git-operator` | Commit splitting · safe staging + body authoring (fix = symptom·cause·fix / feat = added·core·impact) | sonnet | Tool (Write/Edit blocked) |
+| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type) + `gh pr create` | sonnet | Context + Tool |
+
+## Workflow
+
+**All-in-one automation (fe-start)**
 ```
-/fe-rail:fe-spec → "다음 단계"에서 "풀 자동" 선택 → fe-start 자동 실행 → "커밋할까요?" 승인 → PR
+Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [radio] "Commit?" → PR created
 ```
 
-> fe-spec 의 "다음 단계" 게이트가 첫 승인("구현할까요?")을 대신하므로 fe-start 는 "커밋할까요?"만 묻습니다 (전체 승인 2회 유지).
+> If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger — automation pauses and reports a diagnosis instead of looping indefinitely.
 
-**단계별 수동 제어**
+**fe-spec → full-auto handoff**
+```
+/fe-rail:fe-spec → [radio] select "Full auto" → fe-start runs automatically → [radio] "Commit?" → PR created
+```
+> Selecting "Full auto" at fe-spec's "next step" gate counts as the first approval ("Implement?"), so fe-start only asks "Commit?" — two human approvals are still preserved overall.
+
+**Step-by-step manual control**
 ```
 /fe-rail:fe-spec → /fe-rail:fe-build → /fe-rail:fe-review → git commit && gh pr create
 ```
 
-## 전제 조건
+## Prerequisites
 
 - Claude Code
-- 패키지 매니저 (pnpm / npm / yarn / bun — lock 파일로 자동 감지)
-- gh CLI (PR 자동 생성 시)
+- Package manager (pnpm / npm / yarn / bun — auto-detected via lockfile)
+- gh CLI (for automated PR creation)
 - TypeScript strict mode (Next.js / Vite SPA)
 
-## 설치 후 권장 설정 (소비자 프로젝트)
+## Post-install Recommended Setup (Consumer Project)
 
-플러그인의 agent들은 **소비자 프로젝트의 컨텍스트를 읽어** 동작합니다. 설치 직후 아래를 갖추면 품질이 크게 올라갑니다.
+Plugin agents read and reason from the **consumer project's context**. Setting these up right after installation significantly improves output quality.
 
-| 항목 | 이유 | 방법 |
-|------|------|------|
-| **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않음) | `/init` 또는 `/fe-rail:fe-doc-sync` |
-| **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
-| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회 활성화 (미설치 시 로컬 이미지·WebSearch로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 |
-| **검증 스크립트** | Phase 3 자동 검증이 `typecheck`/`lint`/`test` 를, Phase 4.5 완료기준 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장 |
+| Item | Why | How |
+|------|-----|-----|
+| **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this plugin's own CLAUDE.md is not loaded into consumer sessions) | `/init` or `/fe-rail:fe-doc-sync` |
+| **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
+| **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups and `fe-researcher`'s Context7 doc queries (falls back to local images / WebSearch if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin |
+| **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |
 
-## 라이선스
+## License
 
 [MIT](LICENSE) © 2026 이승호
 
-## 기반 레퍼런스
+## References
 
 - [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
 - [Chachamaru127/claude-code-harness](https://github.com/Chachamaru127/claude-code-harness)

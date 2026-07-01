@@ -42,4 +42,15 @@ if [ -n "$REMOTE_VER" ] && [ -n "$PLUGIN_VERSION" ] && [ "$REMOTE_VER" != "$PLUG
   echo "[fe-rail] 업데이트: /plugin update fe-rail@fe-rail-market"
 fi
 
+# [fe-rail] 훅 프로파일 안내 — 기본(standard)이 아니거나 비활성 훅이 설정돼 있으면 알린다.
+#   제어: FE_RAIL_HOOK_PROFILE(minimal|standard|strict) · FE_RAIL_DISABLED_HOOKS="a,b"
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+if [ -f "$_FE_PLIB" ]; then
+  . "$_FE_PLIB"
+  _FE_PROF=$(fe_active_profile)
+  if [ "$_FE_PROF" != "standard" ] || [ -n "$FE_RAIL_DISABLED_HOOKS" ]; then
+    echo "[fe-rail][session] 훅 프로파일: ${_FE_PROF}${FE_RAIL_DISABLED_HOOKS:+ · 비활성: ${FE_RAIL_DISABLED_HOOKS}}" >&2
+  fi
+fi
+
 exit 0

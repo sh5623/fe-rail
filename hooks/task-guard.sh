@@ -5,6 +5,10 @@
 # 프롬프트 자체를 검사합니다.
 # 정책: 인젝션/위험 명령 위임 → exit 2 차단 / 민감 파일 접근 패턴 → 경고
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "task-guard" "minimal" && exit 0
+
 HOOK_INPUT=$(cat)
 
 # 프롬프트 추출: jq 는 긴 프롬프트도 정확히 파싱함.
