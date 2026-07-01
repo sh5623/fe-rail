@@ -5,14 +5,14 @@
 
   <!-- arrows -->
   <g stroke="#D97757" stroke-width="2" fill="none">
-    <line x1="220" y1="120" x2="258" y2="120"/>
-    <line x1="440" y1="120" x2="460" y2="120"/>
-    <line x1="660" y1="120" x2="698" y2="120"/>
+    <line x1="220" y1="120" x2="226" y2="120"/>
+    <line x1="440" y1="120" x2="470" y2="120"/>
+    <line x1="660" y1="120" x2="666" y2="120"/>
   </g>
   <g fill="#D97757">
-    <polygon points="258,120 248,115 248,125"/>
-    <polygon points="460,120 450,115 450,125"/>
-    <polygon points="698,120 688,115 688,125"/>
+    <polygon points="260,120 250,115 250,125"/>
+    <polygon points="480,120 470,115 470,125"/>
+    <polygon points="700,120 690,115 690,125"/>
   </g>
 
   <!-- stage 1: spec -->
@@ -22,8 +22,8 @@
   <text x="130" y="150" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#78716C">requirements → feature.md</text>
 
   <!-- approval gate 1 -->
-  <circle cx="239" cy="120" r="12" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
-  <text x="239" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#D97757">✓</text>
+  <circle cx="238" cy="120" r="12" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <text x="238" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#D97757">✓</text>
 
   <!-- stage 2: build -->
   <rect x="260" y="70" width="180" height="100" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
@@ -38,8 +38,8 @@
   <text x="570" y="150" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#78716C">types · perf · a11y · quality</text>
 
   <!-- approval gate 2 -->
-  <circle cx="679" cy="120" r="12" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
-  <text x="679" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#D97757">✓</text>
+  <circle cx="678" cy="120" r="12" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
+  <text x="678" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#D97757">✓</text>
 
   <!-- stage 4: PR -->
   <rect x="700" y="70" width="180" height="100" rx="10" fill="#FFFFFF" stroke="#D97757" stroke-width="1.5"/>
