@@ -2,6 +2,10 @@
 # [fe-rail] nextjs-guard.sh — PostToolUse:Edit|Write|MultiEdit
 # Next.js RSC 경계 위반(훅·브라우저 API·DOM 이벤트)을 감지합니다. 차단 없음(exit 0).
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "nextjs-guard" "standard" && exit 0
+
 HOOK_INPUT=$(cat)
 
 if command -v jq >/dev/null 2>&1; then

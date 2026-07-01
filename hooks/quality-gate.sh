@@ -4,6 +4,10 @@
 # 소비자 환경을 감지해 설치된 도구만 돌린다. Biome·ESLint 가 모두 있으면 둘 다 실행.
 # xargs 는 shell function 을 직접 호출할 수 없어 파일별 루프로 실행한다.
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "quality-gate" "standard" && exit 0
+
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
 # 변경 파일 수집 (staged + unstaged + 신규 untracked, 최대 20개)

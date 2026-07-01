@@ -3,6 +3,10 @@
 # 민감한 파일 생성·수정을 차단합니다. exit 2 = 도구 실행 차단.
 # .env.example 은 허용됩니다.
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "write-guard" "minimal" && exit 0
+
 HOOK_INPUT=$(cat)
 
 if command -v jq >/dev/null 2>&1; then

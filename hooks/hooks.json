@@ -17,7 +17,8 @@
       {
         "matcher": "Write|Edit|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write-guard.sh", "timeout": 5 }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/write-guard.sh", "timeout": 5 },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/config-protection.sh", "timeout": 5 }
         ]
       },
       {
@@ -38,7 +39,8 @@
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/lint-fix.sh", "timeout": 30 },
-          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/nextjs-guard.sh", "timeout": 10 }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/nextjs-guard.sh", "timeout": 10 },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/design-nudge.sh", "timeout": 10 }
         ]
       }
     ],

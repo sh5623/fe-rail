@@ -2,6 +2,10 @@
 # [fe-rail] guard.sh — PreToolUse:Bash
 # 비가역적 위험 명령어를 차단합니다. exit 2 = 도구 실행 차단.
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "guard" "minimal" && exit 0
+
 # Claude Code 는 hook 입력을 stdin JSON 으로 전달한다.
 # 환경변수 fallback 은 로컬 테스트 전용 — 실제 실행 시에는 stdin 이 사용된다.
 HOOK_INPUT=$(cat)

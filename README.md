@@ -37,13 +37,36 @@ claude
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
+| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단 — `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
 | `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
+| `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | 프론트 편집에 제네릭/템플릿틱(AI slop) 신호(무거운·임의 그림자, 기본 보라/인디고 그라디언트) 감지 시 경고. **DESIGN.md 있으면 침묵**(fe-reviewer 의 DESIGN Bans 가 정본) | — |
 | `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력 | — |
 | `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
+
+### 훅 프로파일 · 토글 (강도 조절)
+
+훅 강도를 **환경변수로** 조절할 수 있습니다(플러그인 파일 수정 불필요 — 소비자 프로젝트의 셸/`.claude` 환경에서 설정).
+
+| 환경변수 | 값 | 효과 |
+|---|---|---|
+| `FE_RAIL_HOOK_PROFILE` | `minimal` | 비가역 위험 **차단기만** (`guard`·`write-guard`·`task-guard`·`config-protection`). 품질 경고·자동정리·문서동기화 안내는 끔 |
+| | `standard` (기본) | 위 + 품질 경고·자동정리·문서동기화 전부 |
+| | `strict` | `standard` 상위 티어(현재는 상위집합, 향후 더 엄격한 동작 예약) |
+| `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | 특정 훅만 콕 집어 비활성 (예: `"doc-sync-check,design-nudge"`) |
+
+> **프로파일 하향(minimal)으로는 안전 차단기가 꺼지지 않습니다** — 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다("타협 없는 차단" + 명시적 탈출구). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
+
+### 회귀 eval
+
+```bash
+bash eval/run.sh   # 실패 시 exit 1 (CI 용)
+```
+
+라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
 
 ## 포함된 Agents
 

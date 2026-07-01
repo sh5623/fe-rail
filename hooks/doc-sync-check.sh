@@ -17,6 +17,10 @@
 # 워킹트리 변경 + 최근 5개 커밋의 변경 파일을 합집합으로 검사
 # (커밋 직후에도 한 번은 안내되도록).
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "doc-sync-check" "standard" && exit 0
+
 CHANGED=$(
   {
     git diff HEAD --name-only 2>/dev/null

@@ -3,6 +3,10 @@
 # 민감한 파일 읽기 시도를 감지합니다.
 # 정책: 경고(stderr) + exit 0 — 차단하지 않고 사용자에게 인지시킵니다.
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "read-guard" "standard" && exit 0
+
 HOOK_INPUT=$(cat)
 
 if command -v jq >/dev/null 2>&1; then

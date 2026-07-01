@@ -6,6 +6,10 @@
 #   - Prettier: prettier --write (Biome 미감지 시에만 — 이중 포맷 충돌 방지)
 # tsc 는 quality-gate.sh(Stop)에서 한 번만 실행하여 중복 방지.
 
+# [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
+_FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
+[ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "lint-fix" "standard" && exit 0
+
 HOOK_INPUT=$(cat)
 
 if command -v jq >/dev/null 2>&1; then

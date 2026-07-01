@@ -35,14 +35,18 @@ fe-rail/
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
 │   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
 │   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create`
-├── hooks/
-│   └── hooks.json         ← Pre/PostToolUse·Stop 훅
+├── hooks/                 ← Pre/PostToolUse·Stop 훅 (hooks.json 배선)
+│   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
+│   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)
+│   └── scripts/profile-lib.sh ← 훅 프로파일/토글 (FE_RAIL_HOOK_PROFILE·FE_RAIL_DISABLED_HOOKS)
 ├── skills/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
 │   ├── fe-build/          ← 스펙 → 코드 구현
 │   ├── fe-review/         ← 4축 코드 리뷰
 │   ├── fe-start/          ← 원스톱 자동화 (spec→PR)
 │   └── fe-doc-sync/       ← 설치된 사용자 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
+├── eval/
+│   └── run.sh             ← 회귀 eval (훅 동작·프로파일·self-lint, 결정적·CI용)
 └── .claude/
     └── settings.local.json ← Bash 권한 화이트리스트
 ```
@@ -56,6 +60,11 @@ fe-rail/
 | **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (15개) |
 | **Hooks** | `hooks/hooks.json` | Pre/PostToolUse·Stop 이벤트 자동 실행 사이드이펙트 |
 | **Permissions** | `settings.local.json` | Bash 명령어 화이트리스트로 에이전트 권한 제한 |
+
+### 훅 프로파일 · 회귀 eval
+
+- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`.
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성)를 결정적으로 검증(실패 시 exit 1).
 
 ---
 
@@ -91,7 +100,7 @@ fe-rail/
 | **haiku** | fe-explorer | 단순 코드 탐색, 비용 효율 우선 |
 
 - **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용한다. 별도 수정 없이 개선이 반영되지만, 플러그인 버전이 같아도 동작이 변동될 수 있다.
-- **재현성 점검**: 안정성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 확인한다.
+- **재현성 점검**: 안정성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 확인한다 (`bash eval/run.sh` 로 훅·self-lint 회귀를 자동 검사).
 - **티어 변경 원칙**: "전부 opus화" 금지. 고판단 게이트만 선별 상향하고, 탐색·기계적 작업은 저비용 티어를 유지한다.
 
 ---
