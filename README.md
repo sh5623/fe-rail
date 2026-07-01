@@ -18,6 +18,40 @@ claude
 /plugin install fe-rail@fe-rail-market
 ```
 
+![fe-rail workflow: spec, build, review, PR](docs/assets/workflow.svg)
+
+## Usage
+
+```
+$ claude
+> /fe-rail:fe-spec
+
+[fe-spec] Analyzing requirements... (fe-analyst, fe-architect)
+✔ feature.md generated — 7 sections, 3 open questions resolved
+
+Next step?
+  ❯ Full auto (recommended) — hand off to fe-start automatically
+    Build only — I'll review the spec first
+    Revise spec
+
+> Full auto
+
+[fe-start] Phase 2 — implementing types → hooks → components → tests
+✔ 12 files created, tsc clean, lint clean, 8 tests passing
+
+Commit and open a PR?
+  ❯ Yes — split by type (feat/fix/test) and open a draft PR
+    No — leave changes uncommitted
+
+> Yes
+
+✔ 2 commits created
+✔ Pushed to feat/product-search-autocomplete
+✔ Draft PR: https://github.com/you/your-app/pull/42
+```
+
+Two human touch-points total — **"Implement?"** and **"Commit?"** — everything else runs unattended.
+
 ## Skills
 
 | Skill | Command | Description |
