@@ -69,7 +69,7 @@ Policy: **Block dangers (exit 2), warn on quality issues (stderr)**.
 | Hook | Event | Role | Blocks |
 |------|-------|------|--------|
 | `session-init.sh` | SessionStart | Remote version check + new version notification (GitHub, once/day) | — |
-| `guard.sh` | PreToolUse:Bash | Blocks `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, etc. | ✅ |
+| `guard.sh` | PreToolUse:Bash | Blocks `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .`, etc. | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks creating/editing sensitive files: `.env*`, certificates (`*.pem`/`*.key`, etc.), secret-payload files (`*.secret`, `*credentials*.json`, etc.) — source files like `.env.example`, `CredentialForm.tsx` are allowed | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks only **weakening** edits to linter/formatter/TS config — `strict:false`, `@ts-nocheck`, linter `recommended:false`, removing an existing `strict:true`. Normal edits (path aliases, adding plugins, etc.) pass through | ✅ |
 | `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env`, `*.pem`, `*.key`, `*credential*`, etc.) | — |
@@ -100,7 +100,7 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 bash eval/run.sh   # exits 1 on failure (CI-ready)
 ```
 
-Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
+Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring, and that delegating skills list Task/Agent in allowed-tools). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
 
 ## Agents
 

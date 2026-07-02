@@ -69,7 +69,7 @@ $ claude
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
-| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard` 등 차단 | ✅ |
+| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단 — `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
@@ -100,7 +100,7 @@ $ claude
 bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 ```
 
-라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
+라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
 
 ## 포함된 Agents
 

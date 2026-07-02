@@ -47,9 +47,11 @@ fe-rail/
 │   └── fe-doc-sync/       ← 설치된 사용자 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
 ├── eval/
 │   └── run.sh             ← 회귀 eval (훅 동작·프로파일·self-lint, 결정적·CI용)
-└── .claude/
-    └── settings.local.json ← Bash 권한 화이트리스트
+├── docs/ ← framework-rules.md · monorepo.md (CLAUDE.md 가 @import)
+└── .claude-plugin/ ← plugin.json · marketplace.json (플러그인 메타데이터)
 ```
+
+> 권한(Bash 화이트리스트)은 **소비자 프로젝트의 `.claude/settings.json`** 에서 설정한다 — 이 플러그인은 권한 파일을 배포하지 않는다(아래 "권한 및 보안" 참조).
 
 ### 레이어별 역할
 
@@ -59,12 +61,12 @@ fe-rail/
 | **Skills** | `skills/*/SKILL.md` | 작업 유형별 전문화된 지침 (도구 제한 포함) |
 | **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (15개) |
 | **Hooks** | `hooks/hooks.json` | Pre/PostToolUse·Stop 이벤트 자동 실행 사이드이펙트 |
-| **Permissions** | `settings.local.json` | Bash 명령어 화이트리스트로 에이전트 권한 제한 |
+| **Permissions** | 소비자 `.claude/settings.json` | Bash 화이트리스트로 PR 단계 권한 프롬프트 축소 (플러그인엔 미포함) |
 
 ### 훅 프로파일 · 회귀 eval
 
 - **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`.
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성)를 결정적으로 검증(실패 시 exit 1).
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부)를 결정적으로 검증(실패 시 exit 1).
 
 ---
 
@@ -228,7 +230,7 @@ bun run lint              # bun
 npm test -- --run         # npm
 pnpm test --run           # pnpm
 yarn test --run           # yarn
-bun test                  # bun
+bun run test --run        # bun (bun test 는 Bun 내장 러너 — vitest 를 돌리려면 run 스크립트 경유)
 ```
 
 ---
@@ -255,11 +257,11 @@ bun test                  # bun
 
 ## 권한 및 보안
 
-`settings.local.json`에 정의된 허용 명령어 외 Bash 실행은 사용자 확인을 받는다.
+이 플러그인은 권한 설정 파일을 배포하지 않는다. Bash 권한은 소비자 프로젝트의 `.claude/settings.json` 의 `permissions.allow` 에서 설정한다.
 
-현재 허용된 명령어:
-- `git *` — 버전 관리 전 범위
-- `gh repo *` — GitHub CLI PR/리포지토리 관련
+권장 허용 명령어 (PR 단계 에이전트가 매번 프롬프트 없이 동작):
+- `Bash(git *)` — 버전 관리 전 범위
+- `Bash(gh pr *)` — PR 생성·조회 (fe-pr-author)
 
 ---
 
