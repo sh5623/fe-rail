@@ -40,7 +40,7 @@ CHANGED=$(
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo none)
 REPO_KEY=$(pwd | cksum | cut -d' ' -f1)
 NOTIFY_KEY="${CLAUDE_SESSION_ID:-nosess}:${HEAD_SHA}"
-MARKER="${TMPDIR:-/tmp}/fe-rail-docsync-${REPO_KEY}"
+MARKER="${TMPDIR:-/tmp}/fe-rail-docsync-${REPO_KEY}-${USER:-shared}"
 [ -f "$MARKER" ] && [ "$(cat "$MARKER" 2>/dev/null)" = "$NOTIFY_KEY" ] && exit 0
 
 COUNT=$(echo "$CHANGED" | wc -l | tr -d ' ')

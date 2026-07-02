@@ -206,7 +206,7 @@ PM="npm"; PX="npx"
 { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
 # 타입체크: typecheck 스크립트 우선 (솔루션 tsconfig/references 에서 bare tsc 는 no-op → 검사 없이 통과 위험)
-if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
+if [ -f package.json ] && grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1
 else $PX tsc --noEmit 2>&1; fi
 $PM lint 2>&1

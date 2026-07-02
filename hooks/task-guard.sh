@@ -62,14 +62,18 @@ fe_strip_fences() {
   printf '%s\n' "$1" | awk '/^```/{f=!f;next} !f{print}'
 }
 SEARCH_NO_FENCE=$(fe_strip_fences "$SEARCH_IN")
+# 소문자 변환은 루프 진입 전 한 번만 — 줄마다 반복하면 프롬프트 줄 수만큼 외부 프로세스가
+# 생성돼 느려진다.
+SEARCH_NO_FENCE_LOWER=$(printf '%s\n' "$SEARCH_NO_FENCE" | tr '[:upper:]' '[:lower:]')
 
 # 부정 문맥 판별용 정규식(소문자 기준). 한글은 UTF-8 로케일에서 매칭됨.
-NEG_RE="don't|do not|never|must not|should not|avoid|하지[[:space:]]*마|하지[[:space:]]*말|하면[[:space:]]*안|금지|절대|말아야|말 것|삼가"
+# "절대"는 부정어와 결합된 형태만 매칭 — "절대적으로 필요하다"처럼 긍정 강조로 쓰이면
+# 부정 문맥으로 오판해 위험 명령 차단이 우회될 수 있기 때문.
+NEG_RE="don't|do not|never|must not|should not|avoid|하지[[:space:]]*마|하지[[:space:]]*말|하면[[:space:]]*안|금지|절대[[:space:]]*(하지|금지|안|말|불가)|말아야|말 것|삼가"
 
 DANGER_HIT=""
-while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  line_lower=$(echo "$line" | tr '[:upper:]' '[:lower:]')
+while IFS= read -r line_lower; do
+  [ -z "$line_lower" ] && continue
   # 이 줄이 부정 문맥이면 안전 지시문으로 간주하고 건너뛴다
   echo "$line_lower" | grep -qE "$NEG_RE" && continue
   for pattern in \
@@ -87,7 +91,7 @@ while IFS= read -r line; do
     fi
   done
   [ -n "$DANGER_HIT" ] && break
-done <<< "$SEARCH_NO_FENCE"
+done <<< "$SEARCH_NO_FENCE_LOWER"
 
 if [ -n "$DANGER_HIT" ]; then
   {

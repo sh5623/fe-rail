@@ -36,12 +36,25 @@ if _is_stale "$REMOTE_CHECK_CACHE"; then
   fi
 fi
 
+# semver 세 자리(x.y.z)를 순수 bash 산술로 비교 — 외부 프로세스 없이 이식성 확보.
+# (sort -V 는 GNU 확장이라 구버전 macOS BSD sort 등에서 미지원일 수 있음)
+_fe_is_newer() {
+  local IFS=.
+  local -a lp=($1) rp=($2)
+  local i l r
+  for i in 0 1 2; do
+    l="${lp[i]:-0}"; r="${rp[i]:-0}"
+    if (( 10#$r > 10#$l )); then return 0; fi
+    if (( 10#$r < 10#$l )); then return 1; fi
+  done
+  return 1
+}
+
 REMOTE_VER=$(cat "$REMOTE_CHECK_CACHE" 2>/dev/null)
 if [ -n "$REMOTE_VER" ] && [ -n "$PLUGIN_VERSION" ] && [ "$REMOTE_VER" != "$PLUGIN_VERSION" ]; then
   # 원격이 로컬보다 "더 최신일 때만" 안내한다. 단순 != 비교는 로컬이 앞선 개발 체크아웃에서
-  # 다운그레이드를 새 버전으로 오인해 매 세션 오보를 낸다. sort -V(버전 정렬)로 대소를 판정한다.
-  NEWEST=$(printf '%s\n%s\n' "$PLUGIN_VERSION" "$REMOTE_VER" | sort -V 2>/dev/null | tail -1)
-  if [ "$NEWEST" = "$REMOTE_VER" ]; then
+  # 다운그레이드를 새 버전으로 오인해 매 세션 오보를 낸다.
+  if _fe_is_newer "$PLUGIN_VERSION" "$REMOTE_VER"; then
     echo "[fe-rail] 새 버전 v${REMOTE_VER} 이 있습니다 (현재 v${PLUGIN_VERSION})"
     echo "[fe-rail] 업데이트: /plugin update fe-rail@fe-rail-market"
   fi

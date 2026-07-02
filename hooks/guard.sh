@@ -45,7 +45,10 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space
   PUSHES=$(echo "$CMD" | grep -oE 'git[[:space:]]+push[^;&|`$]*')
   while IFS= read -r inv; do
     [ -z "$inv" ] && continue
-    if echo "$inv" | grep -qE '(--force|-f)([[:space:];&|]|$)' && ! echo "$inv" | grep -qF -- '--force-with-lease'; then
+    # 경계 있는 (--force|-f) 만 매칭 — --force-with-lease 는 "-with-lease" 가 뒤따라 경계에
+    # 걸리지 않으므로 자동 제외된다. `--force --force-with-lease` 처럼 둘 다 준 조합에서
+    # --force-with-lease 존재만으로 안전 처리하던 우회를 없앤다.
+    if echo "$inv" | grep -qE '([[:space:]]|^)(--force|-f)([[:space:];&|]|$)'; then
       block "force push 금지. 원격 히스토리가 손상됩니다. (--force-with-lease 는 허용)"
     fi
   done <<< "$PUSHES"
@@ -53,7 +56,9 @@ fi
 
 # 3. git commit --no-verify / -n  (커밋 훅 우회)
 #    커밋 메시지(따옴표 내부)는 먼저 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용 오탐 방지.
-CMD_NOQUOTE=$(echo "$CMD" | sed 's/"[^"]*"//g; '"s/'[^']*'//g")
+#    sed 는 줄 단위로 동작해 여러 줄 커밋 본문(Conventional Commits 본문 등)에 걸친 따옴표는
+#    못 지운다 — 개행을 공백으로 접어 한 줄로 만든 뒤 제거한다.
+CMD_NOQUOTE=$(printf '%s\n' "$CMD" | tr '\n' ' ' | sed 's/"[^"]*"//g; '"s/'[^']*'//g")
 if echo "$CMD_NOQUOTE" | grep -qE 'git[[:space:]]+commit[[:space:]].*(--no-verify|-[a-zA-Z]*n([[:space:]]|$))'; then
   block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
 fi
