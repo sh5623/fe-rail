@@ -24,7 +24,7 @@ maxTurns: 30
 - 파괴적 git 명령 실행 없이 안전하게 작업
 
 **사용 시점:**
-- fe-start Phase 6-1 — 구현 완료 후 커밋·푸시 단계
+- fe-start Phase 6-1 — 구현 완료 후 커밋 단계 (push·PR 생성은 fe-pr-author 담당)
 - 변경 파일이 여러 논리 단위로 분리 가능한 경우
 - 민감 파일 포함 여부 확인이 필요한 경우
 
@@ -205,8 +205,11 @@ PM="npm"; PX="npx"
 [ -f "yarn.lock" ]      && PM="yarn" && PX="yarn"
 { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
-$PX tsc --noEmit 2>&1 | grep -c "error" || echo "0"
-$PM lint 2>&1 | grep -c "error" || echo "0"
+# 타입체크: typecheck 스크립트 우선 (솔루션 tsconfig/references 에서 bare tsc 는 no-op → 검사 없이 통과 위험)
+if [ -f package.json ] && grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1
+else $PX tsc --noEmit 2>&1; fi
+$PM lint 2>&1
 ```
 
 ### Step 4: 그룹별 커밋 (HEREDOC)
@@ -271,10 +274,10 @@ git log --oneline -3
 
 ### 종료 상태
 - working tree: clean ✓
-- push: `git push origin HEAD` 완료
+- push: 미실행 (push·PR 생성은 fe-pr-author 가 수행)
 
 ### 다음 단계
-fe-pr-author에게 PR 생성 위임 가능
+fe-pr-author에게 push + PR 생성 위임
 ```
 
 </output>

@@ -21,27 +21,29 @@ FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 BASENAME=$(basename "$FILE_PATH")
 
+# 차단 사유는 stderr 로 출력한다 (exit 2 시 stderr 만 모델에 피드백됨).
+block() {
+  echo "[fe-rail] BLOCKED: $1" >&2
+  exit 2
+}
+
 case "$BASENAME" in
-  # .env 계열 — .env.example 은 제외되므로 통과
-  .env|.env.local|.env.production|.env.staging|.env.development|.env.test|.env.*.local)
-    echo "[fe-rail] BLOCKED: .env 파일 직접 생성 금지. .env.example 만 허용됩니다."
-    exit 2
+  # .env 계열 — .env.example 은 제외되므로 통과 · .envrc(direnv) 포함
+  .env|.env.local|.env.production|.env.staging|.env.development|.env.test|.env.*.local|.envrc)
+    block ".env 파일 직접 생성 금지. .env.example 만 허용됩니다."
     ;;
-  # 인증서·키 파일
-  *.pem|*.key|*.p12|*.pfx|*.crt|*.cer)
-    echo "[fe-rail] BLOCKED: 인증서/키 파일 생성 금지."
-    exit 2
+  # 인증서·키 파일 (id_rsa 등 확장자 없는 개인키 포함)
+  *.pem|*.key|*.p12|*.pfx|*.crt|*.cer|id_rsa|id_dsa|id_ecdsa|id_ed25519)
+    block "인증서/키 파일 생성 금지."
     ;;
   # 자격증명 파일
-  credentials.json|secrets.json)
-    echo "[fe-rail] BLOCKED: 자격증명 파일 생성 금지."
-    exit 2
+  credentials.json|secrets.json|.npmrc)
+    block "자격증명/토큰 파일 생성 금지."
     ;;
   # 시크릿/자격증명 '페이로드 파일' 형태만 차단 — 소스 파일명에 secret/credential 이 들어가는 경우
   # (CredentialForm.tsx, useSecret.ts, features/credentials/ 등)는 통과시킨다 (오탐 방지).
   *.secret|*.secrets|*secret*.json|*secrets*.json|*credential*.json|*credentials*.json)
-    echo "[fe-rail] BLOCKED: 시크릿/자격증명 페이로드 파일 생성 금지 (예: *.secret, *credentials*.json)."
-    exit 2
+    block "시크릿/자격증명 페이로드 파일 생성 금지 (예: *.secret, *credentials*.json)."
     ;;
 esac
 

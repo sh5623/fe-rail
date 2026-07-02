@@ -9,6 +9,8 @@ allowed-tools:
   - Write
   - Edit
   - Bash
+  - Task
+  - Agent
 ---
 
 # FE Build 스킬

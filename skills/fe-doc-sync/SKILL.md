@@ -9,6 +9,9 @@ allowed-tools:
   - Read
   - Bash
   - Edit
+  - Write
+  - Task
+  - Agent
 ---
 
 # fe-doc-sync — 사용자 프로젝트 문서 동기화 스킬

@@ -11,6 +11,8 @@ allowed-tools:
   - Edit
   - Bash
   - AskUserQuestion
+  - Task
+  - Agent
 ---
 
 # FE Start — 원스톱 자동화 스킬

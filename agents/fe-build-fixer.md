@@ -29,7 +29,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 **사용 시점:**
 - `$PM tsc --noEmit` 또는 `$PM lint` 오류 발생 시 (`$PM` = 감지된 패키지 매니저)
 - quality-gate hook이 오류를 감지하고 자동 수정을 요청하는 경우
-- fe-build 또는 fe-build-fixer 이후 잔존 오류 처리
+- fe-build 구현 이후, 또는 이전 fe-build-fixer 실행 이후에도 남은 tsc·린터 오류 처리
 
 </purpose>
 
