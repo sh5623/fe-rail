@@ -109,7 +109,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | `git add .` / `git add -A` | 스테이징은 fe-git-operator 역할 |
 | main 직접 푸시 | PR 없는 직접 머지 금지 |
 | 본문에 비밀 노출 | 즉시 중단 + 사용자 보고 |
-| 빈 PR (변경사항 없음) | `git diff main...HEAD` 확인 후 없으면 중단 |
+| 빈 PR (변경사항 없음) | `git diff <기본브랜치>...HEAD` 확인 후 없으면 중단 |
 | 미실행 항목을 [x] 통과로 표기 | 검증 위장 — STOP·PR 정직성 위반 |
 
 </forbidden>
@@ -124,7 +124,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | 컨벤션 학습 | `gh pr list --limit 5`로 기존 PR 제목 패턴 파악 |
 | HEREDOC 본문 | `gh pr create --body "$(cat <<'EOF' ... EOF)"` |
 | 성격별 블록 | `fix`는 증상·원인·해결 / `feat`는 추가·핵심·영향 (위 "PR 성격별 필수 블록") |
-| 커밋 종합 | `git log main...HEAD` 로 포함된 모든 커밋의 type·본문을 읽어 변경 사항 블록에 반영 |
+| 커밋 종합 | `git log <기본브랜치>...HEAD` 로 포함된 모든 커밋의 type·본문을 읽어 변경 사항 블록에 반영 |
 | 근거 기반 | 본문은 커밋·diff 에서 확인되는 사실만 — 추측·과장 금지 |
 | draft 기본 | 항상 `--draft` 로 생성, `--no-draft` 일 때만 ready |
 | PR URL 반환 | 마지막에 반드시 URL 출력 |
@@ -138,10 +138,14 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 
 ### Step 1: 사전 점검 (병렬)
 ```bash
+# 기본 브랜치 자동 감지 (main 하드코딩 금지 — master/develop 저장소에서 빈 PR 오판·커밋 누락 방지)
+BASE=$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+[ -z "$BASE" ] && BASE=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+[ -z "$BASE" ] && BASE=main
 # 동시 실행
 git status
-git diff main...HEAD --stat
-git log main...HEAD --oneline
+git diff "$BASE"...HEAD --stat
+git log "$BASE"...HEAD --oneline
 git remote -v
 gh pr list --limit 5 --json title,url
 ```
@@ -149,10 +153,10 @@ gh pr list --limit 5 --json title,url
 ### Step 2: 컨텍스트 수집
 ```bash
 # feature.md 읽기 (있는 경우)
-# 포함된 커밋의 type·본문 종합 — 변경 사항 블록의 근거
-git log main...HEAD --format='%s%n%b'
+# 포함된 커밋의 type·본문 종합 — 변경 사항 블록의 근거 (BASE 는 Step 1에서 감지한 기본 브랜치)
+git log "$BASE"...HEAD --format='%s%n%b'
 # 변경 규모 계산
-git diff main...HEAD --shortstat
+git diff "$BASE"...HEAD --shortstat
 ```
 
 ### Step 3: PR 본문 초안
@@ -167,6 +171,9 @@ git diff main...HEAD --shortstat
 ```bash
 # 이미 push 안 된 경우에만
 git push origin HEAD
+
+# draft 미지원 저장소(무료 플랜 private 등)에서 --draft 가 실패하면,
+# --draft 를 빼고 제목 앞에 [DRAFT] 를 붙여 재시도한다.
 
 # 예시 — 기능 + 버그 수정이 함께 든 PR
 gh pr create --draft \

@@ -27,7 +27,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 **사용 시점:**
 - fe-reviewer의 a11y 축에서 BLOCK/WARN이 발견되어 심층 감사가 필요한 경우
 - 접근성이 중요한 기능(폼, 모달, 메뉴, 테이블) 구현 후 정밀 점검
-- fe-start의 Phase 4에서 a11y 옵션이 활성화된 경우
+- fe-start Phase 4 에서 a11y 관련 BLOCK/WARN 이 발생해 정밀 감사가 필요한 경우
 
 </purpose>
 
@@ -148,7 +148,7 @@ git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
 ### Step 2: 정적 분석 (병렬)
 ```bash
 # 패키지 매니저 감지
-PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun" && PX="bun"
+PM="npm"; [ -f "pnpm-lock.yaml" ] && PM="pnpm"; [ -f "yarn.lock" ] && PM="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"
 
 # a11y 린트 — 린터 감지 후 실행 (Biome a11y 그룹 ↔ ESLint jsx-a11y)
 if [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then

@@ -7,6 +7,8 @@ description: >-
 allowed-tools:
   - Read
   - Bash
+  - Task
+  - Agent
 ---
 
 # FE Review 스킬

@@ -103,7 +103,7 @@ cat package.json | grep -E '"(next|react|typescript|tailwindcss)"'
    → 결과 충분하면 Step 3로 바로 진행
 1) WebSearch: "{라이브러리} {주제} official docs"
 2) WebFetch: 공식 문서 직접 열기
-3) WebSearch: "{라이브러리} {주제} site:github.com/issues"
+3) WebSearch: "{라이브러리} {주제} github issues" # site: 는 도메인만 지원 — /issues 경로는 키워드로
 4) (필요 시) WebSearch: "{라이브러리} {주제} site:stackoverflow.com"
 ```
 

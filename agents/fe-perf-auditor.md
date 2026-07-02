@@ -90,7 +90,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 | 데이터 prefetch | TanStack Router: 라우트 loader 미사용 waterfall / **RR7: 데이터는 TQ — loader fetch 대신 라우트 진입 시 `queryClient.prefetchQuery` 로 waterfall 방지** | High |
 | LCP 이미지 | `fetchpriority="high"` 누락, 정적 `import` 대신 `/public` 하드코딩 | High |
 | Zustand 구독 | 스토어 전체 구독 → 셀렉터 미사용으로 리렌더링 | Med |
-| 번들 분석 | `vite build --report` 기준 청크 사이즈 과다, manualChunks 미설정 | Med |
+| 번들 분석 | `vite build` 청크 크기 경고 또는 `rollup-plugin-visualizer` 기준 청크 과다, manualChunks 미설정 | Med |
 
 ---
 

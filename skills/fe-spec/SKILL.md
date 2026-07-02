@@ -9,6 +9,8 @@ allowed-tools:
   - Write
   - Edit
   - AskUserQuestion
+  - Task
+  - Agent
 ---
 
 # FE Spec 작성 스킬
