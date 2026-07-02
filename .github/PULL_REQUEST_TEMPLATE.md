@@ -22,6 +22,8 @@ What does this PR change and why? (1-3 bullets)
       only if it delegates)
 - [ ] `README.md` and `README.ko.md` updated together if user-facing behavior changed
 - [ ] `CLAUDE.md` updated if agent/hook/skill structure changed
+- [ ] `.claude-plugin/plugin.json` version bumped if this PR changes agent/hook/skill
+      runtime behavior (so consumers detect the update) — not needed for docs-only changes
 
 ## Test plan
 

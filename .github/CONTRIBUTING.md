@@ -27,6 +27,9 @@ plugin locally in a test project to exercise changes end to end:
 /plugin install fe-rail@fe-rail-market
 ```
 
+Hooks only load at session start — restart your Claude Code session after installing
+or editing a hook for the change to take effect.
+
 ## Testing your change
 
 Run the deterministic regression suite before opening a PR — it checks hook behavior,
