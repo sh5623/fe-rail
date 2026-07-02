@@ -35,9 +35,9 @@ esac
 
 WARNINGS=""
 
-# 'use client' 여부 확인 (첫 10줄)
+# 'use client' 여부 확인 (첫 40줄 — 긴 라이선스 헤더가 앞에 와도 지시어를 놓치지 않도록)
 USE_CLIENT=0
-if head -10 "$FILE_PATH" | grep -qE "^[[:space:]]*['\"]use client['\"]"; then
+if head -40 "$FILE_PATH" | grep -qE "^[[:space:]]*['\"]use client['\"]"; then
   USE_CLIENT=1
 fi
 

@@ -38,8 +38,13 @@ fi
 
 REMOTE_VER=$(cat "$REMOTE_CHECK_CACHE" 2>/dev/null)
 if [ -n "$REMOTE_VER" ] && [ -n "$PLUGIN_VERSION" ] && [ "$REMOTE_VER" != "$PLUGIN_VERSION" ]; then
-  echo "[fe-rail] 새 버전 v${REMOTE_VER} 이 있습니다 (현재 v${PLUGIN_VERSION})"
-  echo "[fe-rail] 업데이트: /plugin update fe-rail@fe-rail-market"
+  # 원격이 로컬보다 "더 최신일 때만" 안내한다. 단순 != 비교는 로컬이 앞선 개발 체크아웃에서
+  # 다운그레이드를 새 버전으로 오인해 매 세션 오보를 낸다. sort -V(버전 정렬)로 대소를 판정한다.
+  NEWEST=$(printf '%s\n%s\n' "$PLUGIN_VERSION" "$REMOTE_VER" | sort -V 2>/dev/null | tail -1)
+  if [ "$NEWEST" = "$REMOTE_VER" ]; then
+    echo "[fe-rail] 새 버전 v${REMOTE_VER} 이 있습니다 (현재 v${PLUGIN_VERSION})"
+    echo "[fe-rail] 업데이트: /plugin update fe-rail@fe-rail-market"
+  fi
 fi
 
 # [fe-rail] 훅 프로파일 안내 — 기본(standard)이 아니거나 비활성 훅이 설정돼 있으면 알린다.

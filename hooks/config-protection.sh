@@ -41,11 +41,14 @@ FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 
 BASE=$(basename "$FILE_PATH")
 
+# 차단 사유는 stderr 로 출력한다 (exit 2 시 stderr 만 모델에 피드백됨).
 block() {
-  echo "[fe-rail] BLOCKED [config-protection]: 설정 약화 편집이 감지되었습니다 — $BASE"
-  echo "[fe-rail]   사유: $1"
-  echo "[fe-rail]   품질 게이트(타입/린트)를 무력화하는 대신 코드를 수정하세요."
-  echo "[fe-rail]   의도적 설정 변경이라면 에이전트가 아니라 직접(수동) 편집하세요."
+  {
+    echo "[fe-rail] BLOCKED [config-protection]: 설정 약화 편집이 감지되었습니다 — $BASE"
+    echo "[fe-rail]   사유: $1"
+    echo "[fe-rail]   품질 게이트(타입/린트)를 무력화하는 대신 코드를 수정하세요."
+    echo "[fe-rail]   의도적 설정 변경이라면 에이전트가 아니라 직접(수동) 편집하세요."
+  } >&2
   exit 2
 }
 

@@ -35,6 +35,14 @@ CHANGED=$(
 
 [ -z "$CHANGED" ] && exit 0
 
+# 매 Stop 마다 같은 안내를 반복하지 않도록 억제 — (세션, HEAD) 조합당 1회만 안내한다.
+# 새 커밋으로 HEAD 가 바뀌거나 새 세션이 시작되면 다시 안내 가능.
+HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo none)
+REPO_KEY=$(pwd | cksum | cut -d' ' -f1)
+NOTIFY_KEY="${CLAUDE_SESSION_ID:-nosess}:${HEAD_SHA}"
+MARKER="${TMPDIR:-/tmp}/fe-rail-docsync-${REPO_KEY}"
+[ -f "$MARKER" ] && [ "$(cat "$MARKER" 2>/dev/null)" = "$NOTIFY_KEY" ] && exit 0
+
 COUNT=$(echo "$CHANGED" | wc -l | tr -d ' ')
 FILES=$(echo "$CHANGED" | head -5 | sed 's/^/    /')
 
@@ -42,5 +50,8 @@ echo "[fe-rail][doc-sync] 프로젝트 구조·의존성 변경 감지 (${COUNT}
 echo "$FILES"
 echo "[fe-rail][doc-sync] CLAUDE.md / README.md 업데이트가 필요할 수 있습니다."
 echo "[fe-rail][doc-sync] → /fe-rail:fe-doc-sync 가 프로젝트 전반을 스캔해 누락·불일치를 분석하고 수정안을 제안합니다."
+
+# 이 (세션, HEAD) 상태에서 안내했음을 기록 — 다음 Stop 부터는 침묵
+printf '%s' "$NOTIFY_KEY" > "$MARKER" 2>/dev/null
 
 exit 0
