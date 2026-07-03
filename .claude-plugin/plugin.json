@@ -1,9 +1,9 @@
 {
   "name": "fe-rail",
-  "description": "Frontend 프로젝트 전용 하네스. Next.js App Router / Vite SPA + TypeScript, Tailwind v3/v4, shadcn/ui 지원. spec→build→review→PR 사이클 자동화.",
+  "description": "Harness dedicated to frontend projects. Supports Next.js App Router / Vite SPA + TypeScript, Tailwind v3/v4, shadcn/ui. Automates the spec→build→review→PR cycle.",
   "version": "1.11.0",
   "author": {
-    "name": "승호",
+    "name": "Seungho",
     "email": "seungho5623@gmail.com"
   },
   "homepage": "https://github.com/sh5623/fe-rail",

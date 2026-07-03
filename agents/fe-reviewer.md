@@ -71,14 +71,14 @@ PM="npm"; PX="npx"
 
 **React 훅 런타임 버그 (정적 감지 — "느려짐"이 아니라 "틀리게 동작함"을 잡는다. 실제 결함이라 심각도를 명시)**
 
-> diff 에 `useEffect`·`useCallback`·`setInterval`·`addEventListener` 가 보이면 아래를 우선 대조한다. 대부분 리뷰 없이 프로덕션에 새는 유형이다.
+> diff 에 `useEffect`·`useCallback`·`useMemo`·`setInterval`·`addEventListener` 가 보이면 아래를 우선 대조한다. 대부분 리뷰 없이 프로덕션에 새는 유형이다.
 
 | 체크 항목 | 패턴 | 심각도 |
 |---------|------|-------|
-| Effect cleanup 누락 | `addEventListener`·`setInterval`·`setTimeout`·`subscribe`·`IntersectionObserver`/`ResizeObserver` 등록 후 `return () => …` 해제 없음 → 리스너 누수·언마운트 후 중복 실행 | **BLOCK** |
+| Effect cleanup 누락 | `addEventListener`·`setInterval`·`setTimeout`·`requestAnimationFrame`·`subscribe`·`IntersectionObserver`/`ResizeObserver`/`MutationObserver` 등록 후 `return () => …` 해제 없음 → 리스너·프레임·구독 누수·언마운트 후 중복 실행 | **BLOCK** |
 | Async effect 경쟁 조건 | `useEffect` 안에서 `await` 후 `setState` 인데 취소 가드(`ignore` 플래그 / `AbortController`) 없음 → 언마운트 뒤 setState·늦게 온 응답이 최신 값을 덮음 | **BLOCK** |
 | useEffect 무한 루프 | 의존성 배열에 매 렌더 새로 만들어지는 객체/배열/함수, 또는 effect 가 조건 없이 자기 의존성을 `setState` | **BLOCK** |
-| Stale closure | effect·`useCallback`·`setInterval` 콜백이 읽는 prop·state 가 의존성에서 빠져 옛 값을 캡처 (오작동의 흔한 원인) | **WARN** |
+| Stale closure | effect·`useCallback`·`useMemo`·`setInterval` 콜백이 읽는 prop·state 가 의존성에서 빠져 옛 값을 캡처(`useMemo` 는 의존성 누락 시 오래된 메모이제이션 값 반환) — 오작동의 흔한 원인 | **WARN** |
 | 의존성 배열 부정확 | `react-hooks/exhaustive-deps` 위반 — 필요한 의존성 누락(위 stale·무한 루프의 뿌리). 의도적 생략은 근거 주석 필요 | **WARN** |
 
 ### 접근성 (a11y)
