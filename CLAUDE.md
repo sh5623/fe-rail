@@ -34,7 +34,7 @@ fe-rail/
 │   ├── fe-test-runner.md  ← review: 테스트 실행·분류
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
 │   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
-│   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create`
+│   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트) + `gh pr create`
 ├── hooks/                 ← Pre/PostToolUse·Stop 훅 (hooks.json 배선)
 │   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
 │   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)

@@ -129,7 +129,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 ### review 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시) 포함) | opus | 책임 (read-only) |
+| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질 — 성능 축에 React 훅 런타임 버그(cleanup 누락·async 경쟁조건·무한루프) 포함, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시) 포함) | opus | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast — Tailwind 팔레트 기준 포함) | sonnet | 책임 (read-only) |
 | `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply) | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
@@ -139,7 +139,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
 | `fe-git-operator` | 커밋 분리·안전한 스테이징 + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) | sonnet | 도구 (Write/Edit 금지) |
-| `fe-pr-author` | PR 본문 작성 (성격별 🐛/✨ 블록) + `gh pr create` | sonnet | 컨텍스트 + 도구 |
+| `fe-pr-author` | PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트 위험순) + `gh pr create` | sonnet | 컨텍스트 + 도구 |
 
 ## 워크플로우
 
