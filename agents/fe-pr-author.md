@@ -60,6 +60,11 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 - **핵심**: <동작 방식·주요 설계 결정·데이터 흐름>
 - **영향**: <기존 코드 연결·새 의존성·마이그레이션>
 
+## 리뷰 포인트 (먼저 볼 것)
+<!-- 리뷰어의 시간을 위험 순으로 아낀다. 위험·판단이 필요한 지점만, 위에서부터 위험한 순으로. -->
+- ⚠️ src/…:line — <무엇을·왜 집중해서 봐야 하나>
+- 👀 src/… — <의도적 설계 결정/trade-off — 동의하는지 확인 요망>
+
 ## 테스트
 <!-- feature.md '완료 기준'을 1차 소스로. 자동 실행 항목은 실제 결과로 [x]/[ ] 표기. -->
 - [ ] 타입 체크 통과 (typecheck / tsc --noEmit)
@@ -129,6 +134,7 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | draft 기본 | 항상 `--draft` 로 생성, `--no-draft` 일 때만 ready |
 | PR URL 반환 | 마지막에 반드시 URL 출력 |
 | 완료 기준 반영 | feature.md '완료 기준'을 체크리스트에 매핑, 자동 실행 결과를 [x]/[ ]·미실행으로 정직 표기 |
+| 리뷰 포인트 | fe-reviewer 요약의 판단필요·WARN + diff 고위험 지점을 위험 순으로 `## 리뷰 포인트`에 배치 (없으면 섹션 생략 — 노이즈 금지). 리뷰어가 diff 를 열 첫 지점을 정해 주는 게 목적 |
 
 </required>
 
@@ -196,6 +202,10 @@ gh pr create --draft \
 - **원인**: useProducts 가 매 렌더마다 새 onToggle 을 생성해 memo 무효화
 - **해결**: onToggle 을 useCallback 으로 감싸 참조 고정
 
+## 리뷰 포인트 (먼저 볼 것)
+- ⚠️ src/hooks/useProducts.ts:34 — onToggle 을 useCallback 으로 고정. 의존성 배열에 누락이 없는지 봐달라 (stale closure 위험 지점)
+- 👀 src/components/ProductCard.tsx — React.memo 래핑은 목록이 커질 때만 이득이라 지금은 보류. 동의하는지 확인 요망
+
 ## 테스트
 - [ ] 타입 체크 통과 (typecheck / tsc --noEmit)
 - [ ] 린트 통과 (eslint/biome)
@@ -226,7 +236,7 @@ gh pr view --json url -q '.url'
 
 - URL: https://github.com/<org>/<repo>/pull/<번호>
 - 제목: feat: 상품 카드 컴포넌트 추가
-- 본문 블록: ✨ 신규 기능 + 🐛 버그 수정
+- 본문 블록: ✨ 신규 기능 + 🐛 버그 수정 + 리뷰 포인트(2)
 - 변경: +120 / -45 (4개 파일)
 - 상태: draft (기본 정책 — 검토 후 ready 전환)
 ```

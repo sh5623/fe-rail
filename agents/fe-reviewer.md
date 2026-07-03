@@ -59,7 +59,7 @@ PM="npm"; PX="npx"
 | null 비안전 접근 | `obj.prop` (null 체크 없이) |
 | 강제 타입 단언 남용 | `as Type` (불필요한 경우) |
 
-### 성능
+### 성능 · 훅 런타임 안전성
 | 체크 항목 | 패턴 | 적용 |
 |---------|------|------|
 | 불필요한 리렌더링 | useEffect 의존성 배열 문제, inline 객체/함수 | 공통 |
@@ -68,6 +68,18 @@ PM="npm"; PX="npx"
 | Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
 | RR7 데이터 소유 위반 | RR7(`react-router`/`react-router-dom`) `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7) |
 | RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
+
+**React 훅 런타임 버그 (정적 감지 — "느려짐"이 아니라 "틀리게 동작함"을 잡는다. 실제 결함이라 심각도를 명시)**
+
+> diff 에 `useEffect`·`useCallback`·`setInterval`·`addEventListener` 가 보이면 아래를 우선 대조한다. 대부분 리뷰 없이 프로덕션에 새는 유형이다.
+
+| 체크 항목 | 패턴 | 심각도 |
+|---------|------|-------|
+| Effect cleanup 누락 | `addEventListener`·`setInterval`·`setTimeout`·`subscribe`·`IntersectionObserver`/`ResizeObserver` 등록 후 `return () => …` 해제 없음 → 리스너 누수·언마운트 후 중복 실행 | **BLOCK** |
+| Async effect 경쟁 조건 | `useEffect` 안에서 `await` 후 `setState` 인데 취소 가드(`ignore` 플래그 / `AbortController`) 없음 → 언마운트 뒤 setState·늦게 온 응답이 최신 값을 덮음 | **BLOCK** |
+| useEffect 무한 루프 | 의존성 배열에 매 렌더 새로 만들어지는 객체/배열/함수, 또는 effect 가 조건 없이 자기 의존성을 `setState` | **BLOCK** |
+| Stale closure | effect·`useCallback`·`setInterval` 콜백이 읽는 prop·state 가 의존성에서 빠져 옛 값을 캡처 (오작동의 흔한 원인) | **WARN** |
+| 의존성 배열 부정확 | `react-hooks/exhaustive-deps` 위반 — 필요한 의존성 누락(위 stale·무한 루프의 뿌리). 의도적 생략은 근거 주석 필요 | **WARN** |
 
 ### 접근성 (a11y)
 | 체크 항목 | 패턴 |

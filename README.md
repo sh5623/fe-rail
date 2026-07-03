@@ -129,7 +129,7 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 ### Review stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
-| `fe-reviewer` | 4-axis review (type · performance · a11y · quality; includes Tailwind anti-patterns · openapi-fetch patterns · DESIGN.md design contract, if present) | opus | Scoped (read-only) |
+| `fe-reviewer` | 4-axis review (type · performance · a11y · quality — performance axis now covers React hook runtime bugs: missing cleanup · async race · infinite loop; includes Tailwind anti-patterns · openapi-fetch patterns · DESIGN.md design contract, if present) | opus | Scoped (read-only) |
 | `fe-a11y-auditor` | 8-axis a11y audit (Color Contrast — Tailwind palette-based included) | sonnet | Scoped (read-only) |
 | `fe-perf-auditor` | Performance audit — Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply) | sonnet | Scoped (read-only) |
 | `fe-test-runner` | Test execution + failure classification | sonnet | Context |
@@ -139,7 +139,7 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
 | `fe-git-operator` | Commit splitting · safe staging + body authoring (fix = symptom·cause·fix / feat = added·core·impact) | sonnet | Tool (Write/Edit blocked) |
-| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type) + `gh pr create` | sonnet | Context + Tool |
+| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type + risk-ordered review points) + `gh pr create` | sonnet | Context + Tool |
 
 ## Workflow
 
