@@ -120,25 +120,34 @@ Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chr
 
 ### 절차
 
-1. **dev 서버 기동 전 확인** — `package.json` 에 `"dev"` 스크립트가 없으면 스킵(사유: dev 스크립트 없음).
+> 셸 변수는 Bash 호출 사이에 유지되지 않는다(에이전트가 여러 턴에 걸쳐 별도의 Bash 호출로 실행하면 `$$`·`DEV_PID` 값이 사라진다) — 고정 경로의 로그 파일 + PID 파일로 상태를 전달한다.
+
+1. **dev 서버 기동 전 확인** — `package.json` 에 `"dev"` 스크립트가 없으면 스킵(사유: dev 스크립트 없음). 이전 실행이 비정상 종료해 남아있을 수 있으니 먼저 정리 후 기동:
    ```bash
-   $PM run dev > "${TMPDIR:-/tmp}/fe-a11y-dev.$$.log" 2>&1 &
-   DEV_PID=$!
+   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-a11y-dev.log"
+   DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-a11y-dev.pid"
+   [ -f "$DEV_PIDFILE" ] && kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   $PM run dev > "$DEV_LOG" 2>&1 &
+   echo $! > "$DEV_PIDFILE"
    ```
-2. **포트 확인** — 프레임워크 기본 포트를 가정하지 않는다 — 서버 로그에서 실제 바인딩된 URL을 폴링:
+2. **포트 확인** — 프레임워크 기본 포트를 가정하지 않는다 — 서버 로그에서 실제 바인딩된 URL을 폴링(별도 Bash 호출이어도 고정 경로라 안전):
    ```bash
    for i in $(seq 1 20); do
-     URL=$(grep -oE 'https?://(localhost|127\.0\.0\.1):[0-9]+' "${TMPDIR:-/tmp}/fe-a11y-dev.$$.log" | head -1)
+     URL=$(grep -oE 'https?://(localhost|127\.0\.0\.1):[0-9]+' "$DEV_LOG" | head -1)
      [ -n "$URL" ] && break
      sleep 0.5
    done
-   [ -z "$URL" ] && { kill "$DEV_PID" 2>/dev/null; }  # 실패 시 아래 "실패·스킵 처리"로
+   [ -z "$URL" ] && { kill "$(cat "$DEV_PIDFILE")" 2>/dev/null; rm -f "$DEV_PIDFILE"; }  # 실패 시 아래 "실패·스킵 처리"로
    ```
 3. **대상 라우트로 이동** — 호출자가 route를 명시하면 그 경로, 없으면 `/`(루트). `navigate_page`로 이동.
 4. **Lighthouse a11y 감사** — `lighthouse_audit(mode: "navigation")` 로 접근성 점수와 개별 위반 항목(색상 대비·aria-required-attr·button-name 등) 획득. 각 위반을 8개 카테고리 중 해당하는 곳에 배치.
 5. **실제 접근성 트리** — `take_snapshot(verbose: true)` 로 런타임에 실제 계산된 role·label·포커스 가능 요소를 확인 — 정적 분석이 놓치는 조건부 렌더링·동적 aria 속성을 잡아낸다.
 6. **런타임 콘솔** — `list_console_messages` 로 ARIA/접근성 관련 런타임 경고(라이브러리가 내는 prop 경고 등) 확인.
-7. **정리 (필수)** — 감사 종료 시 반드시 `kill "$DEV_PID"`로 dev 서버를 종료한다. 백그라운드에 남겨두지 않는다.
+7. **정리 (필수)** — 감사 종료 시 (별도 Bash 호출이어도) 반드시 아래로 dev 서버를 종료하고 임시 파일을 지운다. 백그라운드에 남겨두지 않는다.
+   ```bash
+   kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   rm -f "$DEV_LOG" "$DEV_PIDFILE"
+   ```
 
 ### 실패·스킵 처리
 
@@ -155,7 +164,7 @@ dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(20회 폴�
 | 추측성 BLOCK | 실제 DOM 구조 확인 없이 단정 금지 |
 | 회색 영역 BLOCK | 불명확한 경우 WARN으로 처리 |
 | 자동 live 실측 (명시 없으면) | `--live` 명시 시에만 dev 서버 기동 — Chrome DevTools MCP 설치 여부와 무관하게 옵트인 |
-| dev 서버 백그라운드 방치 | 실측 종료 시 반드시 `kill "$DEV_PID"` — 남겨두면 포트 점유·리소스 누수 |
+| dev 서버 백그라운드 방치 | 실측 종료 시 반드시 `kill "$(cat "$DEV_PIDFILE")"` — 남겨두면 포트 점유·리소스 누수 |
 
 </forbidden>
 
