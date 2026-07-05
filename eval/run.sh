@@ -8,7 +8,11 @@
 #   A. 훅 동작 — fixture tool_input(JSON)을 stdin 으로 주입하고 exit code/경고 출력을 단언
 #      (차단기: exit 2 = BLOCK / exit 0 = ALLOW · 경고훅: stderr 유무 = WARN / SILENT)
 #   B. 훅 프로파일 — FE_RAIL_HOOK_PROFILE / FE_RAIL_DISABLED_HOOKS 동작
-#   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter, 프로파일 배선
+#   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter, 프로파일 배선,
+#      bun PX 감지 일관성(PX=bun), typecheck 분기의 references(tsc -b) 폴백 동반 여부
+#   D. 차단기 4개의 차단 사유가 stdout 아닌 stderr 로 전달되는지
+#   E. 비차단 훅 5개(doc-sync-check·design-nudge·nextjs-guard·quality-gate·read-guard)의
+#      안내도 동일하게 stderr 로 나가는지 (exit 0 이면 stdout 은 transcript 모드에서만 보임)
 #
 # 주의: fixture 는 반드시 printf '%s' 로 주입한다(echo 는 zsh 등에서 \n 을 실제 개행으로 바꿔 JSON 을 깨뜨림).
 #
