@@ -46,10 +46,14 @@ MARKER="${TMPDIR:-/tmp}/fe-rail-docsync-${REPO_KEY}-${USER:-shared}"
 COUNT=$(echo "$CHANGED" | wc -l | tr -d ' ')
 FILES=$(echo "$CHANGED" | head -5 | sed 's/^/    /')
 
-echo "[fe-rail][doc-sync] 프로젝트 구조·의존성 변경 감지 (${COUNT}개 파일):"
-echo "$FILES"
-echo "[fe-rail][doc-sync] CLAUDE.md / README.md 업데이트가 필요할 수 있습니다."
-echo "[fe-rail][doc-sync] → /fe-rail:fe-doc-sync 가 프로젝트 전반을 스캔해 누락·불일치를 분석하고 수정안을 제안합니다."
+# stdout 은 Stop 훅 exit 0 시 transcript 모드(Ctrl+R)에서만 보여 평소엔 묻힌다.
+# quality-gate.sh 등 다른 Stop 훅과 동일하게 stderr 로 내야 실제로 눈에 띈다.
+{
+  echo "[fe-rail][doc-sync] 프로젝트 구조·의존성 변경 감지 (${COUNT}개 파일):"
+  echo "$FILES"
+  echo "[fe-rail][doc-sync] CLAUDE.md / README.md 업데이트가 필요할 수 있습니다."
+  echo "[fe-rail][doc-sync] → /fe-rail:fe-doc-sync 가 프로젝트 전반을 스캔해 누락·불일치를 분석하고 수정안을 제안합니다."
+} >&2
 
 # 이 (세션, HEAD) 상태에서 안내했음을 기록 — 다음 Stop 부터는 침묵
 printf '%s' "$NOTIFY_KEY" > "$MARKER" 2>/dev/null
