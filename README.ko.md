@@ -100,7 +100,7 @@ $ claude
 bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 ```
 
-라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
+라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지·비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
 
 ## 포함된 Agents
 

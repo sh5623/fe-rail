@@ -100,7 +100,7 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 bash eval/run.sh   # exits 1 on failure (CI-ready)
 ```
 
-Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring, and that delegating skills list Task/Agent in allowed-tools). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
+Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout, and that the 5 non-blocking hooks' notices also go to stderr), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring, delegating skills listing Task/Agent in allowed-tools, bun `PX` detection consistency, and `typecheck` branches always pairing a `references`(tsc -b) fallback). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
 
 ## Agents
 
