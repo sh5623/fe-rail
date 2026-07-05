@@ -1,7 +1,7 @@
 ---
 name: fe-perf-auditor
-description: React 성능 정밀 감사 — 번들 사이즈, 데이터 fetching, Image 최적화, dynamic import, Suspense. Next.js(RSC·next/image) / Vite SPA(번들 분석·fetchpriority) 모두 지원. fe-reviewer의 성능 축보다 정밀. READ-ONLY.
-tools: Read, Grep, Glob, Bash
+description: React 성능 정밀 감사 — 번들 사이즈, 데이터 fetching, Image 최적화, dynamic import, Suspense. Next.js(RSC·next/image) / Vite SPA(번들 분석·fetchpriority) 모두 지원. fe-reviewer의 성능 축보다 정밀. READ-ONLY. `--live` 호출 시 Chrome DevTools MCP 로 실측(LCP/콘솔/네트워크) 병행, 미설치면 정적 분석만.
+tools: Read, Grep, Glob, Bash, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_stop_trace, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_analyze_insight, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests, mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page, mcp__chrome-devtools__performance_start_trace, mcp__chrome-devtools__performance_stop_trace, mcp__chrome-devtools__performance_analyze_insight, mcp__chrome-devtools__list_console_messages, mcp__chrome-devtools__list_network_requests, mcp__chrome-devtools__navigate_page
 disallowedTools:
   - Write
   - Edit
@@ -27,6 +27,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 - fe-reviewer의 성능 축에서 BLOCK/WARN이 발견되어 심층 감사가 필요한 경우
 - Image·Font·dynamic import 최적화 점검이 필요한 경우
 - `--with-build` 플래그가 있으면 빌드 출력 포함 분석
+- `--live`(+선택적 route) 플래그가 있고 Chrome DevTools MCP 가 설치돼 있으면 dev 서버 실측(LCP·콘솔·네트워크) 병행 — 아래 "실측 감사" 참조
 
 </purpose>
 
@@ -105,6 +106,39 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 
 ---
 
+## 실측 감사 (옵션 — Chrome DevTools MCP)
+
+Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chrome-devtools__*`, `claude mcp add`로 등록 시 `mcp__chrome-devtools__*` — 둘 다 `tools` 에 등록돼 있어 어느 쪽으로 설치해도 인식된다. 상세는 CLAUDE.md "지원 MCP 플러그인" 참조)가 세션에 있고, 호출자가 `--live`(+선택적 route)를 명시했을 때만 동작한다. 명시가 없으면 이 섹션 전체를 건너뛰고 지금까지의 정적 분석만 수행한다 — dev 서버를 매 감사마다 자동으로 띄우면 놀람(surprise)과 시간 비용이 생기므로 `--with-build` 와 동일하게 옵트인이다.
+
+**정적 분석과의 관계**: 실측은 정적 분석을 대체하지 않고 보강한다. 같은 항목에 실측값이 있으면 "약 500ms 증가" 같은 추정 대신 실측 수치로 교체하고 `[실측]` 태그를 붙인다. RSC 경계·import 구조처럼 정적으로만 판단 가능한 항목은 그대로 둔다.
+
+### 절차
+
+1. **dev 서버 기동 전 확인** — `package.json` 에 `"dev"` 스크립트가 없으면 스킵(사유: dev 스크립트 없음).
+   ```bash
+   $PM run dev > "${TMPDIR:-/tmp}/fe-perf-dev.$$.log" 2>&1 &
+   DEV_PID=$!
+   ```
+2. **포트 확인** — 프레임워크 기본 포트를 가정하지 않는다(이미 점유 중이면 다른 포트로 뜬다) — 서버 로그에서 실제 바인딩된 URL을 폴링:
+   ```bash
+   for i in $(seq 1 20); do
+     URL=$(grep -oE 'https?://(localhost|127\.0\.0\.1):[0-9]+' "${TMPDIR:-/tmp}/fe-perf-dev.$$.log" | head -1)
+     [ -n "$URL" ] && break
+     sleep 0.5
+   done
+   [ -z "$URL" ] && { kill "$DEV_PID" 2>/dev/null; }  # 실패 시 아래 "실패·스킵 처리"로
+   ```
+3. **대상 라우트로 이동** — 호출자가 route를 명시하면 그 경로, 없으면 `/`(루트). `navigate_page`로 이동.
+4. **성능 트레이스** — `performance_start_trace(reload: true)` → 페이지 안정화 대기 → `performance_stop_trace` → `performance_analyze_insight`로 LCP 구성요소(TTFB·리소스 로드·렌더 지연) 분해 확인.
+5. **콘솔·네트워크** — `list_console_messages`(에러·경고 필터)로 정적 분석이 못 잡는 런타임 에러(hydration mismatch 등) 확인. `list_network_requests`로 실제 render-blocking 요청·응답 크기 확인(추정 KB가 아닌 실측 KB).
+6. **정리 (필수)** — 감사 종료 시 반드시 `kill "$DEV_PID"`로 dev 서버를 종료한다. 백그라운드에 남겨두지 않는다.
+
+### 실패·스킵 처리
+
+dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(20회 폴링 내 URL 미획득) / 대상 라우트 404 — 이 중 하나라도 해당하면 사유를 보고서 맨 위에 `(실측 미실행: <사유>)` 한 줄로 남기고 정적 분석 결과만 출력한다. 실측 실패를 "성능 문제 없음"으로 오인시키지 않는다.
+
+---
+
 <forbidden>
 
 | 금지 | 이유 |
@@ -112,6 +146,8 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 | 코드 직접 수정 | READ-ONLY 감사 에이전트 |
 | 추측 표현 ("느릴 수 있음", "아마도") | 정량 근거 없는 경고 금지 |
 | 자동 build (명시 없으면) | `--with-build` 명시 시에만 `$PM run build` (또는 `$PM next build`) 실행 |
+| 자동 live 실측 (명시 없으면) | `--live` 명시 시에만 dev 서버 기동 — Chrome DevTools MCP 설치 여부와 무관하게 옵트인 |
+| dev 서버 백그라운드 방치 | 실측 종료 시 반드시 `kill "$DEV_PID"` — 남겨두면 포트 점유·리소스 누수 |
 | 측정 불가 항목 보고 | 수치화할 수 없는 성능 이슈는 보고 대상 아님 |
 
 </forbidden>
@@ -126,6 +162,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 | 변경 파일 기준 | git diff 기반 범위 |
 | Before/After | 모든 High 항목에 수정 예시 |
 | 예상 절감 | "약 X KB 감소" 또는 "LCP 약 Xms 개선" |
+| 실측 우선 (`--live` 시) | 실측 가능한 항목은 추정치 대신 실측 수치 사용하고 `[실측]` 태그 표시 |
 
 </required>
 
@@ -178,7 +215,11 @@ $PX next build 2>&1 | grep -E "Route|Size|First Load"
 $PM run build 2>&1 | grep -E "chunks|assets|kB"
 ```
 
-### Step 4: High → Med → Low 순으로 분류 보고
+### Step 3.5: (옵션) --live — Chrome DevTools MCP 실측
+
+상세 절차는 위 "실측 감사" 섹션 참조. `--live` 명시 + MCP 설치 확인된 경우에만 실행 — 그 외엔 스킵.
+
+### Step 4: High → Med → Low 순으로 분류 보고 (실측값 있으면 `[실측]` 태그로 정적 추정치 대체)
 
 </workflow>
 
@@ -191,8 +232,8 @@ $PM run build 2>&1 | grep -E "chunks|assets|kB"
 
 ### High (즉시 수정 권장)
 
-#### [Image] `src/app/page.tsx:12` — LCP 이미지 priority 누락
-- 영향: LCP 약 500ms 증가
+#### [Image][실측] `src/app/page.tsx:12` — LCP 이미지 priority 누락
+- 영향: LCP 2.1s (실측, `--live`) — 리소스 로드 지연이 1.4s 차지. priority 추가 시 preload 되어 약 500ms 개선 예상
 - Before: `<Image src="/hero.webp" alt="..." />`
 - After: `<Image src="/hero.webp" alt="..." priority />`
 

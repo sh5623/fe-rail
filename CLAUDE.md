@@ -79,15 +79,17 @@ fe-rail/
 |-----|----------|-------------|-----------|----------------|
 | **Figma** | claude.ai 계정 커넥터 (`/mcp` → "claude.ai Figma", OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_screenshot` (외 get_metadata·get_variable_defs) | 로컬 스크린샷(PNG/JPG)만 분석 |
 | **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs` | WebSearch + WebFetch로 문서 조회 |
+| **Chrome DevTools** | Claude Code 플러그인 (`ChromeDevTools/chrome-devtools-mcp`) | `fe-perf-auditor` | `mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace`<br>`mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests` (외 performance_stop_trace·performance_analyze_insight·list_console_messages·navigate_page) | 정적 분석(grep 기반 추정치)만 수행 — `--live` 호출 시에만 실측 시도, 미설치면 정적 결과만 |
 
 > Microsoft 365 (선택 보조): OneDrive/SharePoint 의 PPT 기획서를 가져오는 용도. 단 인터랙티브 OAuth 인증이 필요하고 슬라이드를 시각적으로 렌더해 주지 않을 수 있어, 화면 분석에는 PDF 변환이 더 안전하다. 특정 에이전트에 직접 연결하지 않으며, 가져온 파일은 부모 세션이 PDF/이미지로 변환해 fe-deck-reader 에 전달한다.
 
-> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (위 표는 각각의 설치 형태 기준으로 검증된 접두사다.)
+> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7 행은 직접 검증된 접두사. Chrome DevTools 행은 공식 설치 가이드 기준 예상 접두사 — 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
 
 ### 설치
 
 - **Context7** (플러그인): `/plugin install context7@<marketplace>` → `/reload-plugins`. 도구는 `mcp__plugin_context7_context7__*` 로 등록된다.
 - **Figma** (claude.ai 계정 커넥터): `/mcp` 실행 → "claude.ai Figma" 선택 → OAuth 인증. 공식 Figma MCP(mcp.figma.com)를 claude.ai가 프록시하며, 도구는 `mcp__claude_ai_Figma__*` 로 등록된다. (Dev Mode 계열 도구는 Dev/Full seat 필요)
+- **Chrome DevTools** (플러그인, 스킬 포함): `/plugin marketplace add ChromeDevTools/chrome-devtools-mcp` → `/plugin install chrome-devtools-mcp@chrome-devtools-plugins`. MCP만 필요하면 `claude mcp add chrome-devtools --scope user npx chrome-devtools-mcp@latest` 로도 등록 가능(이 경우 접두사는 `mcp__chrome-devtools__*`). Chromium 기반 브라우저 실행 환경이 필요하다.
 
 ---
 
@@ -162,7 +164,7 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 
 1. **프로젝트 CLAUDE.md 생성** — `fe-analyst`·`fe-architect`는 소비자 프로젝트의 CLAUDE.md에서 스택·규칙을 읽는다. 이 플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않으므로, 소비자가 자체 CLAUDE.md를 두지 않으면 에이전트가 빈손으로 분석한다. → `/init` 또는 `/fe-rail:fe-doc-sync` 실행.
 2. **Bash 권한 허용** — 소비자 `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)`를 추가하면 PR 단계 에이전트가 매번 권한 프롬프트 없이 동작한다.
-3. **MCP (선택)** — Figma·Context7 미설치 시 `fe-vision`·`fe-researcher`는 fallback(로컬 이미지·WebSearch)으로 동작한다. 위 "지원 MCP 플러그인" 참조.
+3. **MCP (선택)** — Figma·Context7·Chrome DevTools 미설치 시 `fe-vision`·`fe-researcher`·`fe-perf-auditor`는 각각 fallback(로컬 이미지·WebSearch·정적 분석)으로 동작한다. 위 "지원 MCP 플러그인" 참조.
 
 ### 대상 프로젝트 유형
 
