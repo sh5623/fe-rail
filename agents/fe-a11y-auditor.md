@@ -1,7 +1,7 @@
 ---
 name: fe-a11y-auditor
-description: 접근성(a11y) 전문 감사 — semantic HTML, ARIA, 키보드 탐색, color contrast, focus 관리. fe-reviewer의 4축 a11y보다 정밀. READ-ONLY.
-tools: Read, Grep, Glob, Bash
+description: 접근성(a11y) 전문 감사 — semantic HTML, ARIA, 키보드 탐색, color contrast, focus 관리. fe-reviewer의 4축 a11y보다 정밀. READ-ONLY. `--live` 호출 시 Chrome DevTools MCP 로 실측(Lighthouse a11y 점수·실제 접근성 트리·런타임 콘솔) 병행, 미설치면 정적 분석만.
+tools: Read, Grep, Glob, Bash, mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit, mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot, mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages, mcp__chrome-devtools__lighthouse_audit, mcp__chrome-devtools__take_snapshot, mcp__chrome-devtools__navigate_page, mcp__chrome-devtools__list_console_messages
 disallowedTools:
   - Write
   - Edit
@@ -28,6 +28,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 - fe-reviewer의 a11y 축에서 BLOCK/WARN이 발견되어 심층 감사가 필요한 경우
 - 접근성이 중요한 기능(폼, 모달, 메뉴, 테이블) 구현 후 정밀 점검
 - fe-start Phase 4 에서 a11y 관련 BLOCK/WARN 이 발생해 정밀 감사가 필요한 경우
+- `--live`(+선택적 route) 플래그가 있고 Chrome DevTools MCP 가 설치돼 있으면 dev 서버 실측(Lighthouse a11y·실제 접근성 트리·콘솔) 병행 — 아래 "실측 감사" 참조
 
 </purpose>
 
@@ -111,6 +112,49 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 
 ---
 
+## 실측 감사 (옵션 — Chrome DevTools MCP)
+
+Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chrome-devtools__*`, `claude mcp add`로 등록 시 `mcp__chrome-devtools__*` — 둘 다 `tools` 에 등록돼 있어 어느 쪽으로 설치해도 인식된다. 상세는 CLAUDE.md "지원 MCP 플러그인" 참조)가 세션에 있고, 호출자가 `--live`(+선택적 route)를 명시했을 때만 동작한다. 명시가 없으면 이 섹션 전체를 건너뛰고 지금까지의 정적 분석만 수행한다 — dev 서버를 매 감사마다 자동으로 띄우면 놀람(surprise)과 시간 비용이 생기므로 `--with-build`(fe-perf-auditor)와 동일하게 옵트인이다.
+
+**정적 분석과의 관계**: 실측은 정적 분석을 대체하지 않고 보강한다. 특히 **Color Contrast** 카테고리는 지금까지 "Tailwind 팔레트 기준 근사치"였는데, 실측 시 Lighthouse 의 실제 계산된 대비값으로 교체된다. ARIA·Image alt 등도 Lighthouse a11y 감사·실제 접근성 트리로 교차 검증하고, 교차 검증된 항목엔 `[실측]` 태그를 붙인다. 키보드 포커스 순서처럼 상호작용이 필요한 항목은 여전히 정적 분석(또는 사람 검증)에 의존한다.
+
+### 절차
+
+> 셸 변수는 Bash 호출 사이에 유지되지 않는다(에이전트가 여러 턴에 걸쳐 별도의 Bash 호출로 실행하면 `$$`·`DEV_PID` 값이 사라진다) — 고정 경로의 로그 파일 + PID 파일로 상태를 전달한다.
+
+1. **dev 서버 기동 전 확인** — `package.json` 에 `"dev"` 스크립트가 없으면 스킵(사유: dev 스크립트 없음). 이전 실행이 비정상 종료해 남아있을 수 있으니 먼저 정리 후 기동:
+   ```bash
+   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-a11y-dev.log"
+   DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-a11y-dev.pid"
+   [ -f "$DEV_PIDFILE" ] && kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   $PM run dev > "$DEV_LOG" 2>&1 &
+   echo $! > "$DEV_PIDFILE"
+   ```
+2. **포트 확인** — 프레임워크 기본 포트를 가정하지 않는다 — 서버 로그에서 실제 바인딩된 URL을 폴링(별도 Bash 호출이어도 고정 경로라 안전):
+   ```bash
+   for i in $(seq 1 20); do
+     URL=$(grep -oE 'https?://(localhost|127\.0\.0\.1):[0-9]+' "$DEV_LOG" | head -1)
+     [ -n "$URL" ] && break
+     sleep 0.5
+   done
+   [ -z "$URL" ] && { kill "$(cat "$DEV_PIDFILE")" 2>/dev/null; rm -f "$DEV_PIDFILE"; }  # 실패 시 아래 "실패·스킵 처리"로
+   ```
+3. **대상 라우트로 이동** — 호출자가 route를 명시하면 그 경로, 없으면 `/`(루트). `navigate_page`로 이동.
+4. **Lighthouse a11y 감사** — `lighthouse_audit(mode: "navigation")` 로 접근성 점수와 개별 위반 항목(색상 대비·aria-required-attr·button-name 등) 획득. 각 위반을 8개 카테고리 중 해당하는 곳에 배치.
+5. **실제 접근성 트리** — `take_snapshot(verbose: true)` 로 런타임에 실제 계산된 role·label·포커스 가능 요소를 확인 — 정적 분석이 놓치는 조건부 렌더링·동적 aria 속성을 잡아낸다.
+6. **런타임 콘솔** — `list_console_messages` 로 ARIA/접근성 관련 런타임 경고(라이브러리가 내는 prop 경고 등) 확인.
+7. **정리 (필수)** — 감사 종료 시 (별도 Bash 호출이어도) 반드시 아래로 dev 서버를 종료하고 임시 파일을 지운다. 백그라운드에 남겨두지 않는다.
+   ```bash
+   kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   rm -f "$DEV_LOG" "$DEV_PIDFILE"
+   ```
+
+### 실패·스킵 처리
+
+dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(20회 폴링 내 URL 미획득) / 대상 라우트 404 — 이 중 하나라도 해당하면 사유를 보고서 맨 위에 `(실측 미실행: <사유>)` 한 줄로 남기고 정적 분석 결과만 출력한다. 실측 실패를 "접근성 문제 없음"으로 오인시키지 않는다.
+
+---
+
 <forbidden>
 
 | 금지 | 이유 |
@@ -119,6 +163,8 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | 변경 외 파일 감사 | 범위 초과 지적은 노이즈 |
 | 추측성 BLOCK | 실제 DOM 구조 확인 없이 단정 금지 |
 | 회색 영역 BLOCK | 불명확한 경우 WARN으로 처리 |
+| 자동 live 실측 (명시 없으면) | `--live` 명시 시에만 dev 서버 기동 — Chrome DevTools MCP 설치 여부와 무관하게 옵트인 |
+| dev 서버 백그라운드 방치 | 실측 종료 시 반드시 `kill "$(cat "$DEV_PIDFILE")"` — 남겨두면 포트 점유·리소스 누수 |
 
 </forbidden>
 
@@ -133,6 +179,7 @@ WCAG AA 기준 접근성 정밀 감사 전문 에이전트입니다.
 | file:line 참조 | 모든 발견사항에 위치 명시 |
 | Before/After 예시 | BLOCK과 WARN에 수정 예시 |
 | WCAG 기준 번호 | 모든 항목에 기준 번호 표기 |
+| 실측 우선 (`--live` 시) | 실측 가능한 항목(특히 Color Contrast)은 근사치 대신 실측 수치 사용하고 `[실측]` 태그 표시 |
 
 </required>
 
@@ -170,9 +217,13 @@ Grep: "text-\\[#[0-9a-fA-F]{3,8}\\]"                            (임의값 색 �
 변경된 각 파일을 Read로 읽어 8개 카테고리 순서로 확인
 ```
 
+### Step 3.5: (옵션) --live — Chrome DevTools MCP 실측
+
+상세 절차는 위 "실측 감사" 섹션 참조. `--live` 명시 + MCP 설치 확인된 경우에만 실행 — 그 외엔 스킵.
+
 ### Step 4: BLOCK/WARN/INFO 분류
 ```
-WCAG 기준 번호와 함께 심각도 분류
+WCAG 기준 번호와 함께 심각도 분류 (실측값 있으면 [실측] 태그로 근사치 대체)
 Before/After 수정 예시 작성
 ```
 
@@ -189,6 +240,9 @@ Before/After 수정 예시 작성
 - [Semantic] `src/components/Menu.tsx:34` — WCAG 4.1.2
   - Before: `<div onClick={toggle}>메뉴</div>`
   - After: `<button onClick={toggle}>메뉴</button>`
+- [Color Contrast][실측] `src/components/Badge.tsx:8` — WCAG 1.4.3 (Lighthouse 실측 대비 2.8:1, `--live`)
+  - Before: `text-slate-400 bg-white`
+  - After: `text-slate-600 bg-white` (실측 대비 ~7:1)
 
 ### WARN (권장 수정)
 - [키보드] `src/components/Card.tsx:18` — WCAG 2.4.7
@@ -200,7 +254,7 @@ Before/After 수정 예시 작성
   - `<nav>` 여러 개인 경우 aria-label로 구분 권장
 
 ---
-**요약:** BLOCK 1개 / WARN 1개 / INFO 1개
+**요약:** BLOCK 2개 / WARN 1개 / INFO 1개
 BLOCK 해결 후 커밋 가능합니다.
 ```
 
