@@ -6,7 +6,12 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOKS_DIR="$(dirname "$SCRIPT_DIR")"
-PROJECT_ROOT="$(dirname "$HOOKS_DIR")"
+NOTIFY_SH="$HOOKS_DIR/notify.sh"
+
+# 대상 프로젝트: 이 스크립트가 어디에 설치돼 있든(마켓플레이스 설치 시 플러그인 자신의
+# 경로가 됨) 상관없이, 사용자가 지금 실행한 "자신의 프로젝트"에 설정해야 한다.
+# → HOOKS_DIR 기준이 아니라 현재 작업 디렉토리(git 루트) 기준으로 잡는다.
+PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
 
 echo "[fe-rail] notify.sh 활성화를 시작합니다..."
@@ -23,33 +28,24 @@ if ! command -v terminal-notifier >/dev/null 2>&1 && [ ! -x "/opt/homebrew/bin/t
 fi
 
 # 2. notify.sh 실행 권한 부여
-chmod +x "$HOOKS_DIR/notify.sh"
+chmod +x "$NOTIFY_SH"
 echo "[fe-rail] hooks/notify.sh 실행 권한 설정 완료"
 
 # 3. .claude/settings.local.json 처리
+# command 는 notify.sh 의 실제 물리 경로(절대경로)를 박아 넣는다 — 훅 실행 시점의 CWD 는
+# 소비자 프로젝트 루트이지 이 스크립트/notify.sh 가 설치된 플러그인 경로가 아니므로,
+# "./hooks/notify.sh" 같은 상대경로는 대부분 존재하지 않는 파일을 가리켜 조용히 실패한다.
 mkdir -p "$PROJECT_ROOT/.claude"
-
-NOTIFY_ENTRY='{
-      "hooks": {
-        "Notification": [
-          {
-            "hooks": [
-              { "type": "command", "command": "bash ./hooks/notify.sh", "timeout": 5 }
-            ]
-          }
-        ]
-      }
-    }'
 
 if [ ! -f "$SETTINGS_FILE" ]; then
   # 신규 생성
-  cat > "$SETTINGS_FILE" << 'EOF'
+  cat > "$SETTINGS_FILE" << EOF
 {
   "hooks": {
     "Notification": [
       {
         "hooks": [
-          { "type": "command", "command": "bash ./hooks/notify.sh", "timeout": 5 }
+          { "type": "command", "command": "\"$NOTIFY_SH\"", "timeout": 5 }
         ]
       }
     ]
@@ -65,7 +61,7 @@ else
   echo '  "Notification": ['
   echo '    {'
   echo '      "hooks": ['
-  echo '        { "type": "command", "command": "bash ./hooks/notify.sh", "timeout": 5 }'
+  echo "        { \"type\": \"command\", \"command\": \"\\\"$NOTIFY_SH\\\"\", \"timeout\": 5 }"
   echo '      ]'
   echo '    }'
   echo '  ]'

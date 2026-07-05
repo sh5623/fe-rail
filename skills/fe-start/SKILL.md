@@ -91,21 +91,24 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 
 먼저 lock 파일로 패키지 매니저를 감지한다 (pnpm 고정 금지):
 ```bash
-if   [ -f pnpm-lock.yaml ]; then PM=pnpm
-elif [ -f yarn.lock ];      then PM=yarn
-elif [ -f bun.lockb ] || [ -f bun.lock ]; then PM=bun
-else                              PM=npm
+if   [ -f pnpm-lock.yaml ]; then PM=pnpm; PX=pnpm
+elif [ -f yarn.lock ];      then PM=yarn; PX=yarn
+elif [ -f bun.lockb ] || [ -f bun.lock ]; then PM=bun; PX=bun
+else                              PM=npm; PX=npx
 fi
 ```
 
 감지된 `$PM`으로 검증을 실행한다. **`package.json`의 `scripts` 존재 여부를 먼저 확인**하고 정의된 것만 실행한다 — `||` 폴백은 스크립트 실패 시에도 우측을 실행해 타입체크/테스트가 이중 실행되므로 쓰지 않는다:
 ```bash
-# 타입: typecheck 스크립트가 있으면 그것만, 없으면 tsc 폴백
-if grep -q '"typecheck"' package.json; then $PM run typecheck; else $PM exec tsc --noEmit; fi
+# 타입: typecheck 스크립트 우선 → 없고 솔루션 스타일 tsconfig(references)면 tsc -b → 그 외 tsc --noEmit
+# (bare tsc --noEmit 은 files:[]+references 구성에서 아무 파일도 검사하지 않는 no-op — fe-build-fixer 등과 동일 기준)
+if grep -q '"typecheck"' package.json; then $PM run typecheck
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b
+else $PX tsc --noEmit; fi
 # 린트: 스크립트가 있을 때만 (없으면 건너뜀 — 검증 중단 방지)
 if grep -q '"lint"' package.json; then $PM run lint; fi
 # 테스트: test 스크립트가 있으면 그것만, 없으면 vitest 폴백 (watch 비활성: --run)
-if grep -q '"test"' package.json; then $PM run test; else $PM exec vitest run; fi
+if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 ```
 
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
@@ -138,11 +141,11 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
    PM=npm; PX=npx
    [ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
    [ -f yarn.lock ]      && PM=yarn && PX=yarn
-   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bunx
+   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
    if grep -q '"build"' package.json; then $PM run build; fi
    # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 디렉터리+의존성 있을 때만
    if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-     $PX playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비 (bun exec 미지원 → PX=bunx)
+     $PX playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비
      if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
    fi
    ```
