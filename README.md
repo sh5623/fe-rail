@@ -131,7 +131,7 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 |-------|-----------------|-------|-----------|
 | `fe-reviewer` | 4-axis review (type · performance · a11y · quality — performance axis now covers React hook runtime bugs: missing cleanup · async race · infinite loop; includes Tailwind anti-patterns · openapi-fetch patterns · DESIGN.md design contract, if present) | opus | Scoped (read-only) |
 | `fe-a11y-auditor` | 8-axis a11y audit (Color Contrast — Tailwind palette-based included) | sonnet | Scoped (read-only) |
-| `fe-perf-auditor` | Performance audit — Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply) | sonnet | Scoped (read-only) |
+| `fe-perf-auditor` | Performance audit — Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply). `--live` runs a real dev-server measurement (LCP breakdown, console, network) via Chrome DevTools MCP when installed; static-only otherwise | sonnet | Scoped (read-only) |
 | `fe-test-runner` | Test execution + failure classification | sonnet | Context |
 | `fe-refactor-advisor` | 6-dimension refactoring analysis + Before/After | opus | Scoped (read-only) |
 
@@ -176,7 +176,7 @@ Plugin agents read and reason from the **consumer project's context**. Setting t
 |------|-----|-----|
 | **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this plugin's own CLAUDE.md is not loaded into consumer sessions) | `/init` or `/fe-rail:fe-doc-sync` |
 | **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
-| **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups and `fe-researcher`'s Context7 doc queries (falls back to local images / WebSearch if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin |
+| **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin |
 | **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |
 
 ## License
