@@ -62,7 +62,7 @@ fe-rail/
 | **CLAUDE.md** | 이 파일 | 에이전트가 프로젝트를 이해하는 최우선 컨텍스트 |
 | **Skills** | `skills/*/SKILL.md` | 작업 유형별 전문화된 지침 (도구 제한 포함) |
 | **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (15개) |
-| **Hooks** | `hooks/hooks.json` | Pre/PostToolUse·Stop 이벤트 자동 실행 사이드이펙트 |
+| **Hooks** | `hooks/hooks.json` | SessionStart·Pre/PostToolUse·Stop·Notification 이벤트 자동 실행 사이드이펙트 |
 | **Permissions** | 소비자 `.claude/settings.json` | Bash 화이트리스트로 PR 단계 권한 프롬프트 축소 (플러그인엔 미포함) |
 
 ### 훅 프로파일 · 회귀 eval
