@@ -71,6 +71,9 @@ assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify -m 
 assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit --dry-run"}}'                 "guard: git commit --dry-run 허용(#3)"
 assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit --gpg-sign"}}'                "guard: git commit --gpg-sign 허용(#3)"
 assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit -m \"wip -n later\""}}'       "guard: 메시지 내 -n 오탐 없음"
+# --no-verify 뒤에 공백 없이 다른 명령이 곧바로 이어지는 체이닝 우회 — 버그수정 #3 자체 회귀
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify;git push"}}'       "guard: --no-verify 뒤 ; 체이닝 우회 차단"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify&&git push"}}'      "guard: --no-verify 뒤 && 체이닝 우회 차단"
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
 assert_hook ALLOW write-guard.sh '{"tool_input":{"file_path":"/p/.env.example"}}'             "write-guard: .env.example 허용"
