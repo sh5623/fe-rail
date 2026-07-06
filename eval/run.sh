@@ -9,7 +9,8 @@
 #      (차단기: exit 2 = BLOCK / exit 0 = ALLOW · 경고훅: stderr 유무 = WARN / SILENT)
 #   B. 훅 프로파일 — FE_RAIL_HOOK_PROFILE / FE_RAIL_DISABLED_HOOKS 동작
 #   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter, 프로파일 배선,
-#      bun PX 감지 일관성(PX=bun), typecheck 분기의 references(tsc -b) 폴백 동반 여부
+#      bun PX 감지 일관성(PX=bun), typecheck 분기의 references(tsc -b) 폴백 동반 여부,
+#      bare `$PM lint`/`$PM tsc` 금지(→ `$PM run lint`/`$PX tsc`)
 #   D. 차단기 4개의 차단 사유가 stdout 아닌 stderr 로 전달되는지
 #   E. 비차단 훅 5개(doc-sync-check·design-nudge·nextjs-guard·quality-gate·read-guard)의
 #      안내도 동일하게 stderr 로 나가는지 (exit 0 이면 stdout 은 transcript 모드에서만 보임)
@@ -57,6 +58,19 @@ assert_hook BLOCK guard.sh '{"tool_input":{"command":"git push --force origin ma
 assert_hook ALLOW guard.sh '{"tool_input":{"command":"git push --force-with-lease origin"}}'  "guard: --force-with-lease 허용"
 assert_hook BLOCK guard.sh '{"tool_input":{"command":"rm -rf /"}}'                            "guard: rm -rf / 차단"
 assert_hook ALLOW guard.sh '{"tool_input":{"command":"pnpm run build"}}'                      "guard: 일반 명령 허용"
+# checkout/restore 전체 되돌리기 (`.` · `./` 변형) — 버그수정 #1
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git checkout ."}}'                       "guard: git checkout . 차단"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git checkout ./"}}'                      "guard: git checkout ./ 차단(#1)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git checkout -- ./"}}'                   "guard: git checkout -- ./ 차단(#1)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git restore ./"}}'                       "guard: git restore ./ 차단(#1)"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git checkout src/index.ts"}}'            "guard: git checkout <파일> 허용"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git checkout -b feature"}}'              "guard: git checkout -b <브랜치> 허용"
+# commit --no-verify/-n 차단 · --dry-run·--gpg-sign 오탐 없음 — 버그수정 #3
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit -n"}}'                        "guard: git commit -n 차단"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify -m wip"}}'        "guard: git commit --no-verify 차단"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit --dry-run"}}'                 "guard: git commit --dry-run 허용(#3)"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit --gpg-sign"}}'                "guard: git commit --gpg-sign 허용(#3)"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit -m \"wip -n later\""}}'       "guard: 메시지 내 -n 오탐 없음"
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
 assert_hook ALLOW write-guard.sh '{"tool_input":{"file_path":"/p/.env.example"}}'             "write-guard: .env.example 허용"
@@ -155,6 +169,23 @@ for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
   grep -qE '"references"' "$f" || { ng "$(basename "$f") typecheck 분기에 references(tsc -b) 폴백 누락"; bad=1; }
 done
 [ $bad -eq 0 ] && ok "typecheck 분기 있는 파일 전부 references(tsc -b) 폴백 동반"
+# `$PM exec <bin> -flag` 금지: npm exec 는 앞선 -/-- 플래그를 자기 설정으로 삼켜(예: `npm exec tsc -b` → bare tsc = no-op,
+# `npm exec tsc --noEmit` → emit) 무력화한다. 바이너리+플래그 실행은 반드시 $PX(npx/pnpm/yarn/bun) 로 해야 한다.
+bad=0
+for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
+  [ -e "$f" ] || continue
+  grep -qE '\$PM exec +[A-Za-z0-9_-]+ +--?[A-Za-z]' "$f" && { ng "$(basename "$f") 에 \$PM exec <bin> -flag (npm 이 플래그를 삼킴 — \$PX 사용)"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "플래그 붙는 바이너리 실행 전부 \$PX (npm exec 플래그 삼킴 회귀 없음)"
+# bare `$PM lint` / `$PM tsc` 금지: npm 은 `npm lint`·`npm tsc` 서브커맨드가 없어 hard-fail 한다 —
+# 린트는 `$PM run lint`(스크립트 경유), 타입체크 바이너리는 `$PX tsc`(실행기)로 호출해야 한다.
+# (교육용 주석도 리터럴 `$PM lint` 를 인용하지 않도록 SKILL.md 등에서 표기를 피한다 → 이 룰이 오탐 없이 유지됨.)
+bad=0
+for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
+  [ -e "$f" ] || continue
+  grep -qE '\$PM (lint|tsc)\b' "$f" && { ng "$(basename "$f") 에 bare \$PM lint/\$PM tsc (npm 무효 — \$PM run lint / \$PX tsc 사용)"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "bare \$PM lint/\$PM tsc 없음 (\$PM run lint / \$PX tsc 로 통일)"
 
 echo "━━━ D. 차단 사유 stderr 전달 (exit 2 시 stdout 아닌 stderr 로 모델에 피드백) ━━━"
 # assert_stderr <hook.sh> <json> <label> — 차단(exit 2) 시 stderr 에 사유가 있고 stdout 은 비어야 한다.
@@ -183,24 +214,31 @@ assert_warn_stderr(){
   if [ -n "$cwd" ] && [ -n "$json" ]; then
     out=$(cd "$cwd" && printf '%s' "$json" | bash "$HOOKS/$hook" 2>"$TMP/se2.$$"); rc=$?
   elif [ -n "$cwd" ]; then
-    out=$(cd "$cwd" && bash "$HOOKS/$hook" 2>"$TMP/se2.$$"); rc=$?
+    out=$(cd "$cwd" && bash "$HOOKS/$hook" </dev/null 2>"$TMP/se2.$$"); rc=$?
   elif [ -n "$json" ]; then
     out=$(printf '%s' "$json" | bash "$HOOKS/$hook" 2>"$TMP/se2.$$"); rc=$?
   else
-    out=$(bash "$HOOKS/$hook" 2>"$TMP/se2.$$"); rc=$?
+    out=$(bash "$HOOKS/$hook" </dev/null 2>"$TMP/se2.$$"); rc=$?
   fi
   err=$(cat "$TMP/se2.$$" 2>/dev/null); rm -f "$TMP/se2.$$"
   if [ $rc -eq 0 ] && [ -n "$err" ] && [ -z "$out" ]; then ok "$label"
   else ng "$label (rc=$rc · stdout=$([ -n "$out" ] && echo 있음 || echo 없음) · stderr=$([ -n "$err" ] && echo 있음 || echo 없음))"; fi
 }
 
-# doc-sync-check.sh — git 상태 기반, stdin 불필요
+# doc-sync-check.sh — 감지는 git 상태 기반. stdin(.session_id)은 억제 키에만 쓰며 </dev/null 로 안전.
 DOCSYNC_REPO="$TMP/docsync"
 mkdir -p "$DOCSYNC_REPO/src"
 ( cd "$DOCSYNC_REPO" && git init -q && git config user.email t@t.com && git config user.name t \
   && echo "export const x=1" > src/a.ts && git add src/a.ts && git commit -qm init >/dev/null \
   && echo "export const x=2" > src/a.ts ) >/dev/null 2>&1
 assert_warn_stderr doc-sync-check.sh "" "$DOCSYNC_REPO" "doc-sync-check: 안내 stderr(stdout 아님)"
+
+# 설정 파일(vite.config.* 등) 변경도 트리거되는지 — 정규식 `\.config\.$` 오탐 회귀방지 #2
+DOCSYNC_CFG="$TMP/docsync-cfg"
+mkdir -p "$DOCSYNC_CFG"
+( cd "$DOCSYNC_CFG" && git init -q && git config user.email t@t.com && git config user.name t \
+  && printf 'export default {}\n' > vite.config.ts && git add vite.config.ts && git commit -qm init ) >/dev/null 2>&1
+assert_warn_stderr doc-sync-check.sh "" "$DOCSYNC_CFG" "doc-sync-check: vite.config.* 변경 트리거(#2)"
 
 # design-nudge.sh — stdin JSON(file_path+content), DESIGN.md 없는 디렉터리에서 slop 신호 유발
 assert_warn_stderr design-nudge.sh \
