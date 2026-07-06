@@ -1,7 +1,7 @@
 {
   "name": "fe-rail",
   "description": "Harness dedicated to frontend projects. Supports Next.js App Router / Vite SPA + TypeScript, Tailwind v3/v4, shadcn/ui. Automates the spec→build→review→PR cycle.",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "author": {
     "name": "Seungho",
     "email": "seungho5623@gmail.com"

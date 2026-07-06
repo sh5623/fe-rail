@@ -55,11 +55,17 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space
 fi
 
 # 3. git commit --no-verify / -n  (커밋 훅 우회)
+#    `-[a-zA-Z]*n` 짧은 플래그만 공백 선행 + 트레일링 경계를 요구해 `--dry-run`·`--gpg-sign`
+#    (끝 글자 n)의 부분 오탐을 막는다. `--no-verify` 는 트레일링 경계를 요구하지 않는다 —
+#    이전 회귀: (.*[[:space:]])? 로 두 분기 모두에 트레일링 경계를 강제했더니
+#    `git commit --no-verify;git push` 처럼 뒤에 공백 없이 다른 명령이 이어지면
+#    빠져나갔다(치명적 우회). `--no-verify` 는 완전한 리터럴이라 부분매칭 위험이 없으므로
+#    경계 없이 어디서든 매칭해야 우회를 막는다.
 #    커밋 메시지(따옴표 내부)는 먼저 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용 오탐 방지.
 #    sed 는 줄 단위로 동작해 여러 줄 커밋 본문(Conventional Commits 본문 등)에 걸친 따옴표는
 #    못 지운다 — 개행을 공백으로 접어 한 줄로 만든 뒤 제거한다.
 CMD_NOQUOTE=$(printf '%s\n' "$CMD" | tr '\n' ' ' | sed 's/"[^"]*"//g; '"s/'[^']*'//g")
-if echo "$CMD_NOQUOTE" | grep -qE 'git[[:space:]]+commit[[:space:]].*(--no-verify|-[a-zA-Z]*n([[:space:]]|$))'; then
+if echo "$CMD_NOQUOTE" | grep -qE 'git[[:space:]]+commit[[:space:]]+(.*[[:space:]]+)?(--no-verify|-[a-zA-Z]*n([[:space:]]|$))'; then
   block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
 fi
 
@@ -90,9 +96,9 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+reset[[:space:]]+--hard'; then
   block "'git reset --hard' 금지. 변경사항이 손실됩니다."
 fi
 
-# 9. git checkout . / git restore .  ( `-- .` · `HEAD -- .` · `HEAD .` 변형 포함 )
-#    LLM 이 선의로 자주 쓰는 `git checkout -- .`(작업 폐기)까지 잡는다.
-if echo "$CMD" | grep -qE 'git[[:space:]]+(checkout|restore)[[:space:]]+(--[[:space:]]+|HEAD[[:space:]]+(--[[:space:]]+)?)?\.([[:space:]"]|$)'; then
+# 9. git checkout . / git restore .  ( `-- .` · `HEAD -- .` · `HEAD .` · 끝의 `./` 변형 포함 )
+#    LLM 이 선의로 자주 쓰는 `git checkout -- .`(작업 폐기)·`git checkout ./`(rc=0 우회)까지 잡는다.
+if echo "$CMD" | grep -qE 'git[[:space:]]+(checkout|restore)[[:space:]]+(--[[:space:]]+|HEAD[[:space:]]+(--[[:space:]]+)?)?\.\/?([[:space:]"]|$)'; then
   block "모든 변경사항 되돌리기 금지. 파일을 명시적으로 지정하세요."
 fi
 

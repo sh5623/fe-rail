@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # [fe-rail] setup-notifier.sh — notify.sh 활성화 도우미
-# 실행: bash hooks/scripts/setup-notifier.sh
+# 실행: 반드시 "소비자 프로젝트 루트"에서 절대경로로 실행한다(설정은 CWD 의 git 루트/pwd 기준으로 쓰인다):
+#   bash <fe-rail 설치경로>/hooks/scripts/setup-notifier.sh
+# (플러그인 디렉토리로 cd 해서 상대경로로 실행하면 설정이 소비자 프로젝트가 아닌 플러그인에 쓰인다 → 아래 가드로 차단)
 
 set -e
 
@@ -12,6 +14,17 @@ NOTIFY_SH="$HOOKS_DIR/notify.sh"
 # 경로가 됨) 상관없이, 사용자가 지금 실행한 "자신의 프로젝트"에 설정해야 한다.
 # → HOOKS_DIR 기준이 아니라 현재 작업 디렉토리(git 루트) 기준으로 잡는다.
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# 안전장치 1: 플러그인(HOOKS_DIR)이 PROJECT_ROOT 안에 있으면 = 플러그인/마켓플레이스 트리에서 실행한 것이라
+# 소비자 프로젝트가 아니다 → 엉뚱한 곳에 설정을 쓰지 않도록 중단.
+case "$HOOKS_DIR/" in
+  "$PROJECT_ROOT"/*) echo "[fe-rail] 오류: 소비자 프로젝트 루트에서 실행하세요 — 지금 대상($PROJECT_ROOT)이 플러그인을 포함하는 경로입니다." >&2; exit 1 ;;
+esac
+# 안전장치 2: notify.sh 절대경로에 " 또는 \ 가 있으면 아래 JSON 이 깨지므로(드문 경우) 안전하게 중단.
+case "$NOTIFY_SH" in
+  *'"'* | *'\'* | *'$'* | *'`'*) echo "[fe-rail] 오류: notify.sh 경로에 셸 특수문자(\" \\ \$ 백틱)가 있어 자동 설정 불가 — 수동 등록하세요: $NOTIFY_SH" >&2; exit 1 ;;
+esac
+
 SETTINGS_FILE="$PROJECT_ROOT/.claude/settings.local.json"
 
 echo "[fe-rail] notify.sh 활성화를 시작합니다..."
