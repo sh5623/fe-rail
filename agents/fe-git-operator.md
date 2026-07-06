@@ -209,7 +209,7 @@ PM="npm"; PX="npx"
 if [ -f package.json ] && grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1
 else $PX tsc --noEmit 2>&1; fi
-$PM lint 2>&1
+if grep -q '"lint"' package.json; then $PM run lint 2>&1; fi
 ```
 
 ### Step 4: 그룹별 커밋 (HEREDOC)

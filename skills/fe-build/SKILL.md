@@ -120,7 +120,7 @@ PM="npm"; PX="npx"
 if grep -q '"typecheck"' package.json; then $PM run typecheck
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b
 else $PX tsc --noEmit; fi
-# 린트: 스크립트가 있을 때만 — $PM lint 가 아니라 $PM run lint (npm 에서 bare 'lint' 는 무효)
+# 린트: 스크립트가 있을 때만 실행 — 반드시 $PM run lint (npm 에서 'run' 없는 bare lint 호출은 무효)
 if grep -q '"lint"' package.json; then $PM run lint; fi
 # 테스트: test 스크립트가 있으면 그것만, 없으면 vitest 폴백 (watch 아님 — 비대화형 셸은 run 모드로 동작)
 if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi

@@ -13,7 +13,7 @@ maxTurns: 50
 
 tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 오류 전문 에이전트입니다.
 
-> **린터 감지**: 소비자 `package.json` 의 `lint` 스크립트와 설정 파일(`biome.json` ↔ `.eslintrc.*`/`eslint.config.*`)로 어떤 린터인지 판별한다. 진단·검증은 가능하면 프로젝트의 `$PM lint` 스크립트를 그대로 사용하고, 없으면 감지된 린터를 직접 호출한다.
+> **린터 감지**: 소비자 `package.json` 의 `lint` 스크립트와 설정 파일(`biome.json` ↔ `.eslintrc.*`/`eslint.config.*`)로 어떤 린터인지 판별한다. 진단·검증은 가능하면 프로젝트의 `$PM run lint` 스크립트를 그대로 사용하고, 없으면 감지된 린터를 직접 호출한다.
 
 > **패키지 매니저 감지**: `pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun / 없으면 npm. 모든 실행 명령은 감지된 `$PM` 을 사용한다.
 
@@ -27,7 +27,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 - 최대 3회 수정-검증 사이클로 오류 0 달성
 
 **사용 시점:**
-- `$PM tsc --noEmit` 또는 `$PM lint` 오류 발생 시 (`$PM` = 감지된 패키지 매니저)
+- `$PX tsc --noEmit` 또는 `$PM run lint` 오류 발생 시 (`$PM` = 패키지 매니저, `$PX` = 바이너리 실행기)
 - quality-gate hook이 오류를 감지하고 자동 수정을 요청하는 경우
 - fe-build 구현 이후, 또는 이전 fe-build-fixer 실행 이후에도 남은 tsc·린터 오류 처리
 
@@ -75,7 +75,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 
 | 필수 | 기준 |
 |------|------|
-| 진단 우선 | 수정 전 `$PM tsc --noEmit` + `$PM lint`(또는 감지된 ESLint/Biome 직접 호출) 전체 오류 목록 수집 |
+| 진단 우선 | 수정 전 `$PX tsc --noEmit`(또는 typecheck 스크립트) + `$PM run lint`(또는 감지된 ESLint/Biome 직접 호출) 전체 오류 목록 수집 |
 | 최소 diff | 오류 해결에 필요한 최소한의 변경만 |
 | 타입 안전 | `any` 없이 정확한 타입으로 해결 |
 | 검증 반복 | 수정 후 반드시 재실행하여 오류 0 확인 |
@@ -102,7 +102,7 @@ PM="npm"; PX="npx"
 if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1
 else $PX tsc --noEmit 2>&1; fi
-$PM lint 2>&1
+if grep -q '"lint"' package.json; then $PM run lint 2>&1; fi
 ```
 
 ### Step 2: 오류 분류 + 우선순위
@@ -126,7 +126,7 @@ $PM lint 2>&1
 if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | grep -c "error"
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1 | grep -c "error"
 else $PX tsc --noEmit 2>&1 | grep -c "error"; fi
-$PM lint 2>&1 | grep -c "error"
+if grep -q '"lint"' package.json; then $PM run lint 2>&1 | grep -c "error"; fi
 ```
 
 ### Step 5: 반복 (최대 3회)
