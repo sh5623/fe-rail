@@ -35,9 +35,11 @@ fe-rail/
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
 │   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
 │   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트) + `gh pr create`
-├── hooks/                 ← Pre/PostToolUse·Stop 훅 (hooks.json 배선)
+├── hooks/                 ← SessionStart·Pre/PostToolUse·Stop·Notification 훅 (hooks.json 배선)
+│   ├── session-init.sh    ← SessionStart: 원격 버전 체크 (하루 1회, GitHub raw)
 │   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
 │   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)
+│   ├── notify.sh          ← Notification(옵션): terminal-notifier 배너 (setup-notifier.sh 로 활성화, hooks.json 미배선)
 │   └── scripts/profile-lib.sh ← 훅 프로파일/토글 (FE_RAIL_HOOK_PROFILE·FE_RAIL_DISABLED_HOOKS)
 ├── skills/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
@@ -66,7 +68,7 @@ fe-rail/
 ### 훅 프로파일 · 회귀 eval
 
 - **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`.
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부)를 결정적으로 검증(실패 시 exit 1).
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`))를 결정적으로 검증(실패 시 exit 1).
 
 ---
 
