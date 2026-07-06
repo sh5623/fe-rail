@@ -21,13 +21,24 @@
 _FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
 [ -f "$_FE_PLIB" ] && . "$_FE_PLIB" && ! fe_hook_enabled "doc-sync-check" "standard" && exit 0
 
+# Claude Code 는 Stop 훅 입력을 stdin JSON 으로 전달한다 (.session_id).
+# 아래 억제 키가 세션 단위로 동작하려면 이 값이 필요하다 — 환경변수 CLAUDE_SESSION_ID 는
+# 훅 실행 시 제공되지 않으므로, stdin 을 안 읽으면 'nosess' 로 고정돼 새 세션에서도 억제가 안 풀린다.
+# (stdin 이 tty 면 수동 실행이므로 cat 블록을 피하려 건너뛴다.)
+SESSION_ID=""
+if [ ! -t 0 ]; then
+  HOOK_INPUT=$(cat)
+  command -v jq >/dev/null 2>&1 && SESSION_ID=$(printf '%s' "$HOOK_INPUT" | jq -r '.session_id // empty' 2>/dev/null)
+fi
+SESSION_ID="${SESSION_ID:-${CLAUDE_SESSION_ID:-nosess}}"
+
 CHANGED=$(
   {
     git diff HEAD --name-only 2>/dev/null
     git log --name-only --pretty=format: -5 2>/dev/null
   } \
   | grep -vE '^(node_modules|\.next|dist|build|\.git)/' \
-  | grep -E '^(src/|app/|pages/|components/|hooks/|lib/|services/|stores/|api/|features/|apps/|packages/|docs/)|^(package\.json|tsconfig.*\.json|next\.config\.|vite\.config\.|tailwind\.config\.|\.env\.example)$' \
+  | grep -E '^(src/|app/|pages/|components/|hooks/|lib/|services/|stores/|api/|features/|apps/|packages/|docs/)|^(package\.json|tsconfig.*\.json|(next|vite|tailwind)\.config\..*|\.env\.example)$' \
   | grep -vE '(CLAUDE\.md|README\.md)$' \
   | sort -u \
   | head -20
@@ -39,7 +50,7 @@ CHANGED=$(
 # 새 커밋으로 HEAD 가 바뀌거나 새 세션이 시작되면 다시 안내 가능.
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo none)
 REPO_KEY=$(pwd | cksum | cut -d' ' -f1)
-NOTIFY_KEY="${CLAUDE_SESSION_ID:-nosess}:${HEAD_SHA}"
+NOTIFY_KEY="${SESSION_ID}:${HEAD_SHA}"
 MARKER="${TMPDIR:-/tmp}/fe-rail-docsync-${REPO_KEY}-${USER:-shared}"
 [ -f "$MARKER" ] && [ "$(cat "$MARKER" 2>/dev/null)" = "$NOTIFY_KEY" ] && exit 0
 
