@@ -231,7 +231,7 @@ assert_warn_stderr(){
 # doc-sync-check.sh — 감지는 git 상태 기반. stdin(.session_id)은 억제 키에만 쓰며 </dev/null 로 안전.
 DOCSYNC_REPO="$TMP/docsync"
 mkdir -p "$DOCSYNC_REPO/src"
-( cd "$DOCSYNC_REPO" && git init -q && git config user.email t@t.com && git config user.name t \
+( cd "$DOCSYNC_REPO" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
   && echo "export const x=1" > src/a.ts && git add src/a.ts && git commit -qm init >/dev/null \
   && echo "export const x=2" > src/a.ts ) >/dev/null 2>&1
 assert_warn_stderr doc-sync-check.sh "" "$DOCSYNC_REPO" "doc-sync-check: 안내 stderr(stdout 아님)"
@@ -239,7 +239,7 @@ assert_warn_stderr doc-sync-check.sh "" "$DOCSYNC_REPO" "doc-sync-check: 안내 
 # 설정 파일(vite.config.* 등) 변경도 트리거되는지 — 정규식 `\.config\.$` 오탐 회귀방지 #2
 DOCSYNC_CFG="$TMP/docsync-cfg"
 mkdir -p "$DOCSYNC_CFG"
-( cd "$DOCSYNC_CFG" && git init -q && git config user.email t@t.com && git config user.name t \
+( cd "$DOCSYNC_CFG" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
   && printf 'export default {}\n' > vite.config.ts && git add vite.config.ts && git commit -qm init ) >/dev/null 2>&1
 assert_warn_stderr doc-sync-check.sh "" "$DOCSYNC_CFG" "doc-sync-check: vite.config.* 변경 트리거(#2)"
 
@@ -261,7 +261,7 @@ assert_warn_stderr nextjs-guard.sh \
 #   (네트워크 의존 없이 결정적으로 재현 — eval 은 "라이브 모델·네트워크 불필요" 원칙을 지킨다)
 QGATE_REPO="$TMP/qgate"
 mkdir -p "$QGATE_REPO/node_modules/.bin" "$QGATE_REPO/src"
-( cd "$QGATE_REPO" && git init -q && git config user.email t@t.com && git config user.name t \
+( cd "$QGATE_REPO" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
   && : > README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1
 printf '%s\n' '{ "compilerOptions": { "strict": true } }' > "$QGATE_REPO/tsconfig.json"
 printf '%s\n' '#!/bin/sh' 'echo "src/a.ts(1,1): error TS2304: Cannot find name '"'"'x'"'"'."' 'exit 1' > "$QGATE_REPO/node_modules/.bin/tsc"
