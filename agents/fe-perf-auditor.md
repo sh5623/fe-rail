@@ -114,31 +114,42 @@ Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chr
 
 ### 절차
 
-> 셸 변수는 Bash 호출 사이에 유지되지 않는다(에이전트가 여러 턴에 걸쳐 별도의 Bash 호출로 실행하면 `$$`·`DEV_PID` 값이 사라진다) — 고정 경로의 로그 파일 + PID 파일로 상태를 전달한다.
+> 셸 변수는 Bash 호출 사이에 유지되지 않는다(별도 Bash 호출로 나뉘면 `$$`·`$PM`·`$DEV_LOG` 등이 사라진다) — 그래서 아래 **각 블록이 PM·고정 경로(로그/PID)를 매번 다시 선언**하고, 서버 상태는 PID 파일로만 넘긴다.
 
 1. **dev 서버 기동 전 확인** — `package.json` 에 `"dev"` 스크립트가 없으면 스킵(사유: dev 스크립트 없음). 이전 실행이 비정상 종료해 남아있을 수 있으니 먼저 정리 후 기동:
    ```bash
-   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-perf-dev.log"
-   DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-perf-dev.pid"
-   [ -f "$DEV_PIDFILE" ] && kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   PM=npm
+   [ -f pnpm-lock.yaml ] && PM=pnpm
+   [ -f yarn.lock ]      && PM=yarn
+   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun
+   KEY=$(printf '%s' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | cksum | cut -d' ' -f1)   # 프로젝트별 키 — 동시 다중 프로젝트 --live 가 같은 파일을 공유하지 않게
+   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.log"
+   DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.pid"
+   # 이전 실행 잔류 정리: 살아있고 실제 dev 서버(node/vite/next)일 때만 kill (재사용된 무관 PID 오kill 방지)
+   PREV=$(cat "$DEV_PIDFILE" 2>/dev/null)
+   if [ -n "$PREV" ] && kill -0 "$PREV" 2>/dev/null && ps -p "$PREV" -o command= 2>/dev/null | grep -qiE 'vite|next|node|dev'; then pkill -P "$PREV" 2>/dev/null; kill "$PREV" 2>/dev/null; fi
    $PM run dev > "$DEV_LOG" 2>&1 &
    echo $! > "$DEV_PIDFILE"
    ```
 2. **포트 확인** — 프레임워크 기본 포트를 가정하지 않는다(이미 점유 중이면 다른 포트로 뜬다) — 서버 로그에서 실제 바인딩된 URL을 폴링(별도 Bash 호출이어도 고정 경로라 안전):
    ```bash
-   for i in $(seq 1 20); do
+   KEY=$(printf '%s' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | cksum | cut -d' ' -f1)   # Step 1 과 동일 키
+   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.log"; DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.pid"   # 별도 Bash 호출이므로 재선언
+   for i in $(seq 1 60); do   # 최대 30초 — Next 콜드 스타트(첫 컴파일) 대비
      URL=$(grep -oE 'https?://(localhost|127\.0\.0\.1):[0-9]+' "$DEV_LOG" | head -1)
      [ -n "$URL" ] && break
      sleep 0.5
    done
-   [ -z "$URL" ] && { kill "$(cat "$DEV_PIDFILE")" 2>/dev/null; rm -f "$DEV_PIDFILE"; }  # 실패 시 아래 "실패·스킵 처리"로
+   [ -z "$URL" ] && { PID=$(cat "$DEV_PIDFILE" 2>/dev/null); kill -0 "$PID" 2>/dev/null && { pkill -P "$PID" 2>/dev/null; kill "$PID" 2>/dev/null; }; rm -f "$DEV_PIDFILE"; }  # 실패 시 아래 "실패·스킵 처리"로
    ```
 3. **대상 라우트로 이동** — 호출자가 route를 명시하면 그 경로, 없으면 `/`(루트). `navigate_page`로 이동.
 4. **성능 트레이스** — `performance_start_trace(reload: true)` → 페이지 안정화 대기 → `performance_stop_trace` → `performance_analyze_insight`로 LCP 구성요소(TTFB·리소스 로드·렌더 지연) 분해 확인.
 5. **콘솔·네트워크** — `list_console_messages`(에러·경고 필터)로 정적 분석이 못 잡는 런타임 에러(hydration mismatch 등) 확인. `list_network_requests`로 실제 render-blocking 요청·응답 크기 확인(추정 KB가 아닌 실측 KB).
 6. **정리 (필수)** — 감사 종료 시 (별도 Bash 호출이어도) 반드시 아래로 dev 서버를 종료하고 임시 파일을 지운다. 백그라운드에 남겨두지 않는다.
    ```bash
-   kill "$(cat "$DEV_PIDFILE")" 2>/dev/null
+   KEY=$(printf '%s' "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | cksum | cut -d' ' -f1)   # Step 1 과 동일 키
+   DEV_LOG="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.log"; DEV_PIDFILE="${TMPDIR:-/tmp}/fe-rail-perf-dev-$KEY.pid"   # 별도 Bash 호출이므로 재선언
+   PID=$(cat "$DEV_PIDFILE" 2>/dev/null); kill -0 "$PID" 2>/dev/null && { pkill -P "$PID" 2>/dev/null; kill "$PID" 2>/dev/null; }   # 런처+자식(vite/next) 함께 종료(살아있을 때만)
    rm -f "$DEV_LOG" "$DEV_PIDFILE"
    ```
 
