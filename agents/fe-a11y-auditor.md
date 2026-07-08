@@ -164,6 +164,8 @@ Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chr
 
 dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(20회 폴링 내 URL 미획득) / 대상 라우트 404 — 이 중 하나라도 해당하면 사유를 보고서 맨 위에 `(실측 미실행: <사유>)` 한 줄로 남기고 정적 분석 결과만 출력한다. 실측 실패를 "접근성 문제 없음"으로 오인시키지 않는다.
 
+> MCP 미설치가 사유일 때(JIT 안내): 그 줄에 활성화 명령을 함께 적는다 — 예: `(실측 미실행: Chrome DevTools MCP 미설치 — 활성화: claude mcp add chrome-devtools --scope user npx chrome-devtools-mcp@latest)`. 사용자가 필요 시 그 자리에서 설치할 수 있게 한다(플러그인 설치판은 `/plugin install chrome-devtools-mcp@chrome-devtools-plugins`).
+
 ---
 
 <forbidden>
