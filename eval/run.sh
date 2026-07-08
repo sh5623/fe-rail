@@ -98,10 +98,10 @@ assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/eslint.co
 echo "━━━ A. 경고 훅 (read-guard / design-nudge) ━━━"
 assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "read-guard: .env 읽기 경고"
 assert_hook SILENT read-guard.sh '{"tool_input":{"file_path":"/p/src/app.tsx"}}'              "read-guard: 일반 파일 무경고"
-# write-guard 와 대칭 — 이전엔 read-guard 만 누락했던 3종
-assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.envrc"}}'                   "read-guard: .envrc 읽기 경고(대칭)"
-assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/home/u/.ssh/id_rsa"}}'         "read-guard: id_rsa 읽기 경고(대칭)"
-assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.npmrc"}}'                   "read-guard: .npmrc 읽기 경고(대칭)"
+# write-guard 와 대칭 — 이전엔 read-guard 만 누락했던 3종 (#3)
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.envrc"}}'                   "read-guard: .envrc 읽기 경고(#3)"
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/home/u/.ssh/id_rsa"}}'         "read-guard: id_rsa 읽기 경고(#3)"
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.npmrc"}}'                   "read-guard: .npmrc 읽기 경고(#3)"
 assert_hook WARN   design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<div className=\"shadow-2xl\"/>"}}' "design-nudge: shadow-2xl 넛지" "" "$TMP/nodesign"
 assert_hook WARN   design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<div className=\"bg-gradient-to-r from-purple-500\"/>"}}' "design-nudge: 보라 그라디언트 넛지" "" "$TMP/nodesign"
 assert_hook SILENT design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<button className=\"bg-brand-600\"/>"}}' "design-nudge: 깨끗 → 침묵" "" "$TMP/nodesign"
