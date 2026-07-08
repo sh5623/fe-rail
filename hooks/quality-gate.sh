@@ -10,15 +10,18 @@ _FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# 변경 파일 수집 (staged + unstaged + 신규 untracked, 최대 20개)
-CHANGED_FILES=$(
+# 변경 파일 수집 (staged + unstaged + 신규 untracked, 최대 20개). 두 갈래로 나눈다:
+# - CHANGED_SRC : 소스 파일 — 린터에 파일 단위로 넘긴다
+# - CHANGED_CFG : 타입에 영향 주는 설정(tsconfig*.json·package.json) — 소스 변경이 없어도
+#   타입체크를 돌리는 트리거. (vite.config.ts 등은 확장자상 CHANGED_SRC 에 이미 포함)
+_CHANGED_ALL=$(
   { git diff --name-only --diff-filter=d HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } \
-  | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|vue)$' \
-  | sort -u \
-  | head -20
+  | sort -u
 )
+CHANGED_SRC=$(printf '%s\n' "$_CHANGED_ALL" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|vue)$' | head -20)
+CHANGED_CFG=$(printf '%s\n' "$_CHANGED_ALL" | grep -E '(^|/)(tsconfig[^/]*\.json|package\.json)$' | head -20)
 
-[ -z "$CHANGED_FILES" ] && exit 0
+[ -z "$CHANGED_SRC" ] && [ -z "$CHANGED_CFG" ] && exit 0
 
 # 공유 감지·실행 로직 로드
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -34,7 +37,7 @@ if fe_has_biome "$PROJECT_ROOT"; then
     [ -z "$f" ] && continue
     out=$(fe_run_biome "$PROJECT_ROOT" check --no-errors-on-unmatched "$f" 2>&1); rc=$?
     [ "$rc" -ne 0 ] && BIOME_FAIL=1 && BIOME_OUT="${BIOME_OUT}${out}"$'\n'
-  done <<< "$CHANGED_FILES"
+  done <<< "$CHANGED_SRC"
   [ "$BIOME_FAIL" -ne 0 ] && [ -n "$BIOME_OUT" ] && OUTPUT="${OUTPUT}[Biome]\n${BIOME_OUT}"
 fi
 
@@ -45,7 +48,7 @@ if fe_has_eslint "$PROJECT_ROOT"; then
     [ -z "$f" ] && continue
     out=$(fe_run_eslint "$PROJECT_ROOT" --quiet "$f" 2>&1)
     [ -n "$out" ] && LINT_OUT="${LINT_OUT}${out}"$'\n'
-  done <<< "$CHANGED_FILES"
+  done <<< "$CHANGED_SRC"
   [ -n "$LINT_OUT" ] && OUTPUT="${OUTPUT}[ESLint]\n${LINT_OUT}"
 fi
 
@@ -73,18 +76,35 @@ _fe_run_tsc() {
   )
 }
 
+# 타입체크는 종료코드로 판정한다 — `tsc -b`/`typecheck` 스크립트는 성공(exit 0)해도
+# verbose 배너·요약을 stdout 에 남길 수 있어, "출력 있으면 오류"로 보면 성공 케이스가
+# 가짜 [TypeScript] 경고로 뜬다(오탐). 출력은 실패(rc!=0)일 때만 채택한다.
 if _fe_has_tsc; then
   if grep -q '"typecheck"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
     # 프로젝트가 의도한 config 사용 — 가장 안전 (예: tsc -p tsconfig.app.json)
     PM=$(_fe_pm)
-    TSC_OUT=$( ( cd "$PROJECT_ROOT" && "$PM" run typecheck ) 2>&1 | head -20)
+    TSC_RAW=$( ( cd "$PROJECT_ROOT" && "$PM" run typecheck ) 2>&1 ); TSC_RC=$?
   elif grep -q '"references"' "$PROJECT_ROOT/tsconfig.json" 2>/dev/null; then
     # 솔루션 스타일 → build 모드라야 참조 프로젝트를 검사
-    TSC_OUT=$(_fe_run_tsc -b --pretty false 2>&1 | head -20)
+    TSC_RAW=$(_fe_run_tsc -b --pretty false 2>&1); TSC_RC=$?
   else
-    TSC_OUT=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1 | head -20)
+    TSC_RAW=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1); TSC_RC=$?
   fi
-  [ -n "$TSC_OUT" ] && OUTPUT="${OUTPUT}[TypeScript]\n${TSC_OUT}\n"
+  if [ "$TSC_RC" -ne 0 ]; then
+    TSC_OUT=$(printf '%s\n' "$TSC_RAW" | head -20)
+    [ -n "$TSC_OUT" ] && OUTPUT="${OUTPUT}[TypeScript]\n${TSC_OUT}\n"
+  fi
+fi
+
+# ── 린터 설정은 있으나 로컬 미설치 안내 ───────────────────────────────────────
+# npx 자동 폴백을 옵트인으로 바꾼 대신(lint-lib.sh: FE_RAIL_ALLOW_NPX), 설정은 있는데
+# 로컬 바이너리가 없어 검사를 건너뛴 경우를 알린다. Stop 훅이라 응답당 한 번만 나간다.
+NUDGE=""
+if fe_has_biome_config "$PROJECT_ROOT" && ! fe_has_biome "$PROJECT_ROOT"; then
+  NUDGE="${NUDGE}[fe-rail][quality-gate] biome.json 감지 — 로컬 biome 미설치로 검사 생략. 설치하거나 FE_RAIL_ALLOW_NPX=1 로 npx 허용.\n"
+fi
+if fe_has_eslint_config "$PROJECT_ROOT" && ! fe_has_eslint "$PROJECT_ROOT"; then
+  NUDGE="${NUDGE}[fe-rail][quality-gate] ESLint 설정 감지 — 로컬 eslint 미설치로 검사 생략. 설치하거나 FE_RAIL_ALLOW_NPX=1 로 npx 허용.\n"
 fi
 
 # ── 출력 ────────────────────────────────────────────────────────────────────
@@ -92,5 +112,6 @@ if [ -n "$OUTPUT" ]; then
   printf "[fe-rail][quality-gate] 수정된 파일에 오류가 있습니다:\n" >&2
   printf "%b" "$OUTPUT" | head -30 >&2
 fi
+[ -n "$NUDGE" ] && printf "%b" "$NUDGE" >&2
 
 exit 0
