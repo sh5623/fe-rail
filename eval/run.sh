@@ -10,7 +10,8 @@
 #   B. 훅 프로파일 — FE_RAIL_HOOK_PROFILE / FE_RAIL_DISABLED_HOOKS 동작
 #   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter, 프로파일 배선,
 #      bun PX 감지 일관성(PX=bun), typecheck 분기의 references(tsc -b) 폴백 동반 여부,
-#      bare `$PM lint`/`$PM tsc` 금지(→ `$PM run lint`/`$PX tsc`)
+#      bare `$PM lint`/`$PM tsc` 금지(→ `$PM run lint`/`$PX tsc`), fe-researcher Context7 이중 접두사(plugin+직접),
+#      setup-permissions.sh 배선·가드·병합·멱등성
 #   D. 차단기 4개의 차단 사유가 stdout 아닌 stderr 로 전달되는지
 #   E. 비차단 훅 5개(doc-sync-check·design-nudge·nextjs-guard·quality-gate·read-guard)의
 #      안내도 동일하게 stderr 로 나가는지 (exit 0 이면 stdout 은 transcript 모드에서만 보임)
@@ -20,6 +21,8 @@
 # 사용: bash eval/run.sh   (실패가 하나라도 있으면 exit 1)
 
 set -u
+# 러너 셸에 fe-rail 토글이 export 돼 있어도 결정적으로 돌도록 정규화(테스트가 env 를 명시 주입).
+unset FE_RAIL_ALLOW_NPX FE_RAIL_HOOK_PROFILE FE_RAIL_DISABLED_HOOKS 2>/dev/null || true
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 HOOKS="$ROOT/hooks"
 PASS=0; FAIL=0
@@ -95,6 +98,10 @@ assert_hook BLOCK config-protection.sh '{"tool_input":{"file_path":"/p/eslint.co
 echo "━━━ A. 경고 훅 (read-guard / design-nudge) ━━━"
 assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "read-guard: .env 읽기 경고"
 assert_hook SILENT read-guard.sh '{"tool_input":{"file_path":"/p/src/app.tsx"}}'              "read-guard: 일반 파일 무경고"
+# write-guard 와 대칭 — 이전엔 read-guard 만 누락했던 3종
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.envrc"}}'                   "read-guard: .envrc 읽기 경고(대칭)"
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/home/u/.ssh/id_rsa"}}'         "read-guard: id_rsa 읽기 경고(대칭)"
+assert_hook WARN   read-guard.sh '{"tool_input":{"file_path":"/p/.npmrc"}}'                   "read-guard: .npmrc 읽기 경고(대칭)"
 assert_hook WARN   design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<div className=\"shadow-2xl\"/>"}}' "design-nudge: shadow-2xl 넛지" "" "$TMP/nodesign"
 assert_hook WARN   design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<div className=\"bg-gradient-to-r from-purple-500\"/>"}}' "design-nudge: 보라 그라디언트 넛지" "" "$TMP/nodesign"
 assert_hook SILENT design-nudge.sh '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<button className=\"bg-brand-600\"/>"}}' "design-nudge: 깨끗 → 침묵" "" "$TMP/nodesign"
@@ -189,6 +196,41 @@ for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
   grep -qE '\$PM (lint|tsc)\b' "$f" && { ng "$(basename "$f") 에 bare \$PM lint/\$PM tsc (npm 무효 — \$PM run lint / \$PX tsc 사용)"; bad=1; }
 done
 [ $bad -eq 0 ] && ok "bare \$PM lint/\$PM tsc 없음 (\$PM run lint / \$PX tsc 로 통일)"
+# Context7 접두사 대칭(fe-researcher): 플러그인·직접 두 접두사를 모두 tools 에 둬야 한다 —
+# 하나만 있으면 다른 설치형태(.mcp.json 등록 등)에서 Context7 이 있어도 인식 못 하고 침묵 폴백한다.
+# (Chrome DevTools 에이전트는 이미 두 접두사를 모두 등록 — 같은 패턴으로 정렬)
+_RES="$ROOT/agents/fe-researcher.md"
+if grep -q 'mcp__plugin_context7_context7__' "$_RES" && grep -q 'mcp__context7__' "$_RES"; then
+  ok "fe-researcher: Context7 이중 접두사(plugin+직접) 등록"
+else
+  ng "fe-researcher: Context7 접두사 한쪽만 등록 — 다른 설치형태서 침묵 폴백"
+fi
+# setup-permissions.sh — 권장 권한 자동설정(소비자 타겟팅·병합·멱등) 회귀
+SETUP_PERM="$HOOKS/scripts/setup-permissions.sh"
+if [ ! -f "$SETUP_PERM" ]; then
+  ng "setup-permissions.sh 누락"
+else
+  if grep -q 'git rev-parse --show-toplevel' "$SETUP_PERM"; then ok "setup-permissions: 대상=소비자 git 루트(pwd 폴백)"; else ng "setup-permissions: PROJECT_ROOT 를 소비자 기준으로 안 잡음"; fi
+  if grep -q '소비자 프로젝트 루트에서 실행하세요' "$SETUP_PERM"; then ok "setup-permissions: 플러그인-트리 실행 차단 가드 존재"; else ng "setup-permissions: 플러그인-트리 가드 누락(플러그인에 설정 쓸 위험)"; fi
+  if grep -q 'setup-permissions.sh' "$HOOKS/session-init.sh"; then ok "session-init: 권한 미설정 넛지가 setup-permissions 를 가리킴"; else ng "session-init: setup-permissions 넛지 배선 누락"; fi
+  if command -v jq >/dev/null 2>&1; then
+    PERM_REPO="$TMP/permsetup"; mkdir -p "$PERM_REPO"
+    ( cd "$PERM_REPO" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+      && git remote add origin https://github.com/example/repo.git ) >/dev/null 2>&1
+    ( cd "$PERM_REPO" && bash "$SETUP_PERM" --yes ) >/dev/null 2>&1
+    PLF="$PERM_REPO/.claude/settings.local.json"
+    if [ -f "$PLF" ] && jq -e '(.permissions.allow // []) | index("Bash(git *)")' "$PLF" >/dev/null 2>&1; then
+      ok "setup-permissions: settings.local.json 에 권한 병합"
+    else
+      ng "setup-permissions: settings.local.json 병합 실패"
+    fi
+    ( cd "$PERM_REPO" && bash "$SETUP_PERM" --yes ) >/dev/null 2>&1   # 재실행(멱등성)
+    PCNT=$(jq '(.permissions.allow|length)' "$PLF" 2>/dev/null || echo x)
+    if [ "$PCNT" = 2 ]; then ok "setup-permissions: 멱등(재실행 후에도 allow=2)"; else ng "setup-permissions: 멱등성 실패(allow=$PCNT)"; fi
+  else
+    ok "setup-permissions: jq 없음 → 기능 테스트 스킵(정적 검사만)"
+  fi
+fi
 
 echo "━━━ D. 차단 사유 stderr 전달 (exit 2 시 stdout 아닌 stderr 로 모델에 피드백) ━━━"
 # assert_stderr <hook.sh> <json> <label> — 차단(exit 2) 시 stderr 에 사유가 있고 stdout 은 비어야 한다.
@@ -268,6 +310,40 @@ printf '%s\n' '#!/bin/sh' 'echo "src/a.ts(1,1): error TS2304: Cannot find name '
 chmod +x "$QGATE_REPO/node_modules/.bin/tsc"
 echo "const x: number = 'oops'" > "$QGATE_REPO/src/a.ts"
 assert_warn_stderr quality-gate.sh "" "$QGATE_REPO" "quality-gate: 안내 stderr(stdout 아님)"
+
+# quality-gate #2 — 타입체크가 성공(exit 0)이면 배너/요약이 stdout 에 남아도 오류로 오인하지 않는다.
+# fake tsc: 출력은 있으나 exit 0 → 종료코드 게이트가 없으면 가짜 [TypeScript] 경고가 났다.
+QGATE_OK="$TMP/qgate-ok"
+mkdir -p "$QGATE_OK/node_modules/.bin" "$QGATE_OK/src"
+( cd "$QGATE_OK" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+  && : > README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1
+printf '%s\n' '{ "compilerOptions": { "strict": true } }' > "$QGATE_OK/tsconfig.json"
+printf '%s\n' '#!/bin/sh' 'echo "tsc: no errors found (success banner)"' 'exit 0' > "$QGATE_OK/node_modules/.bin/tsc"
+chmod +x "$QGATE_OK/node_modules/.bin/tsc"
+echo "export const x: number = 1" > "$QGATE_OK/src/a.ts"
+assert_hook SILENT quality-gate.sh '' "quality-gate: typecheck 성공(배너 출력)은 침묵(#2)" "" "$QGATE_OK"
+
+# quality-gate #5 — 소스 변경이 없고 tsconfig.json 만 바뀌어도 타입체크를 돌린다.
+# (기존엔 소스 확장자만 수집해 config-only 변경이 게이트를 통째로 스킵했다)
+QGATE_CFG="$TMP/qgate-cfg"
+mkdir -p "$QGATE_CFG/node_modules/.bin"
+( cd "$QGATE_CFG" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+  && printf '%s\n' '{ "compilerOptions": { "strict": true } }' > tsconfig.json \
+  && : > README.md && git add tsconfig.json README.md && git commit -qm init ) >/dev/null 2>&1
+printf '%s\n' '#!/bin/sh' 'echo "src/a.ts(1,1): error TS2304: Cannot find name '"'"'x'"'"'."' 'exit 1' > "$QGATE_CFG/node_modules/.bin/tsc"
+chmod +x "$QGATE_CFG/node_modules/.bin/tsc"
+printf '%s\n' '{ "compilerOptions": { "strict": true, "noUnusedLocals": true } }' > "$QGATE_CFG/tsconfig.json" # 설정만 변경
+assert_warn_stderr quality-gate.sh "" "$QGATE_CFG" "quality-gate: tsconfig-only 변경도 타입체크 트리거(#5)"
+
+# quality-gate #1 — 린터 설정은 있으나 로컬 바이너리·npx 옵트인 모두 없으면, 자동 npx 실행 대신
+# '설치 안내'로 끝낸다(네트워크/최신버전 부작용 방지). biome.json 만 두고 로컬 biome 은 두지 않는다.
+QGATE_NPX="$TMP/qgate-npx"
+mkdir -p "$QGATE_NPX/src"
+( cd "$QGATE_NPX" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+  && : > README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1
+printf '%s\n' '{}' > "$QGATE_NPX/biome.json"
+echo "export const x = 1" > "$QGATE_NPX/src/x.ts"
+assert_warn_stderr quality-gate.sh "" "$QGATE_NPX" "quality-gate: 설정만 있고 로컬·npx 없음 → 설치 안내(#1)"
 
 # read-guard.sh — stdin JSON 만으로 판단, cwd 무관
 assert_warn_stderr read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}' "" "read-guard: 안내 stderr(stdout 아님)"
