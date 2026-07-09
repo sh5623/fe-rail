@@ -67,7 +67,7 @@ fe-rail/
 
 ### 훅 프로파일 · 회귀 eval
 
-- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터 npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지).
+- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용.
 - **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1).
 
 ---

@@ -167,6 +167,8 @@ maxTurns: 20
 복수 파일이면 병렬 읽기
 ```
 
+> Figma 커넥터 미설치가 사유일 때(JIT 안내): Figma URL을 받았는데 claude.ai Figma 커넥터가 없으면 조용히 로컬 파일 폴백으로 넘어가지 말고, 활성화 안내를 덧붙인다 — `/mcp` → 'claude.ai Figma' 선택(OAuth).
+
 ### Step 2: 요청 항목 식별
 ```
 사용자 요청에서 필요한 추출 항목 파악

@@ -91,7 +91,7 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 | | `standard` (default) | The above + all quality warnings/auto-cleanup/doc-sync |
 | | `strict` | One tier above `standard` (currently a superset, reserved for stricter behavior in the future) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
-| `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter binary is present (default is local-only — prevents auto-hooks from downloading or running unpinned latest versions) |
+| `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter or `tsc` binary is present (default is local-only — prevents auto-hooks from downloading or running unpinned latest versions). Doesn't affect a project's own `typecheck` script, which always runs via the package manager |
 
 > **Downgrading the profile to `minimal` does not disable the safety blockers** — to turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` ("no-compromise blocking" + an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 

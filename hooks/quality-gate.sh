@@ -63,8 +63,7 @@ _fe_pm() {  # 패키지 매니저 감지 (lock 파일 기준)
   else echo npm; fi
 }
 _fe_has_tsc() {
-  [ -f "$PROJECT_ROOT/tsconfig.json" ] || return 1
-  [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ] || command -v npx >/dev/null 2>&1
+  [ -f "$PROJECT_ROOT/tsconfig.json" ]
 }
 _fe_run_tsc() {
   ( cd "$PROJECT_ROOT" && \
@@ -80,17 +79,23 @@ _fe_run_tsc() {
 # verbose 배너·요약을 stdout 에 남길 수 있어, "출력 있으면 오류"로 보면 성공 케이스가
 # 가짜 [TypeScript] 경고로 뜬다(오탐). 출력은 실패(rc!=0)일 때만 채택한다.
 if _fe_has_tsc; then
+  TSC_RAN=0
   if grep -q '"typecheck"' "$PROJECT_ROOT/package.json" 2>/dev/null; then
     # 프로젝트가 의도한 config 사용 — 가장 안전 (예: tsc -p tsconfig.app.json)
+    # PM run 은 프로젝트 자신의 lockfile/node_modules 를 쓰므로 npx 옵트인과 무관하게 항상 허용.
     PM=$(_fe_pm)
-    TSC_RAW=$( ( cd "$PROJECT_ROOT" && "$PM" run typecheck ) 2>&1 ); TSC_RC=$?
-  elif grep -q '"references"' "$PROJECT_ROOT/tsconfig.json" 2>/dev/null; then
-    # 솔루션 스타일 → build 모드라야 참조 프로젝트를 검사
-    TSC_RAW=$(_fe_run_tsc -b --pretty false 2>&1); TSC_RC=$?
-  else
-    TSC_RAW=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1); TSC_RC=$?
+    TSC_RAW=$( ( cd "$PROJECT_ROOT" && "$PM" run typecheck ) 2>&1 ); TSC_RC=$?; TSC_RAN=1
+  elif [ -x "$PROJECT_ROOT/node_modules/.bin/tsc" ] || fe_npx_ok; then
+    # 로컬 tsc 없이 npx 로 떨어지는 경로는 Biome/ESLint 와 동일하게 FE_RAIL_ALLOW_NPX 옵트인 필요.
+    if grep -q '"references"' "$PROJECT_ROOT/tsconfig.json" 2>/dev/null; then
+      # 솔루션 스타일 → build 모드라야 참조 프로젝트를 검사
+      TSC_RAW=$(_fe_run_tsc -b --pretty false 2>&1); TSC_RC=$?
+    else
+      TSC_RAW=$(_fe_run_tsc --noEmit --pretty false --project "$PROJECT_ROOT/tsconfig.json" 2>&1); TSC_RC=$?
+    fi
+    TSC_RAN=1
   fi
-  if [ "$TSC_RC" -ne 0 ]; then
+  if [ "$TSC_RAN" -eq 1 ] && [ "$TSC_RC" -ne 0 ]; then
     TSC_OUT=$(printf '%s\n' "$TSC_RAW" | head -20)
     [ -n "$TSC_OUT" ] && OUTPUT="${OUTPUT}[TypeScript]\n${TSC_OUT}\n"
   fi
@@ -105,6 +110,10 @@ if fe_has_biome_config "$PROJECT_ROOT" && ! fe_has_biome "$PROJECT_ROOT"; then
 fi
 if fe_has_eslint_config "$PROJECT_ROOT" && ! fe_has_eslint "$PROJECT_ROOT"; then
   NUDGE="${NUDGE}[fe-rail][quality-gate] ESLint 설정 감지 — 로컬 eslint 미설치로 검사 생략. 설치하거나 FE_RAIL_ALLOW_NPX=1 로 npx 허용.\n"
+fi
+if _fe_has_tsc && ! grep -q '"typecheck"' "$PROJECT_ROOT/package.json" 2>/dev/null \
+   && [ ! -x "$PROJECT_ROOT/node_modules/.bin/tsc" ] && ! fe_npx_ok; then
+  NUDGE="${NUDGE}[fe-rail][quality-gate] tsconfig.json 감지 — 로컬 tsc 미설치로 타입체크 생략. 설치하거나 FE_RAIL_ALLOW_NPX=1 로 npx 허용.\n"
 fi
 
 # ── 출력 ────────────────────────────────────────────────────────────────────
