@@ -345,6 +345,17 @@ printf '%s\n' '{}' > "$QGATE_NPX/biome.json"
 echo "export const x = 1" > "$QGATE_NPX/src/x.ts"
 assert_warn_stderr quality-gate.sh "" "$QGATE_NPX" "quality-gate: 설정만 있고 로컬·npx 없음 → 설치 안내(#1)"
 
+# quality-gate #6 — tsc 도 Biome/ESLint 와 동일하게 FE_RAIL_ALLOW_NPX 옵트인 없인 npx 로 안 떨어진다.
+# (버그: _fe_has_tsc 가 `command -v npx` 만 보고 fe_npx_ok 를 안 거쳐 옵트인을 무시 → 자동 훅이
+#  네트워크 npx 를 유발했다. tsconfig.json 만 두고 로컬 tsc·typecheck 스크립트는 두지 않는다.)
+QGATE_TSNPX="$TMP/qgate-tsnpx"
+mkdir -p "$QGATE_TSNPX/src"
+( cd "$QGATE_TSNPX" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+  && : > README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1
+printf '%s\n' '{ "compilerOptions": { "strict": true } }' > "$QGATE_TSNPX/tsconfig.json"
+echo "export const x = 1" > "$QGATE_TSNPX/src/x.ts"
+assert_warn_stderr quality-gate.sh "" "$QGATE_TSNPX" "quality-gate: tsc 로컬·npx 옵트인 모두 없음 → 안내만(#6)"
+
 # read-guard.sh — stdin JSON 만으로 판단, cwd 무관
 assert_warn_stderr read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}' "" "read-guard: 안내 stderr(stdout 아님)"
 
