@@ -1,6 +1,6 @@
 ---
 name: fe-test-author
-description: 프론트엔드 테스트 코드 생성 — BDD 시나리오 도출 + TDD Red-Green-Refactor 지원. fe-test-runner의 짝(실행 vs 생성).
+description: Generates frontend test code — derives BDD scenarios and supports TDD Red-Green-Refactor. Pairs with fe-test-runner (generation vs. execution).
 tools: Read, Write, Edit, Bash, Grep, Glob
 disallowedTools:
   - MultiEdit

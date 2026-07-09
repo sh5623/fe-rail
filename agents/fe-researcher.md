@@ -1,6 +1,6 @@
 ---
 name: fe-researcher
-description: 외부 문서·라이브러리 조사 전문 — Next.js/React/TS 공식 문서, GitHub Issues, Stack Overflow. 모든 정보에 출처 URL 필수.
+description: External docs/library research specialist — official Next.js/React/TS docs, GitHub Issues, Stack Overflow. Every piece of information must cite a source URL.
 tools: Read, Bash, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs, mcp__context7__resolve-library-id, mcp__context7__query-docs
 disallowedTools:
   - Write

@@ -1,6 +1,6 @@
 ---
 name: fe-perf-auditor
-description: React 성능 정밀 감사 — 번들 사이즈, 데이터 fetching, Image 최적화, dynamic import, Suspense. Next.js(RSC·next/image) / Vite SPA(번들 분석·fetchpriority) 모두 지원. fe-reviewer의 성능 축보다 정밀. READ-ONLY. `--live` 호출 시 Chrome DevTools MCP 로 실측(LCP/콘솔/네트워크) 병행, 미설치면 정적 분석만.
+description: In-depth React performance audit — bundle size, data fetching, image optimization, dynamic import, Suspense. Supports both Next.js (RSC, next/image) and Vite SPA (bundle analysis, fetchpriority). More precise than fe-reviewer's performance axis. READ-ONLY. With `--live`, also measures via Chrome DevTools MCP (LCP/console/network); falls back to static analysis only if not installed.
 tools: Read, Grep, Glob, Bash, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_stop_trace, mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_analyze_insight, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests, mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page, mcp__chrome-devtools__performance_start_trace, mcp__chrome-devtools__performance_stop_trace, mcp__chrome-devtools__performance_analyze_insight, mcp__chrome-devtools__list_console_messages, mcp__chrome-devtools__list_network_requests, mcp__chrome-devtools__navigate_page
 disallowedTools:
   - Write

@@ -1,6 +1,6 @@
 ---
 name: fe-pr-author
-description: 커밋·diff·spec을 종합해 PR 본문 작성(fix=증상·원인·해결 / feat=추가·핵심·영향 블록) + `gh pr create` 실행. fe-review 통과 후 PR 단계에서 위임하면 메인 세션은 PR URL만 받음.
+description: Synthesizes commits, diff, and spec to write the PR body (fix = symptom/cause/fix, feat = addition/core/impact blocks) and runs `gh pr create`. Delegate at the PR stage after fe-review passes — the main session only gets back the PR URL.
 tools: Read, Bash
 disallowedTools:
   - Write

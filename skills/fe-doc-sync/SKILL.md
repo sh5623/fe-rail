@@ -1,10 +1,11 @@
 ---
 name: fe-doc-sync
 description: >
-  이 플러그인이 설치된 사용자 프로젝트(예: Vibe App)의 코드 구조·기술 스택·
-  워크플로우 변화를 종합 스캔하여 해당 프로젝트의 CLAUDE.md / README.md 를
-  최신 상태로 유지합니다. 새 라우트·컴포넌트·의존성·앱/패키지 추가, 폴더 구조
-  개편, 프레임워크 전환, npm script 변경, 환경 변수 변동까지 점검 대상입니다.
+  Comprehensively scans changes in code structure, tech stack, and workflow in the
+  user project where this plugin is installed (e.g., Vibe App), and keeps that
+  project's CLAUDE.md / README.md up to date. Covers new routes, components,
+  dependencies, app/package additions, folder restructuring, framework switches,
+  npm script changes, and environment variable changes.
 allowed-tools:
   - Read
   - Bash

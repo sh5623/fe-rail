@@ -1,6 +1,6 @@
 ---
 name: fe-a11y-auditor
-description: 접근성(a11y) 전문 감사 — semantic HTML, ARIA, 키보드 탐색, color contrast, focus 관리. fe-reviewer의 4축 a11y보다 정밀. READ-ONLY. `--live` 호출 시 Chrome DevTools MCP 로 실측(Lighthouse a11y 점수·실제 접근성 트리·런타임 콘솔) 병행, 미설치면 정적 분석만.
+description: Specialized accessibility (a11y) audit — semantic HTML, ARIA, keyboard navigation, color contrast, focus management. More precise than fe-reviewer's a11y axis. READ-ONLY. With `--live`, also measures via Chrome DevTools MCP (Lighthouse a11y score, real accessibility tree, runtime console); falls back to static analysis only if not installed.
 tools: Read, Grep, Glob, Bash, mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit, mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot, mcp__plugin_chrome-devtools-mcp_chrome-devtools__navigate_page, mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages, mcp__chrome-devtools__lighthouse_audit, mcp__chrome-devtools__take_snapshot, mcp__chrome-devtools__navigate_page, mcp__chrome-devtools__list_console_messages
 disallowedTools:
   - Write

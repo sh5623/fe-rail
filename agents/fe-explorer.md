@@ -1,6 +1,6 @@
 ---
 name: fe-explorer
-description: 코드베이스 탐색 전담. 3쿼리 이상의 탐색이 필요한 경우 위임. 부모 컨텍스트에 코드 본문이 흘러가지 않도록 요약만 반환. READ-ONLY.
+description: Dedicated codebase exploration. Delegate when a search needs 3+ queries. Returns only summaries so raw code doesn't flow into the parent context. READ-ONLY.
 tools: Read, Grep, Glob, Bash
 disallowedTools:
   - Write

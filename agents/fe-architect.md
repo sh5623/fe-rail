@@ -1,6 +1,6 @@
 ---
 name: fe-architect
-description: React/TS 아키텍처 자문 — 컴포넌트 경계, 데이터 흐름, 상태 관리, 라우팅, 모듈 의존성. Next.js App Router / Vite SPA(TanStack Router·React Router 7) 모두 지원. READ-ONLY 분석 전용.
+description: React/TS architecture advisory — component boundaries, data flow, state management, routing, module dependencies. Supports both Next.js App Router and Vite SPA (TanStack Router / React Router 7). READ-ONLY analysis only.
 tools: Read, Grep, Glob
 disallowedTools:
   - Write

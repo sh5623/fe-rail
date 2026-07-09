@@ -1,10 +1,10 @@
 ---
 name: fe-start
 description: >-
-  feature.md 파일을 받아 스펙 확인 → 구현 → 리뷰 → 커밋 → PR까지 자동으로 진행합니다.
-  Use when: "fe-start feature.md" 또는 "feature.md로 시작해줘"라고 말할 때.
-  Do NOT load for: 단발 버그 핫픽스·1줄 변경·탐색성 작업·통과/실패 신호가 모호한 작업 (단일 스킬 또는 직접 프롬프트가 낫다).
-  사람 개입은 두 번: "구현할까요?", "커밋할까요?" — fe-spec 풀 자동 핸드오프로 진입 시는 "커밋할까요?" 한 번(fe-spec Phase 3 선택이 첫 승인을 겸함, 총합 2회 유지). 재위임 상한 소진 시 예외 에스컬레이션 STOP 가능.
+  Takes a feature.md file and automatically runs spec confirmation → implementation → review → commit → PR.
+  Use when: the user says "fe-start feature.md" or "start with feature.md".
+  Do NOT load for: one-off bug hotfixes, 1-line changes, exploratory work, or tasks where pass/fail signals are ambiguous (a single skill or a direct prompt is better).
+  Human checkpoints: two — "Implement now?" and "Commit now?" — when entering via fe-spec's full-auto handoff, only "Commit now?" is asked (the fe-spec Phase 3 choice doubles as the first approval, keeping the total at 2). Can STOP with an exception escalation once the re-delegation cap is exhausted.
 allowed-tools:
   - Read
   - Write

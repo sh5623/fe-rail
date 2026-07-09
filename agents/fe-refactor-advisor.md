@@ -1,6 +1,6 @@
 ---
 name: fe-refactor-advisor
-description: 리팩토링 분석 전문 — 복잡도·중복·네이밍·구조·패턴·타입 안전 6차원 평가 + Before/After 코드 + 영향도×난이도 매트릭스. READ-ONLY.
+description: Refactoring analysis specialist — evaluates 6 dimensions (complexity, duplication, naming, structure, patterns, type safety) with Before/After code and an impact × difficulty matrix. READ-ONLY.
 tools: Read, Grep, Glob
 disallowedTools:
   - Write
