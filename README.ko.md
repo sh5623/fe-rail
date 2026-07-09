@@ -72,12 +72,12 @@ $ claude
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단 — `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
-| `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env`, `*.pem`, `*.key`, `*credential*` 등) | — |
+| `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env*`·`.envrc`, `*.pem`/`*.key`/`id_rsa` 등 키, `.npmrc`·`*credential*` — write-guard 차단 목록과 대칭) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 | — |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 (로컬 바이너리 우선 · npx 폴백은 `FE_RAIL_ALLOW_NPX=1` 옵트인) | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
 | `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | 프론트 편집에 제네릭/템플릿틱(AI slop) 신호(무거운·임의 그림자, 기본 보라/인디고 그라디언트) 감지 시 경고. **DESIGN.md 있으면 침묵**(fe-reviewer 의 DESIGN Bans 가 정본) | — |
-| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력 | — |
+| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력. 타입체크는 종료코드로 판정(성공 배너 오탐 없음) · 소스 변경이 없어도 `tsconfig*.json`/`package.json` 변경 시 트리거 | — |
 | `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
@@ -91,6 +91,7 @@ $ claude
 | | `standard` (기본) | 위 + 품질 경고·자동정리·문서동기화 전부 |
 | | `strict` | `standard` 상위 티어(현재는 상위집합, 향후 더 엄격한 동작 예약) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | 특정 훅만 콕 집어 비활성 (예: `"doc-sync-check,design-nudge"`) |
+| `FE_RAIL_ALLOW_NPX` | `1` | 로컬 린터 바이너리가 없을 때 npx 폴백 허용 (기본은 로컬 전용 — 자동 훅의 네트워크 다운로드·미고정 최신버전 실행 방지) |
 
 > **프로파일 하향(minimal)으로는 안전 차단기가 꺼지지 않습니다** — 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다("타협 없는 차단" + 명시적 탈출구). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
 
@@ -176,8 +177,8 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 | 항목 | 이유 | 방법 |
 |------|------|------|
 | **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않음) | `/init` 또는 `/fe-rail:fe-doc-sync` |
-| **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
-| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치 |
+| **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | 자동: 프로젝트 루트에서 `bash <설치경로>/hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json` 병합, 확인 1회) · 수동: `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
+| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
 | **검증 스크립트** | Phase 3 자동 검증이 `typecheck`/`lint`/`test` 를, Phase 4.5 완료기준 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장 |
 
 ## 라이선스

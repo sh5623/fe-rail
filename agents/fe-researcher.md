@@ -1,7 +1,7 @@
 ---
 name: fe-researcher
 description: 외부 문서·라이브러리 조사 전문 — Next.js/React/TS 공식 문서, GitHub Issues, Stack Overflow. 모든 정보에 출처 URL 필수.
-tools: Read, Bash, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs
+tools: Read, Bash, WebSearch, WebFetch, mcp__plugin_context7_context7__resolve-library-id, mcp__plugin_context7_context7__query-docs, mcp__context7__resolve-library-id, mcp__context7__query-docs
 disallowedTools:
   - Write
   - Edit
@@ -49,6 +49,10 @@ maxTurns: 30
 | 2 | GitHub Issues / PRs (해당 저장소) | 버그·미래 변경 사항 파악 가능 |
 | 3 | Stack Overflow | 실제 문제 해결 사례, 날짜 확인 필수 |
 | 4 | 기술 블로그 | 트렌드 파악용, 단독 인용 금지 |
+
+> Context7(순위 0) 미설치 시(JIT 안내): 순위 1+(WebSearch/WebFetch)로 자동 폴백해 조사는 계속하되, 보고 말미에 활성화 안내를 덧붙인다 — `/plugin install context7@<marketplace>` → `/reload-plugins`.
+>
+> 접두사: Context7 도구는 플러그인 설치(`mcp__plugin_context7_context7__*`)와 `.mcp.json`/`claude mcp add` 등록(`mcp__context7__*`) 두 접두사를 모두 `tools` 에 등록해 뒀다 — 어느 방식으로 설치해도 인식된다(접두사 불일치로 설치돼 있어도 조용히 WebSearch 로만 폴백하던 문제 방지). Chrome DevTools 에이전트(`fe-perf-auditor`·`fe-a11y-auditor`)와 동일한 이중 등록 패턴.
 
 ---
 

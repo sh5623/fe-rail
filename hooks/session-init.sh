@@ -71,4 +71,26 @@ if [ -f "$_FE_PLIB" ]; then
   fi
 fi
 
+# 권장 Bash 권한 미설정 안내 (소비자 프로젝트 기준). 이미 설정됐거나 opt-out 이면 조용히 넘어간다.
+# - SessionStart 훅은 비대화형이라 설치/선택은 못 하고 1회 안내만 한다.
+# - 실제 설정: hooks/scripts/setup-permissions.sh (호스트 감지 → settings.local.json 병합).
+# - MCP 는 훅에서 연결 여부를 알 수 없어 여기서 다루지 않는다 → 각 에이전트가 사용 시점에 JIT 안내.
+if [ -z "${FE_RAIL_SKIP_SETUP_NUDGE:-}" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  _FE_PROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  _FE_SETUP="${CLAUDE_PLUGIN_ROOT}/hooks/scripts/setup-permissions.sh"
+  case "$_FE_SETUP/" in
+    "$_FE_PROOT"/*) : ;;  # 플러그인이 프로젝트 안 = 이 저장소 자체(개발 체크아웃) → 넛지 생략
+    *)
+      _FE_HAS_PERM=0
+      for _f in "$_FE_PROOT/.claude/settings.local.json" "$_FE_PROOT/.claude/settings.json"; do
+        [ -f "$_f" ] && grep -q '"Bash(git' "$_f" 2>/dev/null && _FE_HAS_PERM=1
+      done
+      if [ "$_FE_HAS_PERM" -eq 0 ]; then
+        echo "[fe-rail][session] 권장 Bash 권한이 설정돼 있지 않습니다 — PR 단계에서 매번 권한 프롬프트가 뜹니다." >&2
+        echo "[fe-rail][session] 설정: bash \"$_FE_SETUP\" (끄기: FE_RAIL_SKIP_SETUP_NUDGE=1)" >&2
+      fi
+      ;;
+  esac
+fi
+
 exit 0

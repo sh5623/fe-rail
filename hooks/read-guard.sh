@@ -22,17 +22,17 @@ FILE_PATH="${FILE_PATH:-${TOOL_INPUT_FILE_PATH}}"
 BASENAME=$(basename "$FILE_PATH")
 
 case "$BASENAME" in
-  .env|.env.local|.env.production|.env.staging|.env.development|.env.test|.env.*.local)
+  .env|.env.local|.env.production|.env.staging|.env.development|.env.test|.env.*.local|.envrc)
     echo "[fe-rail] ⚠️  WARNING [read-guard]: 민감한 환경변수 파일 읽기 감지 → $FILE_PATH" >&2
     echo "[fe-rail]   이 파일의 내용이 응답에 노출되지 않도록 주의하세요." >&2
     ;;
-  *.pem|*.key|*.p12|*.pfx|*.crt|*.cer)
+  *.pem|*.key|*.p12|*.pfx|*.crt|*.cer|id_rsa|id_dsa|id_ecdsa|id_ed25519)
     echo "[fe-rail] ⚠️  WARNING [read-guard]: 인증서/키 파일 읽기 감지 → $FILE_PATH" >&2
     echo "[fe-rail]   민감한 키 내용이 노출될 수 있습니다." >&2
     ;;
   # 시크릿/자격증명 '페이로드 파일'만 경고 — 소스 파일명에 secret/credential 이 든 경우
   # (secret-store.ts, useCredentials.ts 등)는 제외해 오탐을 줄인다 (write-guard 와 동일 기준).
-  credentials.json|secrets.json|*.secret|*.secrets|*secret*.json|*secrets*.json|*credential*.json|*credentials*.json)
+  .npmrc|credentials.json|secrets.json|*.secret|*.secrets|*secret*.json|*secrets*.json|*credential*.json|*credentials*.json)
     echo "[fe-rail] ⚠️  WARNING [read-guard]: 자격증명 파일 읽기 감지 → $FILE_PATH" >&2
     echo "[fe-rail]   민감한 정보가 응답에 포함되지 않도록 주의하세요." >&2
     ;;

@@ -36,11 +36,11 @@ fe-rail/
 │   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
 │   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트) + `gh pr create`
 ├── hooks/                 ← SessionStart·Pre/PostToolUse·Stop·Notification 훅 (hooks.json 배선)
-│   ├── session-init.sh    ← SessionStart: 원격 버전 체크 (하루 1회, GitHub raw)
+│   ├── session-init.sh    ← SessionStart: 원격 버전 체크(하루 1회, GitHub raw) + 권장 권한 미설정 안내
 │   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
 │   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)
 │   ├── notify.sh          ← Notification(옵션): terminal-notifier 배너 (setup-notifier.sh 로 활성화, hooks.json 미배선)
-│   └── scripts/profile-lib.sh ← 훅 프로파일/토글 (FE_RAIL_HOOK_PROFILE·FE_RAIL_DISABLED_HOOKS)
+│   └── scripts/           ← profile-lib(프로파일/토글)·setup-permissions(권장 Bash 권한 → settings.local.json)·setup-notifier(notify 활성화)
 ├── skills/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
 │   ├── fe-build/          ← 스펙 → 코드 구현
@@ -67,8 +67,8 @@ fe-rail/
 
 ### 훅 프로파일 · 회귀 eval
 
-- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`.
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`))를 결정적으로 검증(실패 시 exit 1).
+- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터 npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지).
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1).
 
 ---
 
@@ -80,12 +80,12 @@ fe-rail/
 | MCP | 설치 형태 | 연결 에이전트 | 도구 접두사 | 없을 때 fallback |
 |-----|----------|-------------|-----------|----------------|
 | **Figma** | claude.ai 계정 커넥터 (`/mcp` → "claude.ai Figma", OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_screenshot` (외 get_metadata·get_variable_defs) | 로컬 스크린샷(PNG/JPG)만 분석 |
-| **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs` | WebSearch + WebFetch로 문서 조회 |
+| **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs`<br>(+ `.mcp.json` 등록 대비 `mcp__context7__*` 도 등록) | WebSearch + WebFetch로 문서 조회 |
 | **Chrome DevTools** | Claude Code 플러그인 (`ChromeDevTools/chrome-devtools-mcp`) | `fe-perf-auditor`·`fe-a11y-auditor` | `mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace`<br>`mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit` (외 performance_stop_trace·performance_analyze_insight·list_console_messages·list_network_requests·take_snapshot·navigate_page) | 정적 분석(grep 기반 추정치)만 수행 — `--live` 호출 시에만 실측 시도, 미설치면 정적 결과만 |
 
 > Microsoft 365 (선택 보조): OneDrive/SharePoint 의 PPT 기획서를 가져오는 용도. 단 인터랙티브 OAuth 인증이 필요하고 슬라이드를 시각적으로 렌더해 주지 않을 수 있어, 화면 분석에는 PDF 변환이 더 안전하다. 특정 에이전트에 직접 연결하지 않으며, 가져온 파일은 부모 세션이 PDF/이미지로 변환해 fe-deck-reader 에 전달한다.
 
-> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7 행은 직접 검증된 접두사. Chrome DevTools 행은 공식 설치 가이드 기준 예상 접두사 — 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
+> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7 의 플러그인 접두사는 직접 검증됨. Context7 은 `.mcp.json`/`claude mcp add` 등록 대비 `mcp__context7__*` 도 함께 등록해 뒀는데, 이 형태와 Chrome DevTools 행은 명명 규칙 기반 예상 접두사이므로 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
 
 ### 설치
 
@@ -165,8 +165,8 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 에이전트는 **소비자 프로젝트의 컨텍스트를 읽어** 추론한다. 설치 직후 아래를 갖추면 출력 품질이 크게 올라간다.
 
 1. **프로젝트 CLAUDE.md 생성** — `fe-analyst`·`fe-architect`는 소비자 프로젝트의 CLAUDE.md에서 스택·규칙을 읽는다. 이 플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않으므로, 소비자가 자체 CLAUDE.md를 두지 않으면 에이전트가 빈손으로 분석한다. → `/init` 또는 `/fe-rail:fe-doc-sync` 실행.
-2. **Bash 권한 허용** — 소비자 `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)`를 추가하면 PR 단계 에이전트가 매번 권한 프롬프트 없이 동작한다.
-3. **MCP (선택)** — Figma·Context7·Chrome DevTools 미설치 시 `fe-vision`·`fe-researcher`·`fe-perf-auditor`·`fe-a11y-auditor`는 각각 fallback(로컬 이미지·WebSearch·정적 분석)으로 동작한다. 위 "지원 MCP 플러그인" 참조.
+2. **Bash 권한 허용 (권장: 자동)** — 소비자 프로젝트 루트에서 `bash <fe-rail 설치경로>/hooks/scripts/setup-permissions.sh` 실행 → 호스트(GitHub/CodeCommit)를 감지해 `Bash(git *)`·PR 명령 권한을 `.claude/settings.local.json`의 `permissions.allow`에 병합한다(확인 1회, 기존 키·값 보존). 미설정이면 PR 단계 에이전트가 매번 권한 프롬프트를 띄운다. 세션 시작 시 미설정이면 안내가 뜬다(끄기: `FE_RAIL_SKIP_SETUP_NUDGE=1`). 수동으로는 `.claude/settings.json`의 `permissions.allow`에 직접 추가. (위험 git 명령은 `guard.sh`가 계속 차단하므로 광범위 allow 라도 안전.)
+3. **MCP (선택)** — Figma·Context7·Chrome DevTools 미설치 시 `fe-vision`·`fe-researcher`·`fe-perf-auditor`·`fe-a11y-auditor`는 각각 fallback(로컬 이미지·WebSearch·정적 분석)으로 동작한다. 미리 다 설치할 필요 없이, 각 에이전트가 폴백할 때 **그 자리에서 활성화 명령을 안내(JIT)**하므로 필요할 때 설치하면 된다. 위 "지원 MCP 플러그인" 참조.
 
 ### 대상 프로젝트 유형
 
@@ -261,11 +261,13 @@ bun run test --run        # bun (bun test 는 Bun 내장 러너 — vitest 를 �
 
 ## 권한 및 보안
 
-이 플러그인은 권한 설정 파일을 배포하지 않는다. Bash 권한은 소비자 프로젝트의 `.claude/settings.json` 의 `permissions.allow` 에서 설정한다.
+이 플러그인은 권한 설정 파일을 배포하지 않는다. Bash 권한은 소비자 프로젝트에서 설정한다 — 권장은 `hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json`의 `permissions.allow`에 병합, 확인 1회)이고, 수동으로는 `.claude/settings.json`에 직접 추가한다. `settings.local.json`을 쓰는 이유는 개인 로컬 설정이고 `.claude`가 `.gitignore` 대상일 수 있어 팀 공유 파일을 건드리지 않기 위함이다.
 
 권장 허용 명령어 (PR 단계 에이전트가 매번 프롬프트 없이 동작):
-- `Bash(git *)` — 버전 관리 전 범위
+- `Bash(git *)` — 버전 관리 전 범위 (위험 명령은 `guard.sh`가 exit 2 로 차단 — 광범위 allow 의 백스톱)
 - `Bash(gh pr *)` — PR 생성·조회 (fe-pr-author)
+
+> 세션 시작 시 권장 권한이 없으면 `session-init.sh`가 1회 안내한다(끄기: 환경변수 `FE_RAIL_SKIP_SETUP_NUDGE=1`). MCP 는 훅에서 연결 여부를 알 수 없어 세션 안내에 넣지 않고, 각 에이전트가 사용 시점에 JIT 로 안내한다.
 
 ---
 

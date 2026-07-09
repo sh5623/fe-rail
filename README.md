@@ -72,12 +72,12 @@ Policy: **Block dangers (exit 2), warn on quality issues (stderr)**.
 | `guard.sh` | PreToolUse:Bash | Blocks `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .`, etc. | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks creating/editing sensitive files: `.env*`, certificates (`*.pem`/`*.key`, etc.), secret-payload files (`*.secret`, `*credentials*.json`, etc.) — source files like `.env.example`, `CredentialForm.tsx` are allowed | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks only **weakening** edits to linter/formatter/TS config — `strict:false`, `@ts-nocheck`, linter `recommended:false`, removing an existing `strict:true`. Normal edits (path aliases, adding plugins, etc.) pass through | ✅ |
-| `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env`, `*.pem`, `*.key`, `*credential*`, etc.) | — |
+| `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env*`·`.envrc`, keys like `*.pem`/`*.key`/`id_rsa`, `.npmrc`·`*credential*` — symmetric with write-guard's block list) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | Blocks injection patterns and dangerous command delegation in sub-agent prompts | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | Auto-detects consumer env → runs Biome `check --write` **or** ESLint `--fix` (+ Prettier) | — |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | Auto-detects consumer env → runs Biome `check --write` **or** ESLint `--fix` (+ Prettier) (local binary first · npx fallback is opt-in via `FE_RAIL_ALLOW_NPX=1`) | — |
 | `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Detects React hooks/browser API/DOM events in Server Components; warns when `page`/`layout` in the app router is missing `'use client'` | — |
 | `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | Warns on generic/templated (AI-slop) signals in frontend edits (heavy/arbitrary shadows, default purple/indigo gradients). **Silent if DESIGN.md exists** (fe-reviewer's DESIGN Bans is the source of truth in that case) | — |
-| `quality-gate.sh` | Stop | Runs linter (Biome **or** ESLint) + type check (prefers the project's `typecheck` script, falls back to `tsc -b` for solution-style tsconfig) on changed files, outputs warnings | — |
+| `quality-gate.sh` | Stop | Runs linter (Biome **or** ESLint) + type check (prefers the project's `typecheck` script, falls back to `tsc -b` for solution-style tsconfig) on changed files, outputs warnings. Type check is judged by exit code (no false positives from success banners) · also triggers on `tsconfig*.json`/`package.json` changes even with no source changes | — |
 | `doc-sync-check.sh` | Stop | Detects changes to consumer project code / package.json / config files → suggests `/fe-rail:fe-doc-sync` (includes last 5 commits) | — |
 | `notify.sh` | (Optional) Notification | macOS terminal-notifier banner — activate with `bash hooks/scripts/setup-notifier.sh` | — |
 
@@ -91,6 +91,7 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 | | `standard` (default) | The above + all quality warnings/auto-cleanup/doc-sync |
 | | `strict` | One tier above `standard` (currently a superset, reserved for stricter behavior in the future) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
+| `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter binary is present (default is local-only — prevents auto-hooks from downloading or running unpinned latest versions) |
 
 > **Downgrading the profile to `minimal` does not disable the safety blockers** — to turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` ("no-compromise blocking" + an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 
@@ -175,8 +176,8 @@ Plugin agents read and reason from the **consumer project's context**. Setting t
 | Item | Why | How |
 |------|-----|-----|
 | **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this plugin's own CLAUDE.md is not loaded into consumer sessions) | `/init` or `/fe-rail:fe-doc-sync` |
-| **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
-| **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`/`fe-a11y-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin |
+| **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Auto: run `bash <install-path>/hooks/scripts/setup-permissions.sh` from the project root (detects host → merges into `.claude/settings.local.json`, confirm once) · Manual: add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
+| **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`/`fe-a11y-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin. If not installed, each agent falls back and surfaces the enable command just-in-time (JIT) |
 | **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |
 
 ## License
