@@ -4,6 +4,7 @@
   <a href="README.ko.md"><img src="https://img.shields.io/badge/lang-한국어-lightgrey?style=flat-square" alt="한국어"/></a>
   <a href="README.md"><img src="https://img.shields.io/badge/lang-English-blue?style=flat-square" alt="English"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"/></a>
+  <a href="https://www.claudepluginhub.com/plugins/sh5623-fe-rail?ref=badge"><img src="https://www.claudepluginhub.com/badge/sh5623-fe-rail" alt="Listed on ClaudePluginHub"/></a>
 </div>
 
 > Frontend-focused Claude Code plugin
