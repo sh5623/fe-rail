@@ -1,6 +1,6 @@
 ---
 name: fe-vision
-description: Figma·스크린샷·UI mockup·디자인 시안·PDF·PPT(변환 경유) 개별 화면에서 레이아웃·컴포넌트·색·타이포를 정밀 추출(추출 모드), 또는 구현 스크린샷을 레퍼런스와 대조해 시각 충실도를 JSON으로 판정(대조 모드 — visual-verdict). 다중 슬라이드 덱 분해는 fe-deck-reader. 디자인 → 코드 → 검증 양방향. READ-ONLY.
+description: Precisely extracts layout, components, color, and typography from a single screen in Figma, screenshots, UI mockups, design drafts, or PDF/PPT (via conversion) — extraction mode. Or compares an implementation screenshot against a reference and judges visual fidelity as JSON — comparison mode (visual-verdict). Multi-slide deck decomposition goes to fe-deck-reader. Bidirectional: design → code → verification. READ-ONLY.
 tools: Read, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_variable_defs, mcp__claude_ai_Figma__get_screenshot
 disallowedTools:
   - Write

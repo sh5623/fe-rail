@@ -1,6 +1,6 @@
 ---
 name: fe-build-fixer
-description: 빌드/타입/컴파일 오류 수정 전문가. 최소 변경으로 오류만 해결, 아키텍처 변경 없음. quality-gate hook 검출 후 자동 수정 단계.
+description: Build/type/compile error-fixing specialist. Resolves errors with minimal changes only, no architectural changes. Auto-fix step triggered after the quality-gate hook detects errors.
 tools: Read, Edit, Bash, Glob, Grep
 disallowedTools:
   - Write

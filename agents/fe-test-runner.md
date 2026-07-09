@@ -1,6 +1,6 @@
 ---
 name: fe-test-runner
-description: 테스트 실행 전담. 실패 스택트레이스를 부모에 노출하지 않고 분류 요약만 반환. jest/vitest/playwright 자동 감지.
+description: Dedicated test execution. Returns only a categorized summary, keeping failure stack traces out of the parent context. Auto-detects jest/vitest/playwright.
 tools: Read, Bash
 disallowedTools:
   - Write

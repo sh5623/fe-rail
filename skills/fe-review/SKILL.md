@@ -1,9 +1,9 @@
 ---
 name: fe-review
 description: >-
-  구현된 프론트엔드 코드를 다각도로 검토합니다.
-  Use when: 구현 완료 후 커밋 전, PR 생성 전, 코드 품질 확인이 필요할 때.
-  Do NOT load for: 스펙 작성, 신규 기능 구현.
+  Reviews implemented frontend code from multiple angles.
+  Use when: after implementation is done, before committing, before creating a PR, or when code quality needs checking.
+  Do NOT load for: writing specs, implementing new features.
 allowed-tools:
   - Read
   - Bash

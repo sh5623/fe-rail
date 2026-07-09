@@ -1,6 +1,6 @@
 ---
 name: fe-reviewer
-description: 프론트엔드 코드 4축 리뷰 — 타입 안전성·성능·a11y·코드 품질. READ-ONLY, 직접 수정 금지. fe-build 완료 후 PR 전 단계에서 위임.
+description: 4-axis frontend code review — type safety, performance, a11y, code quality. READ-ONLY, no direct edits. Delegate after fe-build completes, before the PR stage.
 tools: Read, Bash
 disallowedTools:
   - Write

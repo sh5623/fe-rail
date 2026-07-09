@@ -1,6 +1,6 @@
 ---
 name: fe-analyst
-description: fe-spec 전·중 단계에서 요구사항 갭 분석. 미질문/미정의 가드레일/범위 확장/미검증 가정/엣지 케이스를 체계적으로 식별. READ-ONLY.
+description: Requirement gap analysis before/during the fe-spec stage. Systematically identifies unasked questions, undefined guardrails, scope creep, unverified assumptions, and edge cases. READ-ONLY.
 tools: Read, Grep, Glob
 disallowedTools:
   - Write

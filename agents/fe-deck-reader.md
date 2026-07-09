@@ -1,6 +1,6 @@
 ---
 name: fe-deck-reader
-description: PPT·기획서(PDF/PNG로 변환된 다중 슬라이드)를 [정책·규칙 / 화면 목업 / 화면 흐름 / 데이터·필드]로 분해. 화면 정밀 추출은 fe-vision, 요구사항 갭은 fe-analyst로 연결하는 spec 단계 입력. READ-ONLY.
+description: Decomposes PPT/planning decks (multi-slide, converted to PDF/PNG) into [policy & rules / screen mockups / screen flow / data & fields]. Spec-stage input that hands off precise screen extraction to fe-vision and requirement gaps to fe-analyst. READ-ONLY.
 tools: Read
 disallowedTools:
   - Write

@@ -1,9 +1,9 @@
 ---
 name: fe-spec
 description: >-
-  새 프론트엔드 기능의 요구사항을 구조화된 스펙으로 변환합니다.
-  Use when: 새 기능 시작 전, feature.md 작성이 필요할 때, 기획서를 개발 스펙으로 변환할 때.
-  Do NOT load for: 버그 수정, 리팩토링, 단순 스타일 변경.
+  Converts requirements for a new frontend feature into a structured spec.
+  Use when: before starting a new feature, when feature.md needs to be written, or when converting a planning doc into a dev spec.
+  Do NOT load for: bug fixes, refactoring, simple style changes.
 allowed-tools:
   - Read
   - Write
