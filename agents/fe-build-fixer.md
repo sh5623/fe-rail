@@ -6,6 +6,7 @@ disallowedTools:
   - Write
   - MultiEdit
 model: sonnet
+effort: xhigh
 maxTurns: 50
 ---
 

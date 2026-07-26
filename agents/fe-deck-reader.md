@@ -10,6 +10,7 @@ disallowedTools:
   - Grep
   - Glob
 model: sonnet
+effort: medium
 maxTurns: 30
 ---
 

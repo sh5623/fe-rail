@@ -5,6 +5,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 disallowedTools:
   - MultiEdit
 model: sonnet
+effort: xhigh
 maxTurns: 50
 ---
 

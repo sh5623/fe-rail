@@ -7,6 +7,7 @@ disallowedTools:
   - Edit
   - MultiEdit
 model: opus
+effort: high
 maxTurns: 30
 ---
 
