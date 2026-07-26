@@ -102,15 +102,16 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 bash eval/run.sh   # exits 1 on failure (CI-ready)
 ```
 
-Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout, and that the 5 non-blocking hooks' notices also go to stderr), profile toggles, and plugin self-lint (agent `model` alias ∈ {opus, sonnet, haiku}, skill frontmatter, `hooks.json` integrity, profile wiring, delegating skills listing Task/Agent in allowed-tools, bun `PX` detection consistency, typecheck branches always pairing a `references`(tsc -b) fallback, and binary+flag invocations using `$PX` rather than `$PM exec`). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
+Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout, and that the 5 non-blocking hooks' notices also go to stderr), profile toggles, and plugin self-lint (agent `model` value within the valid set — alias `opus`/`sonnet`/`haiku`/`fable`/`inherit` or a full model ID; agent `effort` value within `low`/`medium`/`high`/`xhigh`/`max` where set, and never set on `haiku` agents (unsupported); skill frontmatter, `hooks.json` integrity, profile wiring, delegating skills listing Task/Agent in allowed-tools, bun `PX` detection consistency, typecheck branches always pairing a `references`(tsc -b) fallback, and binary+flag invocations using `$PX` rather than `$PM exec`). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
 
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
 Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags (`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`).
 
-> **Model tiers are aliases.** Each agent's `model` is set to `opus`/`sonnet`/`haiku` — automatically using the latest tier on model family updates (e.g. Opus 4.7 → 4.8). Behavior may vary even with the same plugin version; run regression checks on each release if reproducibility matters.
+> **Model tiers are aliases.** Each agent's `model` is set to `opus`/`sonnet`/`haiku` — automatically using the latest tier on model family updates (e.g. Opus 4.7 → 4.8) **on the Anthropic API**. On Claude Platform on AWS, Amazon Bedrock, Google Cloud, or Microsoft Foundry, the same alias can resolve to an older generation (e.g. Microsoft Foundry's `opus` currently stays on Opus 4.6 as of this writing) — check Claude Code's model-config docs for your provider's exact resolution. Behavior may vary even with the same plugin version; run regression checks on each release if reproducibility matters.
 > Tier allocation: **opus** (high-judgment — `fe-analyst` · `fe-architect` · `fe-reviewer` · `fe-refactor-advisor`) / **haiku** (low-cost exploration — `fe-explorer`) / **sonnet** (all other execution/tool agents).
+> **Effort is pinned per agent, not inherited from the session** — otherwise a consumer running `/effort max` would push every fe-rail subagent to max. `high` for judgment gates and precision audits, `xhigh` for code-writing loops (`fe-build-fixer`, `fe-test-author`), `medium` for mechanical tool/research agents; `fe-explorer` (haiku) has none set, since Haiku doesn't support effort.
 
 ### Spec stage
 | Agent | When to delegate | Model | Isolation |

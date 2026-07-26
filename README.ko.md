@@ -102,15 +102,16 @@ $ claude
 bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 ```
 
-라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지·비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 별칭 ∈ {opus,sonnet,haiku}·skill frontmatter·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
+라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지·비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 값이 유효 범위(별칭 `opus`/`sonnet`/`haiku`/`fable`/`inherit` 또는 전체 모델 ID) 내인지·agent `effort` 값이 설정된 경우 `low`/`medium`/`high`/`xhigh`/`max` 내이고 `haiku`(미지원)에는 설정돼 있지 않은지·skill frontmatter·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
 
 ## 포함된 Agents
 
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
 frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`)로 구성됩니다.
 
-> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용합니다. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
+> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, **Anthropic API 기준으로는** 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용합니다. Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 더 이전 세대를 가리킬 수 있습니다(예: Microsoft Foundry의 `opus`는 이 문서 작성 시점 기준 Opus 4.6에 머묾) — 소비자의 provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인하세요. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
 > 티어 배분: **opus**(고판단 — `fe-analyst`·`fe-architect`·`fe-reviewer`·`fe-refactor-advisor`) / **haiku**(저비용 탐색 — `fe-explorer`) / **sonnet**(나머지 실행·도구 계열).
+> **Effort는 세션 상속이 아니라 에이전트별로 고정합니다** — 그렇지 않으면 소비자가 `/effort max`로 세션을 여는 순간 fe-rail 서브에이전트 전체가 max로 돕니다. 판단 게이트·정밀 감사는 `high`, 코드 작성 루프(`fe-build-fixer`·`fe-test-author`)는 `xhigh`, 기계적 도구·조사 에이전트는 `medium`. `fe-explorer`(haiku)는 effort를 지원하지 않아 미설정입니다.
 
 ### spec 단계
 | Agent | 위임 시점 | 모델 | 격리 |

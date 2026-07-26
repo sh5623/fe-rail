@@ -127,14 +127,29 @@ if command -v jq >/dev/null 2>&1 && jq . "$HOOKS/hooks.json" >/dev/null 2>&1; th
 else
   ng "hooks.json JSON 파싱 실패(jq 필요)"
 fi
-# agent model 별칭 ∈ {opus,sonnet,haiku}
+# agent model 값이 유효 범위 내(별칭 opus/sonnet/haiku/fable/inherit 또는 전체 모델 ID claude-*) —
+# fe-rail 은 현재 opus/sonnet/haiku 만 쓰지만, 게이트는 Claude Code subagent frontmatter 가
+# 허용하는 값 전체를 인정한다(opus/sonnet/haiku 로만 좁혀두면 fable·inherit·풀 ID 지정 시 오탐).
 bad=0
 for a in "$ROOT"/agents/*.md; do
   [ -e "$a" ] || continue   # glob 매칭 실패 시(디렉토리 비어있음) literal 패턴 문자열이 넘어오는 것 방지
   m=$(grep -m1 -E '^model:' "$a" | sed 's/^model:[[:space:]]*//; s/[[:space:]]*$//')
-  case "$m" in opus|sonnet|haiku) ;; *) ng "agent $(basename "$a") model 별칭 이상: '$m'"; bad=1 ;; esac
+  case "$m" in opus|sonnet|haiku|fable|inherit|claude-*) ;; *) ng "agent $(basename "$a") model 값 이상: '$m'"; bad=1 ;; esac
 done
-[ $bad -eq 0 ] && ok "모든 agent model 별칭 ∈ {opus,sonnet,haiku} ($(ls "$ROOT"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')개)"
+[ $bad -eq 0 ] && ok "모든 agent model 값이 유효 범위 내 ($(ls "$ROOT"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')개)"
+# agent effort ∈ {low,medium,high,xhigh,max}(설정된 경우만) — haiku 는 effort 미지원이므로
+# haiku agent(fe-explorer)에 effort 가 설정돼 있으면 회귀로 잡는다.
+bad=0
+for a in "$ROOT"/agents/*.md; do
+  [ -e "$a" ] || continue
+  e=$(grep -m1 -E '^effort:' "$a" | sed 's/^effort:[[:space:]]*//; s/[[:space:]]*$//')
+  m=$(grep -m1 -E '^model:' "$a" | sed 's/^model:[[:space:]]*//; s/[[:space:]]*$//')
+  if [ -n "$e" ]; then
+    case "$e" in low|medium|high|xhigh|max) ;; *) ng "agent $(basename "$a") effort 값 이상: '$e'"; bad=1 ;; esac
+    [ "$m" = "haiku" ] && { ng "agent $(basename "$a") haiku 인데 effort 설정됨(haiku 는 effort 미지원)"; bad=1; }
+  fi
+done
+[ $bad -eq 0 ] && ok "설정된 agent effort 전부 유효(low/medium/high/xhigh/max), haiku 엔 미설정"
 # skill frontmatter (name + description)
 bad=0
 for s in "$ROOT"/skills/*/SKILL.md; do

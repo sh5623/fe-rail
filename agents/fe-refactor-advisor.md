@@ -8,6 +8,7 @@ disallowedTools:
   - MultiEdit
   - Bash
 model: opus
+effort: high
 maxTurns: 30
 ---
 

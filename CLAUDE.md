@@ -105,9 +105,20 @@ fe-rail/
 | **sonnet** | 위·아래를 제외한 실행·도구 계열 전부 | 구현·수정·실행 등 |
 | **haiku** | fe-explorer | 단순 코드 탐색, 비용 효율 우선 |
 
-- **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용한다. 별도 수정 없이 개선이 반영되지만, 플러그인 버전이 같아도 동작이 변동될 수 있다.
+- **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용한다. **단, 이 해상도는 provider에 따라 다르다** — Anthropic API에서는 opus/sonnet 모두 최신 세대로 해상되지만, Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 가리키는 실제 세대가 뒤처질 수 있다(예: Microsoft Foundry의 `opus`는 이 문서 작성 시점 기준 Opus 4.6에 머무름). 이 플러그인은 소비자가 어떤 provider를 쓰는지 알 수 없으므로, provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인한다.
 - **재현성 점검**: 안정성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 확인한다 (`bash eval/run.sh` 로 훅·self-lint 회귀를 자동 검사).
 - **티어 변경 원칙**: "전부 opus화" 금지. 고판단 게이트만 선별 상향하고, 탐색·기계적 작업은 저비용 티어를 유지한다.
+
+### Effort 정책
+
+각 에이전트의 `effort`는 frontmatter에 명시적으로 고정한다 — 지정하지 않으면 서브에이전트가 **메인 세션의 effort를 상속**하므로(예: 소비자가 `/effort max`로 세션을 열면), 게이트·기계적 작업까지 불필요하게 높은 effort로 도는 것을 막기 위함이다.
+
+| effort | 에이전트 | 기준 |
+|--------|---------|------|
+| **high** | fe-analyst · fe-architect · fe-reviewer · fe-refactor-advisor · fe-a11y-auditor · fe-perf-auditor · fe-vision | 정밀 판단 게이트·감사 — 오탐/누락 비용 큼 |
+| **xhigh** | fe-build-fixer · fe-test-author | 코드 작성·수정 에이전틱 루프 |
+| **medium** | fe-git-operator · fe-pr-author · fe-test-runner · fe-deck-reader · fe-researcher | 기계적 도구·조사 작업 |
+| (미설정) | fe-explorer | haiku는 effort 미지원 — frontmatter에 추가하지 않는다 |
 
 ---
 
