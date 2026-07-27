@@ -48,7 +48,7 @@ cat package.json 2>/dev/null | grep -E '"workspaces"|"packageManager"'
 |--------------------|------|
 | `next` | Next.js 앱 (App Router 여부는 `app/` vs `pages/` 존재로 추가 판별) |
 | `vite` + `@tanstack/react-router` | Vite SPA (TanStack Router) |
-| `vite` + (`react-router` 또는 `react-router-dom`) v7 | Vite SPA (React Router 7) — 데이터는 TanStack Query 단독 소유 |
+| `vite` + (`react-router` 또는 `react-router-dom`) v7 이상 | Vite SPA (React Router 7·8) — 데이터는 TanStack Query 단독 소유. v8 은 `react-router-dom` 제거됨 |
 | `vite` + `react-router-dom` v6 이하 | Vite SPA (React Router 레거시) |
 | `workspaces` 필드 존재 + `apps/`·`packages/` | 모노레포 |
 | `react-native` | RN Web (참고만, fe-rail 주 대상 아님) |

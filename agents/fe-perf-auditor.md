@@ -48,9 +48,9 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 
 | 판별 | 프레임워크 |
 |------|----------|
-| `"next"` 있음 | Next.js → RSC 경계 + next/image + next/font 카테고리 적용 (Vite SPA·Tailwind 전용 항목은 노이즈이므로 보고 안 함) |
+| `"next"` 있음 | Next.js → RSC 경계 + next/image + next/font 카테고리 적용 (Vite SPA·Tailwind 전용 항목은 노이즈이므로 보고 안 함). **major 로 16↑ / 15↓ 분기** — LCP prop 이 `preload`(16+) ↔ `priority`(15 이하)로 다르다 |
 | `"vite"` + `"@tanstack/react-router"` | Vite SPA (TanStack Router) → 번들 분석 + fetchpriority + loader waterfall |
-| `"vite"` + `"react-router"`(v7) | Vite SPA (React Router 7) → 번들 분석 + fetchpriority + **TQ prefetch waterfall**(loader 아님) |
+| `"vite"` + `"react-router"`(v7 이상) | Vite SPA (React Router 7·8) → 번들 분석 + fetchpriority + **TQ prefetch waterfall**(loader 아님) |
 | `"tailwindcss"` 있음 (직교) | + Tailwind 카테고리. **major 로 v3/v4 분기** — v3: `content` 배열 누락 / v4: `@source`·content 자동감지·`@apply`+`@reference` |
 
 ---
@@ -82,7 +82,7 @@ React 성능 정밀 감사 에이전트 — LCP·번들·데이터 흐름을 수
 | 카테고리 | 핵심 확인 항목 | 영향도 |
 |---------|------------|-------|
 | RSC 경계 | 불필요한 `use client`, Server Component에서 클라이언트 로직 | High |
-| Image | `next/image` 미사용, `priority` 누락(LCP), `sizes` 미설정 | High |
+| Image | `next/image` 미사용, LCP 우선로드 prop 누락(**Next 16+ `preload` / 15 이하 `priority`** — 16+ 에서 `priority` 사용은 deprecated 로 지적), `sizes` 미설정 | High |
 | Font | `next/font` 미사용, `display: swap` 누락, 서브셋 미적용 | Med |
 
 ### Vite SPA 전용
@@ -156,7 +156,7 @@ Chrome DevTools MCP(플러그인 설치 시 `mcp__plugin_chrome-devtools-mcp_chr
 
 ### 실패·스킵 처리
 
-dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(20회 폴링 내 URL 미획득) / 대상 라우트 404 — 이 중 하나라도 해당하면 사유를 보고서 맨 위에 `(실측 미실행: <사유>)` 한 줄로 남기고 정적 분석 결과만 출력한다. 실측 실패를 "성능 문제 없음"으로 오인시키지 않는다.
+dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(60회 폴링·약 30초 내 URL 미획득) / 대상 라우트 404 — 이 중 하나라도 해당하면 사유를 보고서 맨 위에 `(실측 미실행: <사유>)` 한 줄로 남기고 정적 분석 결과만 출력한다. 실측 실패를 "성능 문제 없음"으로 오인시키지 않는다.
 
 > MCP 미설치가 사유일 때(JIT 안내): 그 줄에 활성화 명령을 함께 적는다 — 예: `(실측 미실행: Chrome DevTools MCP 미설치 — 활성화: claude mcp add chrome-devtools --scope user npx chrome-devtools-mcp@latest)`. 사용자가 필요 시 그 자리에서 설치할 수 있게 한다(플러그인 설치판은 `/plugin install chrome-devtools-mcp@chrome-devtools-plugins`).
 
@@ -255,10 +255,10 @@ $PM run build 2>&1 | grep -E "chunks|assets|kB"
 
 ### High (즉시 수정 권장)
 
-#### [Image][실측] `src/app/page.tsx:12` — LCP 이미지 priority 누락
-- 영향: LCP 2.1s (실측, `--live`) — 리소스 로드 지연이 1.4s 차지. priority 추가 시 preload 되어 약 500ms 개선 예상
+#### [Image][실측] `src/app/page.tsx:12` — LCP 이미지 우선로드 prop 누락 (next@16 → `preload`)
+- 영향: LCP 2.1s (실측, `--live`) — 리소스 로드 지연이 1.4s 차지. preload 시 약 500ms 개선 예상
 - Before: `<Image src="/hero.webp" alt="..." />`
-- After: `<Image src="/hero.webp" alt="..." priority />`
+- After: `<Image src="/hero.webp" alt="..." preload />`   (Next 15 이하면 `priority`)
 
 #### [RSC] `src/components/ProductList.tsx:1` — 불필요한 use client
 - 영향: 번들 약 8KB 증가

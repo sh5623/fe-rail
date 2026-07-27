@@ -8,7 +8,7 @@
 </div>
 
 > 프론트엔드 프로젝트 전용 Claude Code 플러그인
-> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA(TanStack Router·React Router 7) + TypeScript, Tailwind v3/v4 / shadcn/ui 정식 지원.
+> spec → build → review → PR 자동화 워크플로우. Next.js App Router / Vite SPA(TanStack Router·React Router 7·8) + TypeScript, Tailwind v3/v4 / shadcn/ui 정식 지원.
 
 ## 설치
 
@@ -93,6 +93,7 @@ $ claude
 | | `strict` | `standard` 상위 티어(현재는 상위집합, 향후 더 엄격한 동작 예약) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | 특정 훅만 콕 집어 비활성 (예: `"doc-sync-check,design-nudge"`) |
 | `FE_RAIL_ALLOW_NPX` | `1` | 로컬 린터·`tsc` 바이너리가 없을 때 npx 폴백 허용 (기본은 로컬 전용 — 자동 훅의 네트워크 다운로드·미고정 최신버전 실행 방지). 프로젝트 자체 `typecheck` 스크립트는 패키지 매니저로 실행되므로 이 옵트인과 무관하게 항상 허용 |
+| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | fe-start Phase 4.5 게이트가 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용. 기본 꺼짐 — 수백 MB 다운로드에 `--with-deps` 는 root 권한을 요구하므로 무인 파이프라인이 무통보로 유발하지 않게 한다. 꺼진 상태에서 브라우저가 없으면 E2E 는 통과가 아니라 "미실행(브라우저 미설치)" 로 정직 보고 |
 
 > **프로파일 하향(minimal)으로는 안전 차단기가 꺼지지 않습니다** — 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다("타협 없는 차단" + 명시적 탈출구). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
 
@@ -109,9 +110,9 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
 frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`)로 구성됩니다.
 
-> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, **Anthropic API 기준으로는** 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용합니다. Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 더 이전 세대를 가리킬 수 있습니다(예: Microsoft Foundry의 `opus`는 이 문서 작성 시점 기준 Opus 4.6에 머묾) — 소비자의 provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인하세요. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
+> **모델 티어는 별칭입니다.** 각 agent의 `model`은 `opus`/`sonnet`/`haiku` **별칭**으로 지정되어, **Anthropic API 기준으로는** 모델 패밀리 업데이트(예: Opus 4.8 → Opus 5) 시 자동으로 최신 티어를 사용합니다(2026-07 확인 기준 `opus`=Opus 5·`sonnet`=Sonnet 5·`haiku`=Haiku 4.5). Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 더 이전 세대를 가리킵니다 — 같은 시점 기준 Claude Platform on AWS `sonnet`=Sonnet 4.6, Amazon Bedrock·Google Cloud `sonnet`=Sonnet 4.5, Microsoft Foundry `opus`=Opus 4.6·`sonnet`=Sonnet 4.5. 소비자의 provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인하세요. 별도 수정 없이 개선이 반영되는 대신, 플러그인 버전이 동일해도 동작이 변동될 수 있습니다. 재현성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 점검하세요.
 > 티어 배분: **opus**(고판단 — `fe-analyst`·`fe-architect`·`fe-reviewer`·`fe-refactor-advisor`) / **haiku**(저비용 탐색 — `fe-explorer`) / **sonnet**(나머지 실행·도구 계열).
-> **Effort는 세션 상속이 아니라 에이전트별로 고정합니다** — 그렇지 않으면 소비자가 `/effort max`로 세션을 여는 순간 fe-rail 서브에이전트 전체가 max로 돕니다. 판단 게이트·정밀 감사는 `high`, 코드 작성 루프(`fe-build-fixer`·`fe-test-author`)는 `xhigh`, 기계적 도구·조사 에이전트는 `medium`. `fe-explorer`(haiku)는 effort를 지원하지 않아 미설정입니다.
+> **Effort는 세션 상속이 아니라 에이전트별로 고정합니다** — 그렇지 않으면 소비자가 `/effort max`로 세션을 여는 순간 fe-rail 서브에이전트 전체가 max로 돕니다. 판단 게이트·정밀 감사는 `high`, 코드 작성 루프(`fe-build-fixer`·`fe-test-author`)는 `xhigh`, 기계적 도구·조사 에이전트는 `medium`. `fe-explorer`(haiku)는 effort를 지원하지 않아 미설정입니다. 단 `xhigh`는 Sonnet 5·Opus 4.7 이상에서만 유효하므로, `sonnet`이 4.5/4.6으로 해상되는 3P provider에서 `fe-build-fixer`·`fe-test-author`가 effort 관련 오류를 내면 `high`로 낮춰 확인하세요.
 
 ### spec 단계
 | Agent | 위임 시점 | 모델 | 격리 |
@@ -120,7 +121,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | `fe-deck-reader` | PPT/기획서 분해 — 다중 슬라이드를 정책·화면·흐름으로 (PDF/PNG 변환 경유) | sonnet | 책임 (read-only) |
 | `fe-vision` | (추출) Figma·UI 스크린샷·PDF·PPT(변환) 개별 화면 분석 (Figma URL → `get_metadata`·`get_design_context`·`get_variable_defs`·`get_screenshot`; DESIGN.md Bans anti-slop 점검) · (대조) 구현 스크린샷 ↔ 레퍼런스 시각 충실도 판정 (visual-verdict — Figma=픽셀/PPT=구조, fe-start Phase 4.5) | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
-| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·Zustand) + Tailwind v3/v4·shadcn·openapi-fetch (직교 감지) | opus | 책임 (read-only) |
+| `fe-architect` | React/TS 아키텍처 자문 — Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·8·Zustand) + Tailwind v3/v4·shadcn·openapi-fetch (직교 감지) | opus | 책임 (read-only) |
 
 ### build 단계
 | Agent | 위임 시점 | 모델 | 격리 |
@@ -134,7 +135,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질 — 성능 축에 React 훅 런타임 버그(cleanup 누락·async 경쟁조건·무한루프) 포함, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시) 포함) | opus | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast — Tailwind 팔레트 기준 포함). `--live` 시 Chrome DevTools MCP로 실제 Lighthouse a11y 감사·접근성 트리 스냅샷 병행, 미설치면 정적 분석만 | sonnet | 책임 (read-only) |
-| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply). `--live` 시 Chrome DevTools MCP로 dev 서버 실측(LCP 분해·콘솔·네트워크) 병행, 미설치면 정적 분석만 | sonnet | 책임 (read-only) |
+| `fe-perf-auditor` | 성능 정밀 감사 — Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7·8 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply). `--live` 시 Chrome DevTools MCP로 dev 서버 실측(LCP 분해·콘솔·네트워크) 병행, 미설치면 정적 분석만 | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
 | `fe-refactor-advisor` | 6차원 리팩토링 분석 + Before/After | opus | 책임 (read-only) |
 

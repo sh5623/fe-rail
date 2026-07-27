@@ -2,7 +2,7 @@
 
 > **프레임워크 감지**: 에이전트는 `package.json`을 먼저 읽어 프레임워크를 확인한 후
 > 해당 섹션의 규칙만 적용한다. Next.js(`next`) ↔ Vite SPA(`vite`) 섹션이 다르다.
-> Vite SPA 의 라우터는 `@tanstack/react-router`(TanStack Router) **또는** React Router 7(`react-router` / `react-router-dom` — 둘 다 v7 유효) 을 지원하며, 설치된 쪽 라우팅 규칙을 적용한다(상태·에셋 규칙은 공통).
+> Vite SPA 의 라우터는 `@tanstack/react-router`(TanStack Router) **또는** React Router 7·8(`react-router` / `react-router-dom` — v8 에서 `react-router-dom` 은 제거됨) 을 지원하며, 설치된 쪽 라우팅 규칙을 적용한다(상태·에셋 규칙은 공통).
 > 스타일링(Tailwind + shadcn/ui)은 두 프레임워크 모두에 동일하게 적용되는 **공통 규칙**이다.
 > 감지 기준: `tailwindcss` 의존성이 있으면 Tailwind 규칙(`tailwindcss` major 버전으로 **v3 ↔ v4 분기**), `class-variance-authority` + `components/ui/` 가 있으면 shadcn/ui 규칙을 함께 적용한다.
 
@@ -26,6 +26,24 @@ function ProductList() {
   // ...
 }
 ```
+
+### 메모이제이션 (React Compiler 감지 시 분기)
+
+> `babel-plugin-react-compiler` 의존성 또는 Next.js `reactCompiler: true` 설정이 있을 때만 적용. **없으면 기존 수동 메모이제이션 규칙을 그대로 유지한다** — React Compiler 는 1.0 stable(2025-10)이지만 프레임워크 기본값은 아직 opt-in 이라, 미감지 프로젝트에 컴파일러 전제 규칙을 적용하면 실제 리렌더 문제를 놓친다.
+
+컴파일러가 켜져 있으면 리렌더 최적화는 컴파일러에 맡기고, `useMemo`/`useCallback`/`React.memo` 는 아래 경우에만 남긴다:
+- effect 의존성 안정화 등 **참조 동일성 자체가 의미를 갖는** 자리
+- 외부 라이브러리가 참조 고정을 계약으로 요구하는 경우
+
+```typescript
+// ✅ 컴파일러 ON — 평범한 파생값은 그냥 계산 (컴파일러가 메모이제이션)
+const visible = items.filter((i) => i.active)
+
+// ❌ 컴파일러 ON 인데 습관적으로 감싸기 — 이득 없이 노이즈만 증가
+const visible = useMemo(() => items.filter((i) => i.active), [items])
+```
+
+**기존 코드의 수동 메모이제이션을 일괄 제거하지 않는다** — 컴파일 결과가 달라질 수 있어 "리팩토링"이 아니라 동작 변경이 된다. 제거는 개별 근거가 있을 때만.
 
 ### 데이터 Fetch
 
@@ -77,6 +95,8 @@ useQuery({ queryKey: ['products'], queryFn: fetchProducts })
 > ```
 >
 > - 401 redirect 대상 라우트는 실재해야 한다 — 없는 경로(/login 미정의 등)로 보내면 dead-link. 라우트를 먼저 만들고 연결한다.
+>
+> **유지보수 상태 주의(2026-07)**: `openapi-fetch`/`openapi-typescript` 는 위 패턴 자체는 여전히 유효하나, 업스트림 릴리스가 2026-02 이후 정체돼 있고 유지보수 지속 여부에 대한 공개 질의가 미해결 상태다. **이미 쓰고 있으면 그대로 두되**, 신규 도입을 검토 중이라면 이 리스크를 감안한다 — 마이그레이션을 먼저 권하지는 않는다(동작하는 코드를 바꾸는 비용이 더 크다).
 
 ### 타입
 
@@ -329,9 +349,17 @@ function AddToCartButton({ productId }: { productId: string }) {
 
 ### 이미지 / 폰트
 
+> **LCP 이미지 우선 로드 prop 은 `next` major 로 분기한다** — Next 16 부터 `priority` 가 deprecated 되고 `preload` 로 대체됐다. `package.json` 의 `next` 버전을 먼저 확인하고 해당하는 쪽만 쓴다.
+
 ```typescript
-// ✅ next/image priority 설정 (LCP 요소)
+// ✅ Next 16+ — LCP 요소는 preload (priority 는 deprecated)
+<Image src="/hero.webp" alt="..." preload width={1200} height={600} />
+
+// ✅ Next 15 이하 — priority
 <Image src="/hero.webp" alt="..." priority width={1200} height={600} />
+
+// △ 진짜 LCP 후보 "하나"에만 붙인다. 목록 카드처럼 LCP 후보가 여럿일 수 있으면
+//   preload/priority 남용 대신 loading="eager" 또는 fetchPriority="high" 를 쓴다.
 
 // ✅ next/font로 폰트 로드
 import localFont from 'next/font/local'
@@ -346,7 +374,7 @@ const pretendard = localFont({ src: './fonts/pretendard.woff2' })
 ## Vite + React SPA 전용 규칙
 
 > `package.json`에 `"vite"` 의존성이 있을 때 적용한다.
-> 라우터는 `@tanstack/react-router`(TanStack Router) **또는** React Router 7(`react-router` 또는 `react-router-dom`) — **설치된 쪽 라우팅 규칙만** 적용한다. 상태 관리(Zustand)·에셋 규칙은 라우터와 무관한 공통 규칙이다.
+> 라우터는 `@tanstack/react-router`(TanStack Router) **또는** React Router 7·8(`react-router`, v7 한정 `react-router-dom`) — **설치된 쪽 라우팅 규칙만** 적용한다. 상태 관리(Zustand)·에셋 규칙은 라우터와 무관한 공통 규칙이다.
 
 ### 라우팅 (TanStack Router)
 
@@ -382,9 +410,11 @@ const productRoute = createRoute({
 // ❌ 컴포넌트 마운트 후 fetch (loader 대신 useEffect)
 ```
 
-### 라우팅 (React Router 7)
+### 라우팅 (React Router 7 / 8)
 
 > `package.json` 에 `"react-router"` **또는** `"react-router-dom"` 의 major 가 **7 이상**이고 `"@tanstack/react-router"` 가 **없을 때** 적용. (`react-router-dom` 이 v6 이하면 레거시 — 이 섹션 대상 아님)
+> **`react-router` major 로 v7 ↔ v8 을 분기한다** — v8(2026-06)에서 `react-router-dom` 패키지가 **제거**돼 import 출처 규칙이 달라진다(아래 import 항목). 데이터 소유·라우팅 설계 원칙은 두 버전 공통이므로, v7 프로젝트는 기존 규칙을 그대로 쓰면 된다.
+> v8 은 Node 22.22+·React 19.2.7+·ESM 전용을 요구한다 — 이 조건을 못 맞추는 프로젝트는 v7 에 머무는 것이 정상이며, 억지 업그레이드를 권하지 않는다.
 > **핵심 원칙: React Router 는 라우팅·레이아웃만 담당, 서버 데이터는 TanStack Query 가 단독 소유한다.**
 
 ```typescript
@@ -406,8 +436,18 @@ const router = createBrowserRouter([
 ```
 
 ```typescript
-// ✅ v7 은 react-router(정식 단일 패키지) 또는 react-router-dom(이를 재export 하는 호환 패키지) 둘 다 유효.
+// ───── v8 (react-router major 8 이상) — react-router-dom 패키지가 제거됨 ─────
+// ✅ DOM 특화 API(RouterProvider·HydratedRouter)는 react-router/dom, 그 외 전부는 react-router
+import { RouterProvider } from 'react-router/dom'
+import { useParams, Link, Outlet, createBrowserRouter } from 'react-router'
+
+// ❌ v8 에서 react-router-dom import — 패키지 자체가 없다 (v7→v8 마이그레이션 1순위 수정 대상)
+import { Link } from 'react-router-dom'
+
+// ───── v7 (major 7) ─────
+// ✅ react-router(정식 단일 패키지) 또는 react-router-dom(이를 재export 하는 호환 패키지) 둘 다 유효.
 //    프로젝트가 쓰는 한 쪽으로 일관되게 import. 신규 코드는 기존 코드의 import 출처를 따른다.
+//    단 v8 로 올릴 때 react-router-dom 은 전부 갈아타야 하므로, 새로 여는 파일은 react-router 쪽을 권장.
 import { useParams, Link, Outlet } from 'react-router-dom' // 프로젝트가 react-router-dom 을 쓰면 이대로
 // 또는: import { useParams, Link, Outlet } from 'react-router'   // react-router 를 쓰면 이대로
 
