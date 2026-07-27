@@ -31,7 +31,7 @@ Any other approaches you thought about, and why you didn't go with them.
 
 - [ ] Next.js App Router
 - [ ] Vite + React (TanStack Router)
-- [ ] Vite + React (React Router 7)
+- [ ] Vite + React (React Router 7·8)
 - [ ] Monorepo
 - [ ] Framework-agnostic
 

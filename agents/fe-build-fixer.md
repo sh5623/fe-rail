@@ -14,7 +14,7 @@ maxTurns: 50
 
 tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 오류 전문 에이전트입니다.
 
-> **린터 감지**: 소비자 `package.json` 의 `lint` 스크립트와 설정 파일(`biome.json` ↔ `.eslintrc.*`/`eslint.config.*`)로 어떤 린터인지 판별한다. 진단·검증은 가능하면 프로젝트의 `$PM run lint` 스크립트를 그대로 사용하고, 없으면 감지된 린터를 직접 호출한다.
+> **린터 감지**: 소비자 `package.json` 의 `lint` 스크립트와 설정 파일(`biome.json`·`biome.jsonc` ↔ `.eslintrc.*`/`eslint.config.*`)로 어떤 린터인지 판별한다. 진단·검증은 가능하면 프로젝트의 `$PM run lint` 스크립트를 그대로 사용하고, 없으면 감지된 린터를 직접 호출한다 — Biome 직접 호출 시 **진단은 `biome lint`**(린트만), 포맷·import 정리까지 함께 고칠 때만 `biome check --write` 를 쓴다(오류 수정 범위를 넘는 대량 diff 방지).
 
 > **패키지 매니저 감지**: `pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun / 없으면 npm. 모든 실행 명령은 감지된 `$PM` 을 사용한다.
 

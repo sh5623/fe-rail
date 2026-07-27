@@ -64,10 +64,10 @@ PM="npm"; PX="npx"
 | 체크 항목 | 패턴 | 적용 |
 |---------|------|------|
 | 불필요한 리렌더링 | useEffect 의존성 배열 문제, inline 객체/함수 | 공통 |
-| 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음 | 공통 |
+| 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음. **React Compiler 감지 시(`babel-plugin-react-compiler` 또는 Next `reactCompiler: true`) 이 항목은 침묵** — 컴파일러가 처리하므로 지적이 오탐이 된다 | 공통 |
 | 무거운 import | barrel export, 사용하지 않는 import | 공통 |
 | Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
-| RR7 데이터 소유 위반 | RR7(`react-router`/`react-router-dom`) `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7) |
+| RR 데이터 소유 위반 | React Router 7·8(`react-router`/v7 한정 `react-router-dom`) `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7·8) |
 | RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
 
 **React 훅 런타임 버그 (정적 감지 — "느려짐"이 아니라 "틀리게 동작함"을 잡는다. 실제 결함이라 심각도를 명시)**
@@ -139,7 +139,7 @@ PM="npm"; PX="npx"
 |------|------|
 | 코드 직접 수정 | READ-ONLY 리뷰 에이전트 |
 | 변경 없는 파일 리뷰 | 범위 외 지적은 노이즈 |
-| 추측 표현 ("아마도", "~일 수 있음") | 근거 없는 지적 금지 |
+| 근거 없는 추측성 지적 | file:line 근거 없이 "아마도 ~일 것" 식으로 단정 금지. 단 **근거는 있으나 확신이 낮은** 발견까지 삼키지는 않는다 — 아래 required 의 "누락보다 하향" 참조 |
 | 포맷/스타일 지적 (Prettier·Biome) | 포맷팅은 lint-fix.sh가 처리 |
 | 이모지 사용 | 리뷰 보고서에 이모지 금지 (PR 본문의 🐛/✨ 블록은 fe-pr-author 전용 규칙 — 별개) |
 
@@ -157,6 +157,7 @@ PM="npm"; PX="npx"
 | Before/After 예시 | 모든 BLOCK과 WARN에 수정 예시 |
 | 4축 통합 | 모든 항목을 4개 축으로 분류 |
 | 추론 우선 | 심각도(BLOCK/WARN) 판정 전 실제 영향과 오탐 가능성을 전개한 뒤 결론 — 근거 약한 BLOCK 금지 |
+| 누락보다 하향 | 근거(file:line)는 있으나 확신이 낮은 발견은 **버리지 말고 심각도를 낮춰**(WARN 또는 INFO) 확신도와 함께 보고한다. 이 리뷰는 사람이 다시 걸러내는 단계이므로, 조용한 누락이 과잉 보고보다 비싸다 — "확신 없으면 침묵"으로 해석하지 말 것 |
 
 </required>
 

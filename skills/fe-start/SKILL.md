@@ -143,14 +143,21 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
    [ -f yarn.lock ]      && PM=yarn && PX=yarn
    { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
    if grep -q '"build"' package.json; then $PM run build; fi
-   # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 디렉터리+의존성 있을 때만
-   if [ -d e2e ] && grep -q '@playwright/test' package.json; then
-     $PX playwright install --with-deps chromium >/dev/null   # 브라우저 미설치 대비
+   # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 의존성 + (설정파일 또는 e2e 디렉터리) 있을 때만.
+   # 테스트 디렉터리 이름은 프로젝트마다 다르므로(e2e/tests/specs…) playwright.config.* 를 1차 신호로 본다.
+   if grep -q '@playwright/test' package.json \
+      && { ls playwright.config.* >/dev/null 2>&1 || [ -d e2e ]; }; then
+     # 브라우저 자동 설치는 옵트인 — 수백 MB 다운로드이고 --with-deps 는 root 권한을 요구한다.
+     # (FE_RAIL_ALLOW_NPX 와 같은 원칙: 자동 파이프라인이 임의로 네트워크·시스템을 건드리지 않는다)
+     if [ -n "${FE_RAIL_ALLOW_PW_INSTALL:-}" ]; then
+       $PX playwright install --with-deps chromium >/dev/null
+     fi
      if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
    fi
    ```
 3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
-   **미실행을 통과로 표기하지 않는다.**
+   **미실행을 통과로 표기하지 않는다.** 브라우저 미설치로 E2E 가 실패하면 그 사유를 그대로 적고
+   해소 방법을 함께 노출한다 — `FE_RAIL_ALLOW_PW_INSTALL=1`(자동 설치 허용) 또는 `npx playwright install` 수동 실행.
 4. **(고증 화면 한정) 시각 충실도 게이트** — `화면 흐름` 충실도 등급=**고증 시안** 이고 `레퍼런스` 가 있는 화면만.
    (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
    - **캡처**: 빌드/dev 서버 기동 후 해당 라우트를 레퍼런스와 **동일 뷰포트**로 스크린샷(Playwright `page.screenshot()` 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 **"미검증"**(통과 아님)으로 기록.
@@ -235,6 +242,8 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
 | `--no-draft` | PR을 바로 ready 상태로 생성 |
 | `--ci-live` | push 후 CI 가 build·e2e 를 실제로 돌린다고 선언 → Phase 4.5 무거운 게이트를 로컬 대신 CI 에 위임 |
 | `--skip-e2e` | Phase 4.5 로컬 E2E 생략 (STOP·PR 에 "E2E 미검증" 명시) |
+
+> 환경변수 `FE_RAIL_ALLOW_PW_INSTALL=1` — Phase 4.5 에서 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용한다. 기본은 꺼짐(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 자동 파이프라인이 무통보로 유발하지 않기 위함). 꺼진 상태에서 브라우저가 없으면 E2E 는 "미실행(브라우저 미설치)" 로 정직 보고된다.
 
 > **신규 도입 순서(권장)**: `--plan-only`(계획만) → `--no-pr`(커밋까지) → 풀 파이프라인.
 > 핵심 워크플로에 전면 적용하기 전, 제한 범위에서 비용·효과를 먼저 확인한다.

@@ -67,7 +67,7 @@ fe-rail/
 
 ### 훅 프로파일 · 회귀 eval
 
-- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용.
+- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용. 같은 원칙으로 fe-start Phase 4.5 의 Playwright 브라우저 자동 설치도 기본 꺼짐 — 필요 시 `FE_RAIL_ALLOW_PW_INSTALL=1` 로 옵트인한다(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 무인 파이프라인이 무통보로 유발하지 않기 위함).
 - **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1).
 
 ---
@@ -85,7 +85,7 @@ fe-rail/
 
 > Microsoft 365 (선택 보조): OneDrive/SharePoint 의 PPT 기획서를 가져오는 용도. 단 인터랙티브 OAuth 인증이 필요하고 슬라이드를 시각적으로 렌더해 주지 않을 수 있어, 화면 분석에는 PDF 변환이 더 안전하다. 특정 에이전트에 직접 연결하지 않으며, 가져온 파일은 부모 세션이 PDF/이미지로 변환해 fe-deck-reader 에 전달한다.
 
-> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7 의 플러그인 접두사는 직접 검증됨. Context7 은 `.mcp.json`/`claude mcp add` 등록 대비 `mcp__context7__*` 도 함께 등록해 뒀는데, 이 형태와 Chrome DevTools 행은 명명 규칙 기반 예상 접두사이므로 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
+> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7·Chrome DevTools 의 **플러그인 설치형 접두사는 실환경에서 직접 검증됨**. 반면 `.mcp.json`/`claude mcp add` 등록형(`mcp__context7__*`·`mcp__chrome-devtools__*`)은 명명 규칙 기반 예상 접두사를 함께 등록해 둔 것이므로, 그 방식으로 설치했다면 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
 
 ### 설치
 
@@ -105,7 +105,8 @@ fe-rail/
 | **sonnet** | 위·아래를 제외한 실행·도구 계열 전부 | 구현·수정·실행 등 |
 | **haiku** | fe-explorer | 단순 코드 탐색, 비용 효율 우선 |
 
-- **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.7 → 4.8) 시 자동으로 최신 티어를 사용한다. **단, 이 해상도는 provider에 따라 다르다** — Anthropic API에서는 opus/sonnet 모두 최신 세대로 해상되지만, Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 가리키는 실제 세대가 뒤처질 수 있다(예: Microsoft Foundry의 `opus`는 이 문서 작성 시점 기준 Opus 4.6에 머무름). 이 플러그인은 소비자가 어떤 provider를 쓰는지 알 수 없으므로, provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인한다.
+- **별칭의 의미**: 모델 패밀리 업데이트(예: Opus 4.8 → Opus 5) 시 자동으로 최신 티어를 사용한다. **단, 이 해상도는 provider에 따라 다르다** — Anthropic API 기준은 `opus`=Opus 5 · `sonnet`=Sonnet 5 · `haiku`=Haiku 4.5 이지만(2026-07 확인), Claude Platform on AWS·Amazon Bedrock·Google Cloud·Microsoft Foundry에서는 같은 별칭이 가리키는 실제 세대가 뒤처진다 — 같은 시점 기준 Claude Platform on AWS `sonnet`=Sonnet 4.6, Amazon Bedrock·Google Cloud `sonnet`=Sonnet 4.5, Microsoft Foundry `opus`=Opus 4.6·`sonnet`=Sonnet 4.5. 이 플러그인은 소비자가 어떤 provider를 쓰는지 알 수 없으므로, provider별 정확한 해상도는 Claude Code의 model-config 문서로 확인한다.
+- **미채택 티어(`fable`)**: Claude Code 는 `fable`(Claude Fable 5) 별칭도 지원하지만 이 플러그인은 채택하지 않는다 — opus 티어 대비 2배 가격이고, **30일 데이터 보존을 요구**해 ZDR(zero data retention) 조직에서는 모든 요청이 400 으로 실패한다. 소비자 환경을 알 수 없는 플러그인의 기본값으로 부적합하며, 판단 게이트는 opus 로 충분하다. (소비자가 직접 상향하는 경우를 위해 self-lint 는 `fable` 을 유효 값으로 인정한다.)
 - **재현성 점검**: 안정성이 중요한 경우 릴리스마다 현재 별칭 해상도 기준으로 회귀를 확인한다 (`bash eval/run.sh` 로 훅·self-lint 회귀를 자동 검사).
 - **티어 변경 원칙**: "전부 opus화" 금지. 고판단 게이트만 선별 상향하고, 탐색·기계적 작업은 저비용 티어를 유지한다.
 
@@ -119,6 +120,8 @@ fe-rail/
 | **xhigh** | fe-build-fixer · fe-test-author | 코드 작성·수정 에이전틱 루프 |
 | **medium** | fe-git-operator · fe-pr-author · fe-test-runner · fe-deck-reader · fe-researcher | 기계적 도구·조사 작업 |
 | (미설정) | fe-explorer | haiku는 effort 미지원 — frontmatter에 추가하지 않는다 |
+
+- **effort × provider 주의**: `xhigh` 는 Sonnet 5·Opus 4.7 이상에서만 유효한 값이다. 위 별칭 캐비어트 때문에 3P provider 에서는 `sonnet` 이 Sonnet 4.6(`xhigh` 미지원, `max` 까지만) 또는 Sonnet 4.5(`effort` 파라미터 자체 미지원)로 해상될 수 있고, 이때 `xhigh` 로 고정한 `fe-build-fixer`·`fe-test-author` 를 Claude Code 가 하향 클램프하는지 아니면 API 400 으로 실패하는지는 문서화돼 있지 않다. **Anthropic API 외 provider 에서 이 두 에이전트가 effort 관련 오류로 실패하면 `high` 로 낮춰 확인한다.** (self-lint 는 값이 유효 집합에 드는지만 보므로 이 provider 종속 문제는 잡지 못한다.)
 
 ---
 
@@ -187,7 +190,7 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 |------|----------|------|
 | Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
 | Vite + React (TanStack Router) | ✅ | 라우트 loader·Zustand 규칙 내장 |
-| Vite + React (React Router 7) | ✅ | react-router/react-router-dom 둘 다 인식 · 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
+| Vite + React (React Router 7·8) | ✅ | v7 은 react-router/react-router-dom 둘 다 인식, v8 은 react-router 단일(+`react-router/dom`) · 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
 | Tailwind CSS v3 / v4 (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — v4 는 CSS-first(`@theme`)·gradient rename·`@reference` 추가 분기 |
 | shadcn/ui (직교) | ✅ | UI primitives 격리·`cva()` variant·래핑 패턴 — Tailwind 위에서 동작 |
 | 모노레포 | ✅ | 아래 별도 섹션 참조 |
