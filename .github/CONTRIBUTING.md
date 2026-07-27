@@ -68,7 +68,7 @@ with coverage for it.
 
 Use the issue templates (Bug report / Feature request). Include which consumer project
 type you're testing against (Next.js App Router, Vite + TanStack Router, Vite + React
-Router 7, monorepo) — behavior is framework-detected and can diverge.
+Router 7·8, monorepo) — behavior is framework-detected and can diverge.
 
 ## Code of Conduct
 

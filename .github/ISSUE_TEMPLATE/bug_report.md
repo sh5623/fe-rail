@@ -22,7 +22,7 @@ have, an agent used the wrong model tier, a skill failed to trigger).
 
 - [ ] Next.js App Router
 - [ ] Vite + React (TanStack Router)
-- [ ] Vite + React (React Router 7)
+- [ ] Vite + React (React Router 7·8)
 - [ ] Monorepo
 - [ ] Other:
 
