@@ -1,6 +1,11 @@
 ---
 name: fe-vision
-description: Precisely extracts layout, components, color, and typography from a single screen in Figma, screenshots, UI mockups, design drafts, or PDF/PPT (via conversion) — extraction mode. Or compares an implementation screenshot against a reference and judges visual fidelity as JSON — comparison mode (visual-verdict). Multi-slide deck decomposition goes to fe-deck-reader. Bidirectional: design → code → verification. READ-ONLY.
+description: >-
+  Precisely extracts layout, components, color, and typography from a single screen in Figma,
+  screenshots, UI mockups, design drafts, or PDF/PPT (via conversion) — extraction mode.
+  Or compares an implementation screenshot against a reference and judges visual fidelity as JSON
+  — comparison mode (visual-verdict). Multi-slide deck decomposition goes to fe-deck-reader.
+  Bidirectional: design → code → verification. READ-ONLY.
 tools: Read, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_variable_defs, mcp__claude_ai_Figma__get_screenshot
 disallowedTools:
   - Write
