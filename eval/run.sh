@@ -8,7 +8,8 @@
 #   A. 훅 동작 — fixture tool_input(JSON)을 stdin 으로 주입하고 exit code/경고 출력을 단언
 #      (차단기: exit 2 = BLOCK / exit 0 = ALLOW · 경고훅: stderr 유무 = WARN / SILENT)
 #   B. 훅 프로파일 — FE_RAIL_HOOK_PROFILE / FE_RAIL_DISABLED_HOOKS 동작
-#   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter, 프로파일 배선,
+#   C. 플러그인 self-lint — hooks.json 유효성·참조 무결성, agent model 별칭, skill frontmatter,
+#      frontmatter 평문 스칼라 YAML 안전성(값 내 ": " 등 → 파싱 실패 시 frontmatter 전체 드롭), 프로파일 배선,
 #      bun PX 감지 일관성(PX=bun), typecheck 분기의 references(tsc -b) 폴백 동반 여부,
 #      bare `$PM lint`/`$PM tsc` 금지(→ `$PM run lint`/`$PX tsc`), fe-researcher Context7 이중 접두사(plugin+직접),
 #      setup-permissions.sh 배선·가드·병합·멱등성
@@ -158,6 +159,46 @@ for s in "$ROOT"/skills/*/SKILL.md; do
   grep -qE '^description:' "$s" || { ng "skill $(basename "$(dirname "$s")") description 누락"; bad=1; }
 done
 [ $bad -eq 0 ] && ok "모든 skill frontmatter(name+description) OK ($(ls -d "$ROOT"/skills/*/ 2>/dev/null | wc -l | tr -d ' ')개)"
+# frontmatter 평문 스칼라 안전성 — 값에 ": "(콜론+공백)·" #"·끝 ":" 가 들어가면 YAML 파싱이
+# 통째로 실패한다. 그러면 Claude Code 는 해당 agent/skill 을 frontmatter 없이 로드하고
+# tools 화이트리스트·disallowedTools·model·effort 가 전부 조용히 드롭된다(READ-ONLY 계약 무력화).
+# 위의 name/description 존재 검사(grep)는 값의 문법을 안 보므로 이 형태를 통과시킨다 —
+# 2026-08 fe-vision 회귀(description 영문화 중 "Bidirectional: " 유입)가 실제로 그렇게 샜다.
+# 인용(' ")·블록 스칼라(| >)로 시작하는 값은 안전하므로 제외.
+_fm_scan(){   # <file> → 위반 키를 한 줄씩 출력(없으면 무출력)
+  awk -v sq="'" '
+    NR==1 { if ($0 !~ /^---[[:space:]]*$/) exit; inside=1; next }
+    inside && /^---[[:space:]]*$/ { exit }
+    inside && /^[A-Za-z_][A-Za-z0-9_.-]*:/ {
+      key = $0; sub(/:.*$/, "", key)
+      val = $0; sub(/^[A-Za-z_][A-Za-z0-9_.-]*:[[:space:]]*/, "", val)
+      sub(/[[:space:]]+$/, "", val)
+      if (val == "") next
+      c = substr(val, 1, 1)
+      if (c == "\"" || c == sq || c == "|" || c == ">") next
+      if (val ~ /: / || val ~ / #/ || val ~ /:$/) print key
+    }
+  ' "$1"
+}
+bad=0
+for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
+  [ -e "$f" ] || continue
+  while IFS= read -r k; do
+    [ -n "$k" ] || continue
+    ng "frontmatter 평문 스칼라 위험: ${f#"$ROOT"/} '$k' — 값에 ': '/' #'/끝 ':' 포함(YAML 파싱 실패 → frontmatter 전체 드롭). 인용하거나 '>-' 블록으로 감쌀 것"
+    bad=1
+  done < <(_fm_scan "$f")
+done
+[ $bad -eq 0 ] && ok "모든 agent/skill frontmatter 평문 스칼라 안전(콜론+공백·주석기호·끝 콜론 없음)"
+# 네거티브: 게이트가 실제 회귀 형태를 잡는지 / 안전한 형태를 오탐하지 않는지 실증
+printf '%s\n' '---' 'name: x' 'description: Foo bar. Bidirectional: design → code.' '---' 'body' > "$TMP/fm-bad.md"
+[ -n "$(_fm_scan "$TMP/fm-bad.md")" ] \
+  && ok "네거티브: 평문 스칼라 내 '콜론+공백'(fe-vision 회귀 형태) 검출" \
+  || ng "네거티브 실패: '콜론+공백'을 검출하지 못함"
+printf '%s\n' '---' 'name: x' 'description: >-' '  Foo bar. Bidirectional: design → code.' 'tools: Read, Grep' 'homepage: https://example.com' '---' 'body' > "$TMP/fm-ok.md"
+[ -z "$(_fm_scan "$TMP/fm-ok.md")" ] \
+  && ok "네거티브 대조: folded scalar(>-)·URL·쉼표 목록은 오탐 없음" \
+  || ng "오탐: 안전한 frontmatter 를 위반으로 판정"
 # 위임 계약: 본문에서 서브에이전트 위임을 지시하는 스킬은 allowed-tools 에 Task 가 있어야 함
 # (없으면 도구 계약과 본문이 모순 — 위임이 도구 제한에 막힐 수 있음)
 bad=0
