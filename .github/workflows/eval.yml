@@ -1,0 +1,64 @@
+name: eval
+
+# 회귀 eval 을 사람 손이 아니라 CI 가 돌린다.
+# 계기: agents/fe-vision.md 의 frontmatter 가 YAML 파싱에 실패한 채로 머지됐고
+# (#49), 그 상태에서도 로컬 `bash eval/run.sh` 는 78/78 로 통과했다. 게이트는
+# #50 에서 추가했지만, 아무도 실행하지 않으면 게이트도 작동하지 않는다.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: 회귀 eval · self-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # eval 은 bash·grep·sed·awk·jq 만 쓴다(네트워크·npm·python 불필요).
+      # 로컬은 BSD 계열, CI 는 GNU/mawk 라 버전을 남겨 재현에 쓴다.
+      - name: 도구 버전
+        run: |
+          bash --version | head -1
+          jq --version
+          awk -W version 2>&1 | head -2 || true
+
+      - name: 셸 문법 검사 (bash -n)
+        run: |
+          status=0
+          while IFS= read -r f; do
+            bash -n "$f" || { echo "::error file=$f::bash -n 실패"; status=1; }
+          done < <(find hooks eval -type f -name '*.sh' | sort)
+          exit $status
+
+      - name: JSON 매니페스트 유효성
+        run: |
+          status=0
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+            jq empty "$f" || { echo "::error file=$f::JSON 파싱 실패"; status=1; }
+          done
+          exit $status
+
+      # plugin.json 의 name 이 marketplace.json 항목과 어긋나면 설치 자체가 깨진다.
+      - name: plugin.json ↔ marketplace.json 정합
+        run: |
+          name=$(jq -r '.name' .claude-plugin/plugin.json)
+          version=$(jq -r '.version' .claude-plugin/plugin.json)
+          if ! jq -e --arg n "$name" '.plugins[] | select(.name == $n)' \
+               .claude-plugin/marketplace.json > /dev/null; then
+            echo "::error file=.claude-plugin/marketplace.json::plugins[] 에 '$name' 항목이 없음"
+            exit 1
+          fi
+          echo "plugin=$name version=$version"
+
+      - name: 회귀 eval
+        run: bash eval/run.sh

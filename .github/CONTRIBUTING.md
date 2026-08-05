@@ -40,8 +40,11 @@ integrity):
 bash eval/run.sh
 ```
 
-A failing run blocks the PR. If you added a new hook or agent, extend `eval/run.sh`
-with coverage for it.
+A failing run blocks the PR — the `eval` workflow (`.github/workflows/eval.yml`) runs the
+same command on every pull request and on pushes to `main`, alongside `bash -n` on the
+shell scripts and a JSON/manifest check. Run it locally first anyway; CI is the backstop,
+not the first signal. If you added a new hook or agent, extend `eval/run.sh` with coverage
+for it.
 
 ## Making changes
 
