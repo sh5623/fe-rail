@@ -19,6 +19,8 @@ claude
 /plugin install fe-rail@fe-rail-market
 ```
 
+> Also using [self-improvement](https://github.com/sh5623/self-improvement)? Install both from one marketplace: [`sh5623/guardrail`](https://github.com/sh5623/guardrail).
+
 ![fe-rail workflow: spec, build, review, PR](docs/assets/workflow.svg)
 
 ## Usage

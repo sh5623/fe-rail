@@ -161,6 +161,8 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 /plugin install fe-rail@fe-rail-market
 ```
 
+> `self-improvement`(sh5623/self-improvement)도 함께 쓴다면 통합 마켓 `sh5623/guardrail` 하나로 둘 다 설치 가능 — 자세한 내용은 README 참조.
+
 ### 스킬 호출
 
 ```bash
