@@ -20,6 +20,8 @@ claude
 /plugin install fe-rail@fe-rail-market
 ```
 
+> [self-improvement](https://github.com/sh5623/self-improvement)도 같이 쓴다면, 마켓 하나로 두 개 다 설치: [`sh5623/guardrail`](https://github.com/sh5623/guardrail).
+
 ![fe-rail 워크플로우: spec, build, review, PR](docs/assets/workflow.svg)
 
 ## 사용 예시
