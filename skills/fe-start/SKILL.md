@@ -75,6 +75,7 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 ---
 
 ### Phase 2 — 구현 (fe-build 스킬 기준 적용)
+0. **프레임워크 규칙 로드** (fe-build Phase 1 ④ 와 동일) — 이 스킬의 base directory 기준 `../../docs/framework-rules.md` 에서 «공통 규칙» 절 + 감지한 프레임워크 절만 Read 한다(모노레포면 `../../docs/monorepo.md` 도). 소비자 프로젝트 CLAUDE.md 가 우선. **이후 모든 에이전트 위임**(fe-architect·fe-build-fixer·fe-reviewer·fe-perf-auditor·fe-a11y-auditor)에 그 **절대경로를 브리프로 넘긴다** — 에이전트는 플러그인 트리 위치를 모른다.
 1. 관련 기존 코드 탐색
 2. 타입 정의
 3. 커스텀 훅 작성
@@ -127,7 +128,7 @@ if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 접근성(a11y) BLOCK/WARN 발생 시 → `fe-a11y-auditor` 추가 위임.
 성능 BLOCK/WARN 발생 시 → `fe-perf-auditor` 추가 위임 (Tailwind 감지 시 purge·@apply 감사 포함).
 
-위임 컨텍스트에 **Phase 2 의 파일 목록**(신규 파일 포함)을 넘긴다 — 리뷰어는 tracked diff ∪ untracked 와 교차 확인한다.
+위임 컨텍스트에 **Phase 2 의 파일 목록**(신규 파일 포함)과 **Phase 2 ⓪ 에서 잡은 `framework-rules.md` 절대경로**를 넘긴다 — 리뷰어는 tracked diff ∪ untracked 와 교차 확인하고, 규칙 파일의 해당 프레임워크 절을 판정 근거로 쓴다.
 결과를 받아 BLOCK/WARN/INFO 항목을 간략 보고한다.
 BLOCK이 있으면 수정 후 재위임하되 **같은 BLOCK 군 3회 초과 시 → "재위임 상한·실패 출구"로**.
 **리뷰 수정으로 코드가 바뀌었으면 Phase 3 의 검증 결과 객체는 무효다** — 타입·린트·단위를 최종 코드에서

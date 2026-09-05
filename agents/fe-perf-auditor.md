@@ -202,6 +202,8 @@ dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(60회 폴�
 { git diff --name-only --diff-filter=d HEAD; git ls-files --others --exclude-standard; } | sort -u | grep -E '\.(tsx|jsx|ts|js)$'
 ```
 
+부모가 fe-rail `framework-rules.md` 절대경로를 줬으면 «공통 규칙» 절 + 감지한 프레임워크 절(Next.js 의 RSC·Image·Font, Vite SPA 의 code-split·Tailwind purge)만 Read 해 판정 근거로 쓴다(소비자 프로젝트 CLAUDE.md 가 우선). 경로가 없으면 Glob `~/.claude/plugins/cache/*/fe-rail/*/docs/framework-rules.md` 폴백, 그것도 없으면 내장 기준만으로 판정하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다.
+
 ### Step 2: 정적 분석 (Grep 위주, 병렬)
 ```bash
 # 공통

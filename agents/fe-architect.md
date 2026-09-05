@@ -117,6 +117,8 @@ React/TypeScript 아키텍처 분석·자문 전문 에이전트 — 코드를 �
 병렬 실행:
 - package.json 읽기 → "next" / "vite"+("@tanstack/react-router" | "react-router"|"react-router-dom" v7) 판별, "tailwindcss" major(v3/v4), "openapi-fetch" 유무
 - CLAUDE.md 읽기 (프로젝트 규칙). CLAUDE.md 가 @AGENTS.md 스텁이면 AGENTS.md 도 읽기
+- 부모가 준 fe-rail `framework-rules.md` 절대경로가 있으면 «공통 규칙» 절 + 감지한 프레임워크 절만 Read (모노레포면 `monorepo.md` 도). 소비자 CLAUDE.md 가 우선.
+  경로가 없으면 Glob `~/.claude/plugins/cache/*/fe-rail/*/docs/framework-rules.md` 폴백 → 그것도 없으면 내장 규칙만으로 진행하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다
 - DESIGN.md(있으면 1차 디자인 컨텍스트) / PRODUCT.md(있으면 보조) 읽기 — read-if-present
 - tsconfig.json 읽기 (경로 별칭·strict 설정)
 - [Next.js] next.config.* 읽기 / [Vite SPA] vite.config.* 읽기

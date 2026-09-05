@@ -44,6 +44,7 @@ allowed-tools:
 BLOCK 이 0 이라고 "준비 완료" 로 적지 않는다. 요약 줄에 각 소스의 결과를 나란히 적는다:
 `리뷰 BLOCK 0 · 테스트 exit 0 (42/42) · a11y BLOCK 0 → 커밋 준비 완료` / `리뷰 BLOCK 0 · 테스트 exit 1 (2 실패) → 수정 후 재검토`.
 위임 컨텍스트에는 **변경 파일 목록(신규 파일 포함)** 을 넘긴다 — 에이전트는 tracked diff ∪ untracked 와 교차 확인한다.
+그리고 **`docs/framework-rules.md` 의 절대경로**(이 스킬이 로드될 때 주어진 base directory 기준 `../../docs/framework-rules.md`)를 함께 넘긴다 — `fe-reviewer`·`fe-perf-auditor` 는 그 파일의 «공통 규칙» 절 + 해당 프레임워크 절을 판정 근거로 쓴다(소비자 프로젝트 CLAUDE.md 가 우선). 에이전트는 플러그인 트리 위치를 모르므로 경로 없이 위임하면 내장 기준만으로 판정하고 그 사실을 보고 첫 줄에 적는다. 모노레포면 `../../docs/monorepo.md` 경로도 넘긴다.
 
 형식:
 

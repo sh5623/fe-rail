@@ -6,8 +6,11 @@ that installs the plugin, so please read this before opening a PR.
 
 ## Before you start
 
-- Skim `CLAUDE.md` for the harness architecture (agents / hooks / skills layers) and the
-  model-tier policy.
+- Skim `.claude/CLAUDE.md` for the harness architecture (agents / hooks / skills layers)
+  and the model-tier policy. It lives under `.claude/` rather than at the repo root on
+  purpose: a root `CLAUDE.md` ships inside the plugin tree without ever being loaded for
+  consumers, and `claude plugin validate --strict` warns on it. Claude Code still loads
+  `.claude/CLAUDE.md` as project memory when you open this repo.
 - Check open issues and PRs first to avoid duplicate work.
 - For anything non-trivial (new agent, new hook, changed workflow), open an issue to
   discuss the approach before writing code.
@@ -41,7 +44,9 @@ one copy is active (`/plugin` lists both) so you do not test against a cached in
 
 Run the deterministic regression suite before opening a PR — it checks hook behavior,
 profile toggles, and self-lint (agent model aliases, skill frontmatter, `hooks.json`
-integrity):
+integrity). When `ruby` and the `claude` CLI are installed it also parses every
+frontmatter with a real YAML parser and runs `claude plugin validate --strict`, which must
+pass with zero warnings:
 
 ```bash
 bash eval/run.sh
@@ -56,7 +61,7 @@ for it.
 ## Making changes
 
 - **Agents** (`agents/*.md`): keep `model` as an alias (`opus`/`sonnet`/`haiku`), never
-  a pinned version. Respect the tier policy in `CLAUDE.md` — don't upgrade an agent to
+  a pinned version. Respect the tier policy in `.claude/CLAUDE.md` — don't upgrade an agent to
   `opus` without a judgment/gate justification.
 - **Hooks** (`hooks/`): blocking hooks (exit 2) must have a clear, low-false-positive
   trigger. Prefer warning (stderr) over blocking when uncertain. Wire new hooks into
@@ -65,7 +70,11 @@ for it.
   actually needs. If a skill delegates to sub-agents, its `allowed-tools` must include
   `Task`/`Agent`.
 - **Docs**: `README.md` is the canonical (English) doc; keep `README.ko.md` in sync.
-  `CLAUDE.md` targets the agent, not humans — update both when behavior changes.
+  `.claude/CLAUDE.md` targets the agent, not humans — update both when behavior changes.
+  `docs/framework-rules.md` and `docs/monorepo.md` reach consumers only because the
+  fe-build · fe-review · fe-start · fe-spec skills read them via the skill base directory
+  and hand the absolute path to the agents they delegate to — keep that wiring intact
+  (eval self-lints it).
 
 ## Commit / PR style
 

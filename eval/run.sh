@@ -540,11 +540,22 @@ if command -v ruby >/dev/null 2>&1; then
   [ $bad -eq 0 ] && ok "모든 agent/skill frontmatter 가 실제 YAML 파서(Psych)로 mapping 파싱됨"
 else ok "ruby 없음 → 실제 YAML 파싱 검사 스킵(정규식 검사만)"; fi
 if command -v claude >/dev/null 2>&1; then
-  # 플러그인 매니페스트 검증 — 오류만 실패로 본다. 루트 CLAUDE.md 가 소비자 컨텍스트로 로드되지 않는다는
-  # «경고» 는 이 레포의 알려진 설계(CLAUDE.md 는 기여자·에이전트용 레포 컨텍스트)라 --strict 로 막지 않는다.
-  pv=$(claude plugin validate "$ROOT/.claude-plugin/plugin.json" 2>&1); pvrc=$?
-  if [ $pvrc -eq 0 ] && ! printf '%s' "$pv" | grep -q 'error'; then ok "claude plugin validate(plugin.json) 통과(경고 허용)"; else ng "claude plugin validate 실패: $(printf '%s' "$pv" | tail -3)"; fi
+  # 플러그인 매니페스트 --strict (경고도 실패). v1.17.0 까지는 «루트 CLAUDE.md 는 소비자 컨텍스트로 로드되지
+  # 않는다» 경고를 허용해 우회했으나, v1.18.0 에서 레포 컨텍스트를 .claude/CLAUDE.md 로 옮겨 경고 0 이 정상 상태다.
+  pv=$(claude plugin validate "$ROOT" --strict 2>&1); pvrc=$?
+  if [ $pvrc -eq 0 ]; then ok "claude plugin validate --strict 통과(경고 0)"; else ng "claude plugin validate --strict 실패: $(printf '%s' "$pv" | tail -3)"; fi
 else ok "claude CLI 없음 → plugin validate 스킵"; fi
+# ── 규칙 파일 도달성 (v1.18.0) — 루트 CLAUDE.md 금지 · docs/*.md 는 스킬이 읽고 에이전트에 경로로 넘긴다 ──
+if [ -e "$ROOT/CLAUDE.md" ]; then ng "플러그인 루트에 CLAUDE.md 존재 — 소비자 세션에 로드되지 않으면서 --strict 경고를 낸다(.claude/CLAUDE.md 로 옮길 것)"
+else ok "플러그인 루트에 CLAUDE.md 없음(레포 컨텍스트는 .claude/CLAUDE.md)"; fi
+bad=0
+for s in fe-build fe-review fe-start fe-spec; do
+  grep -q 'docs/framework-rules.md' "$ROOT/skills/$s/SKILL.md" || { ng "skills/$s: docs/framework-rules.md 로드·전달 지시 없음"; bad=1; }
+done
+for a in fe-architect fe-reviewer fe-build-fixer fe-perf-auditor; do
+  grep -q 'framework-rules.md' "$ROOT/agents/$a.md" || { ng "agents/$a: framework-rules.md 경로 수신 지시 없음"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "docs/framework-rules.md 가 스킬 4종(로드+전달)·에이전트 4종(수신)에서 명시적으로 도달 가능"
 
 echo
 echo "════════════════════════════════════════"

@@ -35,7 +35,7 @@ allowed-tools:
 | **PPT/기획서·화면설계서가 있을 때** | `fe-deck-reader` — 다중 슬라이드를 [정책·화면·흐름]으로 분해 (→ 화면은 `fe-vision`, 정책 갭은 `fe-analyst` 로 이어짐) |
 | Figma·스크린샷·디자인 시안(개별 화면)이 있을 때 | `fe-vision` — 레이아웃·컴포넌트·색상 정밀 추출 |
 | 특정 라이브러리·API 조사가 필요할 때 | `fe-researcher` — 공식 문서 기반 조사 |
-| RSC 경계·아키텍처·스타일링 전략(Tailwind/shadcn) 결정이 필요할 때 | `fe-architect` — 구조 자문 |
+| RSC 경계·아키텍처·스타일링 전략(Tailwind/shadcn) 결정이 필요할 때 | `fe-architect` — 구조 자문. 브리프에 **이 스킬의 base directory 기준 `../../docs/framework-rules.md` 절대경로**를 넘긴다(모노레포면 `../../docs/monorepo.md` 도) — 에이전트는 플러그인 트리 위치를 모르고, 이 파일은 소비자 세션에 자동으로 로드되지 않는다 |
 
 > **PPT 입력 처리**: `.pptx` 는 직접 읽을 수 없다. **PDF 로 변환(파워포인트/Keynote 의 PDF 내보내기)** 해 전달받는 것을 기본으로 한다 — 정책 텍스트와 화면 목업이 모두 보존된다. 슬라이드별 PNG 묶음도 가능하나 텍스트가 OCR 한계를 받는다. 변환된 기획서는 `fe-deck-reader` 가 분해한 뒤, 그 산출물을 `fe-vision`·`fe-analyst` 가 이어받는다.
 > (OneDrive/SharePoint 의 기획서는 Microsoft 365 커넥터로 가져올 수 있으나, 슬라이드를 시각적으로 렌더해 주지 않을 수 있어 화면 분석에는 PDF 변환이 더 안전하다.)

@@ -31,6 +31,7 @@ allowed-tools:
 1. `feature.md` 또는 스펙 문서가 존재하고 승인됐는가?
 2. 기술 스택 확인 (package.json 참조)
 3. **레포의 정전(canonical) 모범 파일을 먼저 읽고 그 shape 를 복사한다** — 신규 코드는 이 스킬의 산문 예시가 아니라 소비자 레포의 실제 패턴을 1차 소스로 따른다. 데이터 계층은 `src/features/*/api.ts`(쿼리/뮤테이션 형태)·`src/lib/query-keys.ts`(키 팩토리)·`src/lib/api/client.ts`(타입드 클라이언트·인터셉터)를, UI 는 `src/components/ui/*`(shadcn 프리미티브)를 grep·Read 해 동일 컨벤션으로 작성한다. 해당 파일이 없으면 이 스킬의 예시를 폴백으로.
+4. **프레임워크 규칙 로드** — 이 스킬이 로드될 때 주어진 *base directory* 기준 `../../docs/framework-rules.md` 를 Read 한다. 전문(약 570줄)을 통째로 넣지 않는다: `grep -n "^## " <파일>` 로 절 위치를 잡고 **«공통 규칙» 절 + 감지한 프레임워크 절**(Next.js App Router / Vite + React SPA)만 offset·limit 으로 읽는다. 워크스페이스(`pnpm-workspace.yaml`·`package.json` `workspaces`·`turbo.json`)가 있으면 `../../docs/monorepo.md` 도 읽는다. **소비자 프로젝트 CLAUDE.md 의 규칙이 항상 우선**하고 이 파일은 프레임워크별 보조 레퍼런스다. 아래 에이전트에 위임할 때 그 **절대경로를 브리프에 함께 넘긴다** — 에이전트는 플러그인 트리 위치를 모르고, 이 레포의 CLAUDE.md 가 @import 하는 것은 소비자 세션에 닿지 않는다.
 
 코드베이스 탐색은 직접 하지 않고 에이전트에 위임한다:
 

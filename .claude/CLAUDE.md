@@ -18,7 +18,7 @@ React + TypeScript 환경(Next.js App Router / Vite SPA 모두)을 대상으로 
 
 ```
 fe-rail/
-├── CLAUDE.md              ← 에이전트 컨텍스트 (이 파일)
+├── .claude/CLAUDE.md      ← 에이전트 컨텍스트 (이 파일 — 루트가 아닌 이유는 아래 «플러그인 트리와 레포 컨텍스트»)
 ├── agents/                ← 15개 서브에이전트 (spec·build·review·PR 단계별)
 │   ├── fe-analyst.md      ← spec: 요구사항 갭 분석
 │   ├── fe-deck-reader.md  ← spec: PPT 기획서 분해 (정책·화면·흐름)
@@ -49,7 +49,7 @@ fe-rail/
 │   └── fe-doc-sync/       ← 설치된 사용자 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
 ├── eval/
 │   └── run.sh             ← 회귀 eval (훅 동작·프로파일·self-lint, 결정적·CI용)
-├── docs/ ← framework-rules.md · monorepo.md (CLAUDE.md 가 @import)
+├── docs/ ← framework-rules.md · monorepo.md (이 파일이 @import · 소비자 세션에는 fe-build/fe-review/fe-start/fe-spec 스킬이 base directory 기준 `../../docs/` 로 Read 하고 에이전트 브리프에 절대경로로 넘긴다)
 └── .claude-plugin/ ← plugin.json · marketplace.json (플러그인 메타데이터)
 ```
 
@@ -59,7 +59,7 @@ fe-rail/
 
 | 레이어 | 파일 | 역할 |
 |--------|------|------|
-| **CLAUDE.md** | 이 파일 | 에이전트가 프로젝트를 이해하는 최우선 컨텍스트 |
+| **CLAUDE.md** | `.claude/CLAUDE.md` (이 파일) | 기여자·에이전트가 이 레포를 이해하는 최우선 컨텍스트 — 소비자 세션에는 로드되지 않는다 |
 | **Skills** | `skills/*/SKILL.md` | 작업 유형별 전문화된 지침 (도구 제한 포함) |
 | **Agents** | `agents/*.md` | spec·build·review·PR 단계별 격리 서브에이전트 (15개) |
 | **Hooks** | `hooks/hooks.json` | SessionStart·Pre/PostToolUse·Stop·Notification 이벤트 자동 실행 사이드이펙트 |
@@ -69,7 +69,8 @@ fe-rail/
 
 - **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용. 같은 원칙으로 fe-start Phase 4.5 의 Playwright 브라우저 자동 설치도 기본 꺼짐 — 필요 시 `FE_RAIL_ALLOW_PW_INSTALL=1` 로 옵트인한다(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 무인 파이프라인이 무통보로 유발하지 않기 위함).
 - **훅의 범위 규칙 (v1.17.0)**: `quality-gate`·`lint-fix`·`nextjs-guard` 는 **Git 루트가 아니라 파일에서 가장 가까운 `package.json`(패키지 루트)** 기준으로 설정·도구를 찾고, 변경 파일을 패키지별로 묶어 돌린다(모노레포 `apps/web` 로컬 설정 대응). 바이너리는 패키지 → 상위(root-hoisted) 순으로 Git 루트까지 찾는다(`lint-lib.sh` `fe_find_bin`). `typecheck` 스크립트는 `tsconfig.json` 이 없어도 실행되고, 소스 **삭제**도 타입체크 트리거다. 검사 범위는 20개에서 조용히 자르지 않는다(상한 200, 초과분은 «미검사» 로 명시). `guard.sh` 는 `git -C/-c/--git-dir …` 전역 옵션을 정규화한 뒤 검사하고 커밋 검사는 `-m` 값만 제외한다(셸 래핑 `bash -c "git commit --no-verify …"` 도 잡는다). `config-protection.sh` 는 편집 조각이 아니라 **실파일의 편집 전 ↔ 후** 를 재구성해 비교한다(값만 바꾸는 Edit·strict 를 뺀 Write 차단). `hooks.json` 의 모든 command 는 `"${CLAUDE_PLUGIN_ROOT}/…"` 로 인용돼 공백이 든 설치 경로에서도 실행된다. `nextjs-guard` 는 `app/` 이 있는 App Router 프로젝트에서만 RSC 경고를 내고, 지시어 «추가 필요» 가 아니라 «import 경계 확인 필요» 로 알린다(클라이언트 경계 아래 자식은 지시어 불필요 — 확정 근거는 `next build`).
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1). v1.17.0 에 **F 절**이 추가됐다: git 전역 옵션·셸 래핑 차단, 실파일 편집 전후 비교, `hooks.json` command 를 공백 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구 호출, typecheck 스크립트 단독·소스 삭제 트리거, 21개 파일 전달, `git commit --only` 격리 계약, 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체·푸시 담당 self-lint, 그리고 ruby(Psych)·`claude plugin validate` 가 있으면 실제 파서 검사.
+- **플러그인 트리와 레포 컨텍스트 (v1.18.0)**: 이 파일은 플러그인 루트가 아니라 `.claude/CLAUDE.md` 에 있다. 루트 `CLAUDE.md` 는 플러그인 설치 트리에 실리면서도 **소비자 세션에 로드되지 않으며**, `claude plugin validate --strict` 가 그 사실을 경고로 낸다(v1.17.0 까지는 eval 이 경고를 허용해 우회했다). `.claude/CLAUDE.md` 는 Claude Code 가 이 레포에서 열릴 때 동일하게 프로젝트 메모리로 로드되고 `@../docs/…` import 도 파일 기준 상대경로로 풀린다(실측). 같은 이유로 **`docs/framework-rules.md`·`docs/monorepo.md` 는 이 파일의 @import 만으로는 소비자에게 닿지 않는다** — fe-build·fe-review·fe-start·fe-spec 스킬이 스킬 로드 시 주어지는 base directory 기준 `../../docs/` 에서 **감지한 프레임워크 절만** Read 하고, 위임하는 에이전트(fe-architect·fe-reviewer·fe-build-fixer·fe-perf-auditor)에는 그 **절대경로를 브리프로 넘긴다**(에이전트는 플러그인 트리 위치를 모른다 — 경로가 없으면 `~/.claude/plugins/cache/*/fe-rail/*/docs/` Glob 폴백, 그것도 없으면 내장 규칙만으로 진행하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다). 소비자 프로젝트 CLAUDE.md 규칙이 항상 우선한다.
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1). v1.17.0 에 **F 절**이 추가됐다: git 전역 옵션·셸 래핑 차단, 실파일 편집 전후 비교, `hooks.json` command 를 공백 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구 호출, typecheck 스크립트 단독·소스 삭제 트리거, 21개 파일 전달, `git commit --only` 격리 계약, 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체·푸시 담당 self-lint, 그리고 ruby(Psych)·`claude plugin validate --strict` 가 있으면 실제 파서 검사. v1.18.0 은 `--strict` 를 복원하고(루트 CLAUDE.md 이동으로 경고 0 이 정상 상태) «플러그인 루트에 CLAUDE.md 없음»·«스킬 4종·에이전트 4종이 `framework-rules.md` 를 명시적으로 참조» self-lint 를 추가했다.
 
 ---
 
@@ -202,13 +203,13 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 
 ## 모노레포 지원
 
-@docs/monorepo.md
+@../docs/monorepo.md
 
 ---
 
 ## 프레임워크별 코딩 규칙
 
-@docs/framework-rules.md
+@../docs/framework-rules.md
 
 ---
 

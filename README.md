@@ -110,6 +110,8 @@ Deterministically verifies, with no live model required: hook behavior (fixture 
 
 v1.17.0 adds section F, built from a cross-repo review that reproduced twelve findings against v1.16.2 in throwaway repos: git global options and shell wrapping reaching the guard, config protection judged on the whole file before/after, every `hooks.json` command executed from an install path containing a space, monorepo app-local and root-hoisted tools actually being called, `typecheck` running without a root `tsconfig.json`, deleted sources triggering the type check, all 21 of 21 changed files reaching the linter, the `git commit --only` isolation contract, and self-lint for agent scope (tracked ∪ untracked), exit-code preservation, `$PM run test`, the verification-result contract, and push ownership. When `ruby` or the `claude` CLI is present it also parses every frontmatter with a real YAML parser and runs `claude plugin validate --strict`.
 
+v1.18.0 makes the framework rules actually reachable. `docs/framework-rules.md` and `docs/monorepo.md` used to be referenced only by this repo's own `CLAUDE.md` `@import`, which a consumer session never loads — so no agent ever saw them. Now the fe-build · fe-review · fe-start · fe-spec skills read the relevant section (common rules + the detected framework) via the skill base directory and pass the absolute path to the agents they delegate to (`fe-architect` · `fe-reviewer` · `fe-build-fixer` · `fe-perf-auditor`), with a plugin-cache glob fallback and an explicit "rules file not received" line when neither is available. The repo's own `CLAUDE.md` moved to `.claude/CLAUDE.md` for the same reason: a root `CLAUDE.md` ships in the plugin tree without being loaded, which is exactly what `claude plugin validate --strict` warns about — the eval now requires `--strict` to pass with zero warnings and self-lints both the root-file absence and the rules wiring.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
@@ -147,8 +149,8 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 ### PR stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
-| `fe-git-operator` | Commit splitting · safe staging + body authoring (fix = symptom·cause·fix / feat = added·core·impact) | sonnet | Tool (Write/Edit blocked) |
-| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type + risk-ordered review points) + `gh pr create` | sonnet | Context + Tool |
+| `fe-git-operator` | Commit splitting · staging that leaves your pre-staged index alone (`git commit --only -- <files>`) + body authoring (fix = symptom·cause·fix / feat = added·core·impact) · owns `git push` | sonnet | Tool (Write/Edit blocked) |
+| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type + risk-ordered review points) from the verification-result object — test checklist = exit code @ SHA, never "passed" by assumption — + `gh pr create` (pushes only as a fallback when the branch has no upstream) | sonnet | Context + Tool |
 
 ## Workflow
 
@@ -183,7 +185,7 @@ Plugin agents read and reason from the **consumer project's context**. Setting t
 
 | Item | Why | How |
 |------|-----|-----|
-| **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this plugin's own CLAUDE.md is not loaded into consumer sessions) | `/init` or `/fe-rail:fe-doc-sync` |
+| **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this repo's own `.claude/CLAUDE.md` is not loaded into consumer sessions; the framework rules in `docs/` reach agents only through the skills, see v1.18.0 above) | `/init` or `/fe-rail:fe-doc-sync` |
 | **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Auto: run `bash <install-path>/hooks/scripts/setup-permissions.sh` from the project root (detects host → merges into `.claude/settings.local.json`, confirm once) · Manual: add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
 | **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`/`fe-a11y-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin. If not installed, each agent falls back and surfaces the enable command just-in-time (JIT) |
 | **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |

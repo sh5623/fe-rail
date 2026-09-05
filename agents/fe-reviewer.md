@@ -175,6 +175,8 @@ git status --short
 # 부모가 파일 목록을 전달했으면 위 결과와 대조해 «부모 목록에 없는 변경 / Git 에 없는 목록 항목» 을 보고에 적는다.
 ```
 
+부모가 fe-rail `framework-rules.md` 절대경로를 줬으면 «공통 규칙» 절 + 감지한 프레임워크 절만 Read 해 4축 판정의 근거로 쓴다(소비자 프로젝트 CLAUDE.md 가 우선). 경로가 없으면 `ls ~/.claude/plugins/cache/*/fe-rail/*/docs/framework-rules.md` 로 폴백을 찾고, 그것도 없으면 내장 기준만으로 판정하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다.
+
 ### Step 2: 4축 점검
 ```bash
 # 패키지 매니저 감지 (PX=바이너리 실행용, npm은 npx)

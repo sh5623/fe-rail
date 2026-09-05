@@ -110,6 +110,8 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 
 v1.17.0 에 F 절이 추가됐습니다 — v1.16.2 에 대한 교차 레포 리뷰가 임시 저장소에서 재현한 12개 지적을 회귀로 고정한 것입니다: git 전역 옵션·셸 래핑이 차단기에 닿는지, 설정 보호가 실파일 전 ↔ 후로 판정하는지, `hooks.json` 의 모든 command 를 공백 포함 설치 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구가 실제 호출되는지, 루트 `tsconfig.json` 없이 `typecheck` 실행, 소스 삭제의 타입체크 트리거, 변경 파일 21개 중 21개가 린터에 전달되는지, `git commit --only` 격리 계약, 그리고 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체 계약·푸시 담당의 self-lint. `ruby` 나 `claude` CLI 가 있으면 실제 YAML 파서로 frontmatter 를 파싱하고 `claude plugin validate --strict` 도 돌립니다.
 
+v1.18.0 은 프레임워크 규칙이 실제로 소비자에게 닿게 합니다. `docs/framework-rules.md`·`docs/monorepo.md` 는 그동안 이 레포 자체의 `CLAUDE.md` 가 `@import` 할 뿐이었는데, 소비자 세션은 그 파일을 로드하지 않으므로 어떤 에이전트도 본 적이 없었습니다. 이제 fe-build · fe-review · fe-start · fe-spec 스킬이 스킬 base directory 기준으로 해당 절(공통 규칙 + 감지한 프레임워크)만 읽고, 위임하는 에이전트(`fe-architect` · `fe-reviewer` · `fe-build-fixer` · `fe-perf-auditor`)에 절대경로를 넘깁니다 — 경로가 없으면 플러그인 캐시 glob 폴백, 그것도 없으면 보고 첫 줄에 «규칙 파일 미수신» 을 명시합니다. 같은 이유로 레포 자체의 `CLAUDE.md` 는 `.claude/CLAUDE.md` 로 옮겼습니다: 루트 `CLAUDE.md` 는 플러그인 트리에 실리면서 로드되지 않는 파일이고 `claude plugin validate --strict` 가 경고하는 것이 정확히 그 지점입니다 — eval 은 이제 `--strict` 가 경고 0 으로 통과해야 하며, 루트 파일 부재와 규칙 배선을 self-lint 합니다.
+
 ## 포함된 Agents
 
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
@@ -147,8 +149,8 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 ### PR 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-git-operator` | 커밋 분리·안전한 스테이징 + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) | sonnet | 도구 (Write/Edit 금지) |
-| `fe-pr-author` | PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트 위험순) + `gh pr create` | sonnet | 컨텍스트 + 도구 |
+| `fe-git-operator` | 커밋 분리·사용자가 미리 스테이징한 인덱스를 건드리지 않는 스테이징(`git commit --only -- <파일>`) + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) · `git push` 담당 | sonnet | 도구 (Write/Edit 금지) |
+| `fe-pr-author` | 검증 결과 객체 기반 PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트 위험순 — 테스트 체크리스트는 exit code @ SHA, 추정으로 «통과» 표기 금지) + `gh pr create` (푸시는 upstream 이 없을 때만 폴백) | sonnet | 컨텍스트 + 도구 |
 
 ## 워크플로우
 
@@ -184,7 +186,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 
 | 항목 | 이유 | 방법 |
 |------|------|------|
-| **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않음) | `/init` 또는 `/fe-rail:fe-doc-sync` |
+| **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론 — 없으면 빈손으로 분석 (이 레포의 `.claude/CLAUDE.md` 는 소비자 세션에 로드되지 않음 — `docs/` 의 프레임워크 규칙은 스킬을 통해서만 에이전트에 닿음, 위 v1.18.0 참조) | `/init` 또는 `/fe-rail:fe-doc-sync` |
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | 자동: 프로젝트 루트에서 `bash <설치경로>/hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json` 병합, 확인 1회) · 수동: `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
 | **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
 | **검증 스크립트** | Phase 3 자동 검증이 `typecheck`/`lint`/`test` 를, Phase 4.5 완료기준 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장 |

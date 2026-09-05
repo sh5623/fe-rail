@@ -98,6 +98,7 @@ PM="npm"; PX="npx"
 ```
 
 ### Step 1: 병렬 오류 수집
+부모가 fe-rail `framework-rules.md` 절대경로를 줬으면 «공통 규칙» 절 + 감지한 프레임워크 절만 Read 해 수정 방향의 근거로 쓴다(소비자 프로젝트 CLAUDE.md 가 우선 — 규칙과 어긋나는 «최소 diff» 는 최소가 아니다). 경로가 없으면 Glob `~/.claude/plugins/cache/*/fe-rail/*/docs/framework-rules.md` 폴백, 그것도 없으면 내장 규칙만으로 진행하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다.
 ```bash
 # 타입체크: typecheck 스크립트 우선 (솔루션 tsconfig/references 에서 bare tsc 는 no-op)
 if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1
