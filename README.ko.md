@@ -73,15 +73,15 @@ $ claude
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
-| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단 | ✅ |
+| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다 — 커밋 검사에서 제외하는 것은 `-m` 메시지 값뿐. 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
-| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단 — `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
+| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단 — `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 편집 조각이 아니라 **실파일의 편집 전 ↔ 후 전체**(디스크 내용 + Edit/MultiEdit/Write 페이로드로 재구성)를 비교하므로, 값만 바꾸는 `true → false` Edit 과 `strict` 키를 뺀 Write 도 잡는다. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env*`·`.envrc`, `*.pem`/`*.key`/`id_rsa` 등 키, `.npmrc`·`*credential*` — write-guard 차단 목록과 대칭) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | 서브에이전트 프롬프트 내 인젝션 패턴·위험 명령 위임 차단 | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용 (로컬 바이너리 우선 · npx 폴백은 `FE_RAIL_ALLOW_NPX=1` 옵트인) | — |
-| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | Server Component에서 React 훅/브라우저 API/DOM 이벤트 사용 감지, app router의 `page`/`layout`에 `'use client'` 경고 | — |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | 소비자 환경 감지 → Biome `check --write` **또는** ESLint `--fix`(+Prettier) 자동 적용. 설정·바이너리는 파일에서 **가장 가까운 `package.json`**(모노레포 앱 로컬 설정) 기준으로 찾고 바이너리는 root-hoisted 도 탐색 (로컬 바이너리 우선 · npx 폴백은 `FE_RAIL_ALLOW_NPX=1` 옵트인) | — |
+| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | App Router 프로젝트(`app/` 존재 — Pages Router 는 건너뜀)에서 `'use client'` 없는 파일의 React 훅/브라우저 API/DOM 이벤트를 «import 경계 확인 필요» 로 안내(클라이언트 경계 아래에서만 import 되는 자식은 지시어 불필요 — 확정 근거는 `next build`), `page`/`layout`의 `'use client'` 경고 | — |
 | `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | 프론트 편집에 제네릭/템플릿틱(AI slop) 신호(무거운·임의 그림자, 기본 보라/인디고 그라디언트) 감지 시 경고. **DESIGN.md 있으면 침묵**(fe-reviewer 의 DESIGN Bans 가 정본) | — |
-| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력. 타입체크는 종료코드로 판정(성공 배너 오탐 없음) · 소스 변경이 없어도 `tsconfig*.json`/`package.json` 변경 시 트리거 | — |
+| `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크(프로젝트 `typecheck` 스크립트 우선 — 루트 `tsconfig.json` 이 없어도 / 솔루션 tsconfig면 `tsc -b`) 실행 후 경고 출력. 변경 파일을 **가장 가까운 `package.json`** 별로 묶어 패키지마다 그 설정으로 검사(모노레포), 바이너리는 앱 로컬 → root-hoisted 순. 타입체크는 종료코드로 판정(성공 배너 오탐 없음) · `tsconfig*.json`/`package.json` 변경과 소스 **삭제**도 트리거 · 검사 범위를 조용히 자르지 않음(상한 200, 초과분은 미검사로 명시) | — |
 | `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림 — `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
@@ -107,6 +107,8 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 ```
 
 라이브 모델 없이 **결정적으로** 검증합니다: 훅 동작(fixture 주입 → exit code/경고 단언, 차단 사유가 stdout이 아닌 stderr로 전달되는지·비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일 토글·플러그인 self-lint(agent `model` 값이 유효 범위(별칭 `opus`/`sonnet`/`haiku`/`fable`/`inherit` 또는 전체 모델 ID) 내인지·agent `effort` 값이 설정된 경우 `low`/`medium`/`high`/`xhigh`/`max` 내이고 `haiku`(미지원)에는 설정돼 있지 않은지·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·프로파일 배선·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지). 별칭 티어가 모델 업데이트로 바뀌거나 훅/설정을 고칠 때 회귀를 잡는 용도입니다.
+
+v1.17.0 에 F 절이 추가됐습니다 — v1.16.2 에 대한 교차 레포 리뷰가 임시 저장소에서 재현한 12개 지적을 회귀로 고정한 것입니다: git 전역 옵션·셸 래핑이 차단기에 닿는지, 설정 보호가 실파일 전 ↔ 후로 판정하는지, `hooks.json` 의 모든 command 를 공백 포함 설치 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구가 실제 호출되는지, 루트 `tsconfig.json` 없이 `typecheck` 실행, 소스 삭제의 타입체크 트리거, 변경 파일 21개 중 21개가 린터에 전달되는지, `git commit --only` 격리 계약, 그리고 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체 계약·푸시 담당의 self-lint. `ruby` 나 `claude` CLI 가 있으면 실제 YAML 파서로 frontmatter 를 파싱하고 `claude plugin validate --strict` 도 돌립니다.
 
 ## 포함된 Agents
 

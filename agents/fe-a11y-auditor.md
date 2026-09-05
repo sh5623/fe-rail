@@ -188,7 +188,7 @@ dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(60회 폴�
 
 | 필수 | 기준 |
 |------|------|
-| 변경 파일 기준 | `git diff --name-only` 기준 범위 결정 |
+| 변경 파일 기준 | tracked 변경 ∪ 신규 untracked 기준 범위 결정 (Step 1 — `git diff --name-only` 단독은 새 파일을 빠뜨린다) |
 | 린터 a11y 규칙 활용 | 감지된 린터(Biome a11y 그룹 / ESLint jsx-a11y)의 `$PM run lint` 결과와 교차 확인 (`pnpm-lock.yaml`→pnpm / `yarn.lock`→yarn / `bun.lockb`·`bun.lock`→bun) |
 | file:line 참조 | 모든 발견사항에 위치 명시 |
 | Before/After 예시 | BLOCK과 WARN에 수정 예시 |
@@ -203,7 +203,8 @@ dev 스크립트 없음 / MCP 미설치 / 서버 기동 타임아웃(60회 폴�
 
 ### Step 1: 범위 결정
 ```bash
-git diff --name-only HEAD | grep -E '\.(tsx|jsx)$'
+# tracked 변경 + 신규 untracked (부모가 준 파일 목록이 있으면 합집합)
+{ git diff --name-only --diff-filter=d HEAD; git ls-files --others --exclude-standard; } | sort -u | grep -E '\.(tsx|jsx)$'
 ```
 
 ### Step 2: 정적 분석 (병렬)

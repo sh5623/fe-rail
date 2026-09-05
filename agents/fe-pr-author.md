@@ -25,8 +25,13 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 - PR 은 변경 규모와 무관하게 기본 draft 로 생성 (에이전트 생성물 → 사람이 검토 후 ready 전환). `--no-draft` 면 즉시 ready
 
 **사용 시점:**
-- fe-start Phase 6-2 — fe-git-operator의 커밋·푸시 완료 후
+- fe-start Phase 6-2 — fe-git-operator 의 커밋·푸시 완료 후 (push 는 그쪽 담당 — 이 에이전트는 미푸시일 때만 폴백으로 push)
 - fe-review 통과 확인 후 PR 생성 단계
+
+**입력 (호출자가 전달):**
+- feature.md 경로 · 커밋 범위(base..HEAD) · 브랜치/remote/base · push 완료 SHA
+- Phase 4 리뷰 요약(통과/경고) 과 **검증 결과 객체**(fe-start Phase 3·4.5 — kind·command·status·exit_code·대상 리비전·skip 사유) — `## 테스트` 체크리스트는 이 객체로 채운다
+- 플래그: `--ci-live` / `--skip-e2e` / `--no-draft`
 
 </purpose>
 
@@ -67,12 +72,13 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 - 👀 src/… — <의도적 설계 결정/trade-off — 동의하는지 확인 요망>
 
 ## 테스트
-<!-- feature.md '완료 기준'을 1차 소스로. 자동 실행 항목은 실제 결과로 [x]/[ ] 표기. -->
-- [ ] 타입 체크 통과 (typecheck / tsc --noEmit)
-- [ ] 린트 통과 (eslint/biome)
-- [ ] 단위 테스트 통과 (vitest/jest)
-- [ ] 빌드 통과 (build)
-- [ ] E2E 통과 (playwright) — 또는 "미실행: <사유>"
+<!-- feature.md '완료 기준'을 1차 소스로. 자동 실행 항목은 호출자가 넘긴 «검증 결과 객체» 의 status/exit_code 로 [x]/[ ] 표기 —
+     객체가 없거나 대상 리비전이 HEAD 와 다르면 [x] 를 쓰지 않고 "미검증(사유)" 로 적는다. -->
+- [ ] 타입 체크 통과 (typecheck / tsc --noEmit) — exit 0 @ <SHA>
+- [ ] 린트 통과 (eslint/biome) — exit 0 @ <SHA>
+- [ ] 단위 테스트 통과 (vitest/jest) — exit 0 @ <SHA>
+- [ ] 빌드 통과 (build) — 또는 "CI 대기: --ci-live (push 후 CI 에서 검증, 아직 통과 아님)"
+- [ ] E2E 통과 (playwright) — 또는 "미실행: <사유>" / "미검증: --skip-e2e" / "CI 대기: --ci-live"
 - [ ] 반응형·접근성·다크모드 (사람 확인)
 - [ ] <feature.md '완료 기준'의 시나리오별 수동 검증 — 30초 내 확인 가능하도록>
 
@@ -135,6 +141,8 @@ PR 본문 작성·생성 전담 에이전트 — 메인 세션은 PR URL만 받�
 | draft 기본 | 항상 `--draft` 로 생성, `--no-draft` 일 때만 ready |
 | PR URL 반환 | 마지막에 반드시 URL 출력 |
 | 완료 기준 반영 | feature.md '완료 기준'을 체크리스트에 매핑, 자동 실행 결과를 [x]/[ ]·미실행으로 정직 표기 |
+| 검증 결과 객체 소비 | [x] 는 호출자가 넘긴 검증 결과 객체에서 `status=통과`·`exit_code=0`·대상 리비전 = PR HEAD 인 항목에만. 객체가 없거나 리비전이 다르면 "미검증" — 이전 코드의 결과를 최종 코드의 결과로 쓰지 않는다 |
+| CI 대기 ≠ 통과 | `--ci-live` 로 위임된 build·e2e 는 "CI 대기" 로 적는다 — push 후 CI 가 통과해야 [x] 다 |
 | 리뷰 포인트 | fe-reviewer 요약의 판단필요·WARN + diff 고위험 지점을 위험 순으로 `## 리뷰 포인트`에 배치 (없으면 섹션 생략 — 노이즈 금지). 리뷰어가 diff 를 열 첫 지점을 정해 주는 게 목적 |
 
 </required>
@@ -174,10 +182,13 @@ git diff "$BASE"...HEAD --shortstat
 테스트: 30초 내 검증 가능한 구체적 체크리스트
 ```
 
-### Step 4: 푸시 + PR 생성
+### Step 4: (미푸시 폴백) 푸시 + PR 생성
 ```bash
-# 이미 push 안 된 경우에만
-git push origin HEAD
+# push 는 fe-git-operator 담당이다. 호출자가 push SHA 를 넘겼으면 그 SHA 가 원격에 있는지만 확인하고 push 하지 않는다.
+# upstream 이 없거나 ahead 가 남아 있을 때만(직접 호출·git-operator 를 거치지 않은 경우) 폴백으로 push 한다.
+if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1 || [ -n "$(git log @{u}..HEAD --oneline 2>/dev/null)" ]; then
+  git push -u origin HEAD
+fi
 
 # draft 미지원 저장소(무료 플랜 private 등)에서 --draft 가 실패하면,
 # --draft 를 빼고 제목 앞에 [DRAFT] 를 붙여 재시도한다.

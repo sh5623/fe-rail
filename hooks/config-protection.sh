@@ -10,6 +10,11 @@
 #
 # 대상 설정 파일: tsconfig*.json · eslint 설정 · biome.json(c)
 #   (prettier 는 포맷 전용이라 "약화" 신호가 없어 대상에서 제외)
+#
+# 판정 단위는 «편집 조각» 이 아니라 «파일 전체의 편집 전 ↔ 후» 다. 조각만 보면 `old_string:"true" →
+# new_string:"false"` 처럼 값만 바꾸는 Edit 과 strict 키를 통째로 빼고 덮어쓰는 Write 를 놓친다
+# (2026-09 교차 리뷰 재현: 둘 다 exit 0). 파일이 디스크에 있으면 실제 내용에 편집을 적용한 결과를
+# 만들어 비교하고, 없으면(신규 생성·fixture) 조각 자체를 전/후로 쓴다.
 
 # [fe-rail] 프로파일/비활성 토글 (profile-lib.sh; 없으면 fail-open)
 _FE_PLIB="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/scripts/profile-lib.sh"
@@ -70,21 +75,52 @@ case "$BASE" in
 esac
 [ "$IS_CONFIG" -eq 0 ] && exit 0
 
-# ── 약화 신호 검사 (편집 후 텍스트에 새로 등장하는 무력화 패턴) ──────────────
-# ["']? 로 따옴표를 선택적으로 허용 — JSON(`"strict":false`)·JS flat config(무따옴표/홑따옴표 키) 모두 매칭.
-# \b 는 대상 단어 자체의 경계(예: "strict" 가 "unstrict" 의 일부로 오탐되지 않도록).
-
-# 2) TypeScript strict 계열 플래그를 false 로 설정
-if printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\b(strict|noImplicitAny|strictNullChecks|strictFunctionTypes|strictBindCallApply|noImplicitThis|alwaysStrict)\\b[\"']?[[:space:]]*:[[:space:]]*false"; then
-  block "TypeScript strict 계열 옵션을 false 로 설정"
+# ── 편집 전 ↔ 후 «파일 전체» 재구성 ─────────────────────────────────────────
+PRE=""; POST=""
+if [ -f "$FILE_PATH" ] && command -v jq >/dev/null 2>&1; then
+  PRE=$(cat "$FILE_PATH"; printf x); PRE=${PRE%x}
+  TOOL_NAME=$(printf '%s' "$HOOK_INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
+  if [ "$TOOL_NAME" = "Write" ] || printf '%s' "$HOOK_INPUT" | jq -e '.tool_input.content != null' >/dev/null 2>&1; then
+    POST=$(printf '%s' "$HOOK_INPUT" | jq -j '.tool_input.content // ""' 2>/dev/null)
+  else
+    # Edit(old/new 1쌍) 또는 MultiEdit(edits[]) 를 순서대로 실제 내용에 적용한다.
+    # 치환은 awk + ENVIRON 으로 — 정규식·백슬래시·`&` 를 해석하지 않는 순수 문자열 치환(bash 3.2 호환).
+    POST="$PRE"
+    EDITS=$(printf '%s' "$HOOK_INPUT" | jq -c '
+      if .tool_input.edits then .tool_input.edits[] | {o:(.old_string//""), n:(.new_string//""), a:(.replace_all//false)}
+      elif .tool_input.old_string != null then {o:.tool_input.old_string, n:(.tool_input.new_string//""), a:(.tool_input.replace_all//false)}
+      else empty end' 2>/dev/null)
+    while IFS= read -r e; do
+      [ -z "$e" ] && continue
+      o=$(printf '%s' "$e" | jq -j '.o'); n=$(printf '%s' "$e" | jq -j '.n'); a=$(printf '%s' "$e" | jq -r '.a')
+      POST=$(CONTENT="$POST" OLD="$o" NEW="$n" ALL="$a" awk 'BEGIN{
+        s=ENVIRON["CONTENT"]; o=ENVIRON["OLD"]; n=ENVIRON["NEW"]; all=(ENVIRON["ALL"]=="true"); out=""
+        if (length(o)==0) { printf "%s", s; exit }
+        while ((i=index(s,o))>0) { out=out substr(s,1,i-1) n; s=substr(s,i+length(o)); if (!all) break }
+        printf "%s", out s }')
+    done <<< "$EDITS"
+  fi
+else
+  # 파일 없음(신규 생성) 또는 jq 없음 → 조각 기준(종전 동작)
+  PRE="$OLD_TEXT"; POST="$NEW_TEXT"
 fi
 
-# 3) 린터 recommended 룰셋 통째로 off (ESLint/Biome 공통 약화 신호)
-printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\brecommended\\b[\"']?[[:space:]]*:[[:space:]]*false" && block "린터 recommended 룰셋 비활성화"
+# ── 약화 신호 검사 (전 ↔ 후 의미 비교) ───────────────────────────────────────
+# ["']? 로 따옴표를 선택적으로 허용 — JSON(`"strict":false`)·JS flat config(무따옴표/홑따옴표 키) 모두 매칭.
+# \b 는 대상 단어 자체의 경계(예: "strict" 가 "unstrict" 의 일부로 오탐되지 않도록).
+# 계수 비교(후 > 전)라서 «이미 false 인 옵션이 있는 파일의 무관한 편집» 은 통과한다.
+_weak_count() { printf '%s\n' "$1" | grep -cE "[\"']?\\b(strict|noImplicitAny|strictNullChecks|strictFunctionTypes|strictBindCallApply|noImplicitThis|alwaysStrict)\\b[\"']?[[:space:]]*:[[:space:]]*false"; }
+_rec_count()  { printf '%s\n' "$1" | grep -cE "[\"']?\\brecommended\\b[\"']?[[:space:]]*:[[:space:]]*false"; }
+_strict_true(){ printf '%s\n' "$1" | grep -qE "[\"']?\\bstrict\\b[\"']?[[:space:]]*:[[:space:]]*true"; }
 
-# 4) strict:true 를 편집으로 제거/뒤집기 (편집 전엔 있었는데 편집 후 사라짐)
-if printf '%s\n' "$OLD_TEXT" | grep -qE "[\"']?\\bstrict\\b[\"']?[[:space:]]*:[[:space:]]*true" \
-   && ! printf '%s\n' "$NEW_TEXT" | grep -qE "[\"']?\\bstrict\\b[\"']?[[:space:]]*:[[:space:]]*true"; then
+# 2) TypeScript strict 계열 플래그를 false 로 설정 (새로 생김)
+[ "$(_weak_count "$POST")" -gt "$(_weak_count "$PRE")" ] && block "TypeScript strict 계열 옵션을 false 로 설정"
+
+# 3) 린터 recommended 룰셋 통째로 off (ESLint/Biome 공통 약화 신호)
+[ "$(_rec_count "$POST")" -gt "$(_rec_count "$PRE")" ] && block "린터 recommended 룰셋 비활성화"
+
+# 4) strict:true 를 제거/뒤집기 (편집 전엔 있었는데 편집 후 사라짐 — 값만 바꾸는 Edit·키를 뺀 Write 포함)
+if _strict_true "$PRE" && ! _strict_true "$POST"; then
   block "기존 \"strict\": true 를 제거/변경"
 fi
 

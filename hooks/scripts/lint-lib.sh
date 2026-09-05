@@ -24,6 +24,32 @@
 # 최신버전 실행을 유발하지 않도록. 로컬도 npx 도 없으면 fe_has_* 가 실패 → 해당 도구 skip.
 fe_npx_ok() { [ "${FE_RAIL_ALLOW_NPX:-0}" = 1 ] && command -v npx >/dev/null 2>&1; }
 
+# ── 경로 유틸 (Git 루트 ≠ 패키지 루트 — 모노레포 대응, 2026-09 교차 리뷰) ──────
+# fe_pkg_root <dir> <top> — <dir> 에서 위로 올라가며 첫 package.json 이 있는 디렉터리(패키지 루트).
+#   <top>(보통 Git 루트)을 넘지 않으며, 없으면 <top> 을 돌려준다. apps/web 에만 설정·도구가 있는
+#   모노레포에서 Git 루트를 패키지 루트로 쓰면 도구 호출이 0회로 조용히 통과한다.
+fe_pkg_root() {
+  local d="$1" top="$2"
+  d=${d%/.}; top=${top%/.}
+  while :; do
+    [ -f "$d/package.json" ] && { printf '%s\n' "$d"; return 0; }
+    [ "$d" = "$top" ] || [ "$d" = "/" ] || [ "$d" = "." ] && break
+    d=$(dirname "$d")
+  done
+  printf '%s\n' "$top"
+}
+# fe_find_bin <root> <name> — <root>/node_modules/.bin/<name> 부터 상위로 올라가며 실행 가능한 바이너리를
+#   찾아 경로를 출력한다(없으면 1). 상한은 FE_BIN_TOP(기본 /) — 호출부가 Git 루트로 설정하면 모노레포의
+#   root-hoisted 도구(루트 node_modules)를 앱 디렉터리에서도 찾는다.
+fe_find_bin() {
+  local d="$1" name="$2" top="${FE_BIN_TOP:-/}"
+  while :; do
+    [ -x "$d/node_modules/.bin/$name" ] && { printf '%s\n' "$d/node_modules/.bin/$name"; return 0; }
+    [ "$d" = "$top" ] || [ "$d" = "/" ] || [ "$d" = "." ] && return 1
+    d=$(dirname "$d")
+  done
+}
+
 # ── Biome ──────────────────────────────────────────────────────────────────
 
 # 설정 파일 존재만 판정 (바이너리 가용성과 분리 — quality-gate 의 "설치 안내"용).
@@ -37,14 +63,15 @@ fe_has_biome_config() {
 
 fe_has_biome() {
   fe_has_biome_config "$1" || return 1
-  [ -x "$1/node_modules/.bin/biome" ] || fe_npx_ok
+  fe_find_bin "$1" biome >/dev/null || fe_npx_ok
 }
 
 fe_run_biome() {
   local root="$1"; shift
+  local bin; bin=$(fe_find_bin "$root" biome)
   ( cd "$root" && \
-    if [ -x "$root/node_modules/.bin/biome" ]; then
-      "$root/node_modules/.bin/biome" "$@"
+    if [ -n "$bin" ]; then
+      "$bin" "$@"
     else
       npx @biomejs/biome "$@"
     fi
@@ -64,14 +91,15 @@ fe_has_eslint_config() {
 
 fe_has_eslint() {
   fe_has_eslint_config "$1" || return 1
-  [ -x "$1/node_modules/.bin/eslint" ] || fe_npx_ok
+  fe_find_bin "$1" eslint >/dev/null || fe_npx_ok
 }
 
 fe_run_eslint() {
   local root="$1"; shift
+  local bin; bin=$(fe_find_bin "$root" eslint)
   ( cd "$root" && \
-    if [ -x "$root/node_modules/.bin/eslint" ]; then
-      "$root/node_modules/.bin/eslint" "$@"
+    if [ -n "$bin" ]; then
+      "$bin" "$@"
     else
       npx eslint "$@"
     fi
@@ -88,14 +116,15 @@ fe_has_prettier() {
     [ -f "$root/$cfg" ] && found=1 && break
   done
   [ "$found" -eq 0 ] && return 1
-  [ -x "$root/node_modules/.bin/prettier" ] || fe_npx_ok
+  fe_find_bin "$root" prettier >/dev/null || fe_npx_ok
 }
 
 fe_run_prettier() {
   local root="$1"; shift
+  local bin; bin=$(fe_find_bin "$root" prettier)
   ( cd "$root" && \
-    if [ -x "$root/node_modules/.bin/prettier" ]; then
-      "$root/node_modules/.bin/prettier" "$@"
+    if [ -n "$bin" ]; then
+      "$bin" "$@"
     else
       npx prettier "$@"
     fi

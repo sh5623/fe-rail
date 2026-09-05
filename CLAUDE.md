@@ -68,7 +68,8 @@ fe-rail/
 ### 훅 프로파일 · 회귀 eval
 
 - **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용. 같은 원칙으로 fe-start Phase 4.5 의 Playwright 브라우저 자동 설치도 기본 꺼짐 — 필요 시 `FE_RAIL_ALLOW_PW_INSTALL=1` 로 옵트인한다(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 무인 파이프라인이 무통보로 유발하지 않기 위함).
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1).
+- **훅의 범위 규칙 (v1.17.0)**: `quality-gate`·`lint-fix`·`nextjs-guard` 는 **Git 루트가 아니라 파일에서 가장 가까운 `package.json`(패키지 루트)** 기준으로 설정·도구를 찾고, 변경 파일을 패키지별로 묶어 돌린다(모노레포 `apps/web` 로컬 설정 대응). 바이너리는 패키지 → 상위(root-hoisted) 순으로 Git 루트까지 찾는다(`lint-lib.sh` `fe_find_bin`). `typecheck` 스크립트는 `tsconfig.json` 이 없어도 실행되고, 소스 **삭제**도 타입체크 트리거다. 검사 범위는 20개에서 조용히 자르지 않는다(상한 200, 초과분은 «미검사» 로 명시). `guard.sh` 는 `git -C/-c/--git-dir …` 전역 옵션을 정규화한 뒤 검사하고 커밋 검사는 `-m` 값만 제외한다(셸 래핑 `bash -c "git commit --no-verify …"` 도 잡는다). `config-protection.sh` 는 편집 조각이 아니라 **실파일의 편집 전 ↔ 후** 를 재구성해 비교한다(값만 바꾸는 Edit·strict 를 뺀 Write 차단). `hooks.json` 의 모든 command 는 `"${CLAUDE_PLUGIN_ROOT}/…"` 로 인용돼 공백이 든 설치 경로에서도 실행된다. `nextjs-guard` 는 `app/` 이 있는 App Router 프로젝트에서만 RSC 경고를 내고, 지시어 «추가 필요» 가 아니라 «import 경계 확인 필요» 로 알린다(클라이언트 경계 아래 자식은 지시어 불필요 — 확정 근거는 `next build`).
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1). v1.17.0 에 **F 절**이 추가됐다: git 전역 옵션·셸 래핑 차단, 실파일 편집 전후 비교, `hooks.json` command 를 공백 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구 호출, typecheck 스크립트 단독·소스 삭제 트리거, 21개 파일 전달, `git commit --only` 격리 계약, 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체·푸시 담당 self-lint, 그리고 ruby(Psych)·`claude plugin validate` 가 있으면 실제 파서 검사.
 
 ---
 
@@ -181,7 +182,7 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 에이전트는 **소비자 프로젝트의 컨텍스트를 읽어** 추론한다. 설치 직후 아래를 갖추면 출력 품질이 크게 올라간다.
 
 1. **프로젝트 CLAUDE.md 생성** — `fe-analyst`·`fe-architect`는 소비자 프로젝트의 CLAUDE.md에서 스택·규칙을 읽는다. 이 플러그인의 CLAUDE.md는 소비자 세션에 로드되지 않으므로, 소비자가 자체 CLAUDE.md를 두지 않으면 에이전트가 빈손으로 분석한다. → `/init` 또는 `/fe-rail:fe-doc-sync` 실행.
-2. **Bash 권한 허용 (권장: 자동)** — 소비자 프로젝트 루트에서 `bash <fe-rail 설치경로>/hooks/scripts/setup-permissions.sh` 실행 → 호스트(GitHub/CodeCommit)를 감지해 `Bash(git *)`·PR 명령 권한을 `.claude/settings.local.json`의 `permissions.allow`에 병합한다(확인 1회, 기존 키·값 보존). 미설정이면 PR 단계 에이전트가 매번 권한 프롬프트를 띄운다. 세션 시작 시 미설정이면 안내가 뜬다(끄기: `FE_RAIL_SKIP_SETUP_NUDGE=1`). 수동으로는 `.claude/settings.json`의 `permissions.allow`에 직접 추가. (위험 git 명령은 `guard.sh`가 계속 차단하므로 광범위 allow 라도 안전.)
+2. **Bash 권한 허용 (권장: 자동)** — 소비자 프로젝트 루트에서 `bash <fe-rail 설치경로>/hooks/scripts/setup-permissions.sh` 실행 → 호스트(GitHub/CodeCommit)를 감지해 `Bash(git *)`·PR 명령 권한을 `.claude/settings.local.json`의 `permissions.allow`에 병합한다(확인 1회, 기존 키·값 보존). 미설정이면 PR 단계 에이전트가 매번 권한 프롬프트를 띄운다. 세션 시작 시 미설정이면 안내가 뜬다(끄기: `FE_RAIL_SKIP_SETUP_NUDGE=1`). 수동으로는 `.claude/settings.json`의 `permissions.allow`에 직접 추가. (위험 git 명령은 `guard.sh`가 차단하는 백스톱이 있다 — 단 이는 LLM 이 흔히 쓰는 형태를 정규식으로 잡는 완화책이지 임의 셸 전체를 분석하는 완전한 보장이 아니다.)
 3. **MCP (선택)** — Figma·Context7·Chrome DevTools 미설치 시 `fe-vision`·`fe-researcher`·`fe-perf-auditor`·`fe-a11y-auditor`는 각각 fallback(로컬 이미지·WebSearch·정적 분석)으로 동작한다. 미리 다 설치할 필요 없이, 각 에이전트가 폴백할 때 **그 자리에서 활성화 명령을 안내(JIT)**하므로 필요할 때 설치하면 된다. 위 "지원 MCP 플러그인" 참조.
 
 ### 대상 프로젝트 유형
@@ -190,7 +191,7 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 
 | 환경 | 지원 여부 | 비고 |
 |------|----------|------|
-| Next.js + TypeScript | ✅ | App Router 기준, RSC 최적화 포함 |
+| Next.js + TypeScript | ✅ | `app/` 감지 시 App Router(RSC 최적화·RSC 경계 경고), `pages/` 만이면 Pages Router(RSC 규칙 미적용) — 의존성만으로 라우터를 단정하지 않는다 |
 | Vite + React (TanStack Router) | ✅ | 라우트 loader·Zustand 규칙 내장 |
 | Vite + React (React Router 7·8) | ✅ | v7 은 react-router/react-router-dom 둘 다 인식, v8 은 react-router 단일(+`react-router/dom`) · 라우팅/레이아웃 전용 — 서버 데이터는 TanStack Query 단독 소유 |
 | Tailwind CSS v3 / v4 (직교) | ✅ | 디자인 토큰·`cn()`·`@apply` 정책·content/purge·대비 점검 — v4 는 CSS-first(`@theme`)·gradient rename·`@reference` 추가 분기 |
@@ -246,12 +247,25 @@ pnpm lint                 # pnpm
 yarn lint                 # yarn
 bun run lint              # bun
 
-# 테스트 (vitest 기준)
-npm test -- --run         # npm
-pnpm test --run           # pnpm
-yarn test --run           # yarn
+# 테스트 (vitest 기준) — npm 은 스크립트 인수를 `--` 뒤에 둬야 전달된다(`npm test --run` 은 --run 을 npm 이 삼킨다)
+npm run test -- --run     # npm
+pnpm run test --run       # pnpm
+yarn run test --run       # yarn
 bun run test --run        # bun (bun test 는 Bun 내장 러너 — vitest 를 돌리려면 run 스크립트 경유)
 ```
+
+### 실행 결과 캡처 규칙 (에이전트 공통)
+
+검사 명령의 성공/실패는 **exit code** 로 판정한다. 로그를 자르거나 세는 것은 그다음이다:
+
+```bash
+LOG="${TMPDIR:-/tmp}/fe-rail-check.log"
+<검사 명령> > "$LOG" 2>&1; RC=$?        # ① 실행 → ② exit code 저장
+echo "exit=$RC"; tail -30 "$LOG"        # ③ 요약 (판정은 RC)
+```
+
+- `<검사 명령> 2>&1 | head -50` / `| tail -20` / `| grep -c "error"` 로 직결하지 않는다 — 파이프라인 종료 코드는 마지막 명령 것이라 exit 23 이 0 이 되고, `grep -c "error"` 는 "Type checking failed" 같은 실패를 0 으로 센다.
+- `scripts.test` 는 `$PM run test` 로 실행한다 — `bun test` 는 Bun 내장 러너라 스크립트를 타지 않는다.
 
 ---
 
@@ -280,7 +294,7 @@ bun run test --run        # bun (bun test 는 Bun 내장 러너 — vitest 를 �
 이 플러그인은 권한 설정 파일을 배포하지 않는다. Bash 권한은 소비자 프로젝트에서 설정한다 — 권장은 `hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json`의 `permissions.allow`에 병합, 확인 1회)이고, 수동으로는 `.claude/settings.json`에 직접 추가한다. `settings.local.json`을 쓰는 이유는 개인 로컬 설정이고 `.claude`가 `.gitignore` 대상일 수 있어 팀 공유 파일을 건드리지 않기 위함이다.
 
 권장 허용 명령어 (PR 단계 에이전트가 매번 프롬프트 없이 동작):
-- `Bash(git *)` — 버전 관리 전 범위 (위험 명령은 `guard.sh`가 exit 2 로 차단 — 광범위 allow 의 백스톱)
+- `Bash(git *)` — 버전 관리 전 범위 (위험 명령은 `guard.sh`가 exit 2 로 차단 — 광범위 allow 의 백스톱. 흔한 형태(전역 옵션·셸 래핑 포함)를 정규식으로 잡는 완화책이지 완전한 보장은 아니다)
 - `Bash(gh pr *)` — PR 생성·조회 (fe-pr-author)
 
 > 세션 시작 시 권장 권한이 없으면 `session-init.sh`가 1회 안내한다(끄기: 환경변수 `FE_RAIL_SKIP_SETUP_NUDGE=1`). MCP 는 훅에서 연결 여부를 알 수 없어 세션 안내에 넣지 않고, 각 에이전트가 사용 시점에 JIT 로 안내한다.

@@ -6,7 +6,9 @@
 #
 # 권장 Bash 권한을 소비자 .claude/settings.local.json 의 permissions.allow 에 "병합"한다(기존 키·값 보존):
 # - Bash(git *)            : 버전관리 전반 — 위험 명령(force push·reset --hard·checkout .·commit --no-verify 등)은
-#                            guard.sh 훅이 exit 2 로 계속 차단하므로 광범위 allow 라도 백스톱이 유지된다.
+#                            guard.sh 훅이 exit 2 로 차단하는 백스톱이 있다. 단 guard.sh 는 LLM 이 흔히 쓰는
+#                            형태(전역 옵션·셸 래핑 포함)를 정규식으로 잡는 것이지 임의 셸 프로그램 전체를
+#                            분석하는 완전한 보장이 아니다 — 광범위 allow 의 «완화» 이지 «면제» 가 아니다.
 # - Bash(gh pr *)          : GitHub PR (git remote 에서 github.com 감지될 때만 추가)
 # - Bash(aws codecommit *) : CodeCommit PR (git remote 에서 codecommit 감지될 때만 추가)
 # settings.local.json 을 쓰는 이유: .claude 가 .gitignore 대상일 수 있고, 권한은 개인 로컬 설정이라
@@ -72,7 +74,7 @@ echo "[fe-rail] 대상 소비자 프로젝트: $PROJECT_ROOT"
 echo "[fe-rail] 감지된 호스트: $HOST_NOTE"
 echo "[fe-rail] 다음 권한을 $SETTINGS_FILE 의 permissions.allow 에 추가합니다:"
 for p in "${MISSING[@]}"; do echo "  - $p"; done
-echo "[fe-rail] 위험 git 명령은 guard.sh 훅이 계속 차단합니다(광범위 allow 라도 백스톱 유지)."
+echo "[fe-rail] 위험 git 명령은 guard.sh 훅이 차단합니다(흔한 형태에 대한 백스톱 — 임의 셸 전체를 보장하진 않음)."
 
 if [ "$AUTO_YES" != 1 ]; then
   if [ -t 0 ]; then

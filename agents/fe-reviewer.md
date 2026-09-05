@@ -67,7 +67,7 @@ PM="npm"; PX="npx"
 | 메모이제이션 누락 | 비용 있는 계산에 useMemo 없음. **React Compiler 감지 시(`babel-plugin-react-compiler` 또는 Next `reactCompiler: true`) 이 항목은 침묵** — 컴파일러가 처리하므로 지적이 오탐이 된다 | 공통 |
 | 무거운 import | barrel export, 사용하지 않는 import | 공통 |
 | Zustand 셀렉터 누락 | 스토어 전체 구독 (`useStore()`) | Vite SPA |
-| RR 데이터 소유 위반 | React Router 7·8(`react-router`/v7 한정 `react-router-dom`) `loader`/`action` 에서 직접 서버 데이터 fetch — TanStack Query 단독 소유 위반(이중 캐시·동기화) | Vite SPA (RR7·8) |
+| RR 데이터 소유 충돌 | React Router 7·8 `loader`/`action` 에서 직접 서버 데이터 fetch — **프로젝트가 TanStack Query 를 쓰고 있을 때만**(이중 캐시·동기화 충돌 → WARN, 소비자 CLAUDE.md 가 TQ 단독 소유를 선언했으면 BLOCK). TQ 가 없는 프로젝트는 RR 공식 data mode 가 loader 로 데이터를 제공하므로 지적하지 않는다 — 소비자의 데이터 소유 정책을 먼저 확인 | Vite SPA (RR7·8 + TQ) |
 | RSC 경계 오류 | Server Component에 클라이언트 로직 | Next.js only |
 
 **React 훅 런타임 버그 (정적 감지 — "느려짐"이 아니라 "틀리게 동작함"을 잡는다. 실제 결함이라 심각도를 명시)**
@@ -151,7 +151,7 @@ PM="npm"; PX="npx"
 
 | 필수 | 기준 |
 |------|------|
-| git diff 기반 | 변경 파일만 리뷰 (`git diff --name-only HEAD`) |
+| 변경 범위 | 변경 파일만 리뷰. 범위 = **부모가 전달한 파일 목록 ∪ tracked 변경 ∪ 신규 untracked** (Step 1). `git diff --name-only HEAD` 만 쓰면 아직 스테이징하지 않은 새 컴포넌트가 통째로 빠진다 — 리뷰 후 커밋하는 fe-start 흐름에서 흔한 조건이다. 부모 목록과 Git 상태가 다르면 차이(누락/범위 밖)를 보고에 명시 |
 | file:line 참조 | 모든 지적에 정확한 위치 명시 |
 | 심각도 분류 | BLOCK(커밋 불가) / WARN(권장) / INFO(참고) |
 | Before/After 예시 | 모든 BLOCK과 WARN에 수정 예시 |
@@ -165,10 +165,14 @@ PM="npm"; PX="npx"
 
 <workflow>
 
-### Step 1: 변경사항 확인
+### Step 1: 변경사항 확인 — 범위는 tracked diff ∪ untracked (부모 목록과 교차 확인)
 ```bash
-git diff --stat HEAD
-git diff --name-only HEAD
+git status --short
+# 리뷰 대상: tracked 변경(삭제 제외) + 아직 스테이징하지 않은 신규 파일. `git diff --name-only HEAD` 단독은
+# 새 파일을 빠뜨린다. 이미 커밋된 브랜치 리뷰면 부모가 준 범위(`git diff --name-only <base>...HEAD`)를 쓴다.
+{ git diff --name-only --diff-filter=d HEAD; git ls-files --others --exclude-standard; } | sort -u
+# 삭제·이름변경은 Read 대상이 아니라 영향 분석 대상(그 파일을 import 하던 곳): git diff --name-status HEAD | grep -E '^(D|R)'
+# 부모가 파일 목록을 전달했으면 위 결과와 대조해 «부모 목록에 없는 변경 / Git 에 없는 목록 항목» 을 보고에 적는다.
 ```
 
 ### Step 2: 4축 점검
@@ -180,9 +184,12 @@ PM="npm"; PX="npx"
 { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun"  && PX="bun"
 
 # 타입 확인 (typecheck 스크립트 우선 — 솔루션 tsconfig/references 에서 bare tsc 는 검사 안 함)
-if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | head -50
-elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1 | head -50
-else $PX tsc --noEmit 2>&1 | head -50; fi
+# 판정은 exit code 로 한다 — `… 2>&1 | head` 로 직결하면 파이프라인 종료 코드가 head 의 0 이 돼 실패가 사라진다.
+LOG="${TMPDIR:-/tmp}/fe-rail-review-tsc.log"
+if grep -q '"typecheck"' package.json; then $PM run typecheck > "$LOG" 2>&1; RC=$?
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b > "$LOG" 2>&1; RC=$?
+else $PX tsc --noEmit > "$LOG" 2>&1; RC=$?; fi
+echo "typecheck exit=$RC"; head -50 "$LOG"
 
 # 디자인 계약: 소비자 레포에 DESIGN.md 가 있으면 Read 해 Bans·규칙을 대조 기준으로 (없으면 디자인 점검 침묵)
 [ -f "DESIGN.md" ] && echo "DESIGN.md present — load its Bans/rules as the design-contract source"

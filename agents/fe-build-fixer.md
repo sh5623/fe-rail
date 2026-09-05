@@ -79,7 +79,7 @@ tsc·린터(ESLint 또는 Biome) 오류를 최소 diff로 수정하는 빌드 �
 | 진단 우선 | 수정 전 `$PX tsc --noEmit`(또는 typecheck 스크립트) + `$PM run lint`(또는 감지된 ESLint/Biome 직접 호출) 전체 오류 목록 수집 |
 | 최소 diff | 오류 해결에 필요한 최소한의 변경만 |
 | 타입 안전 | `any` 없이 정확한 타입으로 해결 |
-| 검증 반복 | 수정 후 반드시 재실행하여 오류 0 확인 |
+| 검증 반복 | 수정 후 반드시 재실행하여 오류 0 확인 — 판정은 **명령의 exit code** 로(0 = 통과). 오류 단어 계수(`grep -c "error"`)는 참고 통계일 뿐이고, `\| head`/`\| tail`/`\| grep` 로 직결하면 파이프라인 종료 코드가 마지막 명령 것이 돼 실패가 사라진다 |
 | 최대 3회 | 3회 후에도 해결 안 되면 부모에 상세 보고 |
 | 5개 카테고리 분류 | 오류를 위 표 기준으로 분류 |
 
@@ -121,13 +121,17 @@ if grep -q '"lint"' package.json; then $PM run lint 2>&1; fi
 3. 변경 이유 인라인 기록
 ```
 
-### Step 4: 전체 검증
+### Step 4: 전체 검증 — exit code 로 판정, 로그 요약은 그다음
 ```bash
-# 타입: Step 1 과 동일 기준 (typecheck 스크립트/`tsc -b`)
-if grep -q '"typecheck"' package.json; then $PM run typecheck 2>&1 | grep -c "error"
-elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b 2>&1 | grep -c "error"
-else $PX tsc --noEmit 2>&1 | grep -c "error"; fi
-if grep -q '"lint"' package.json; then $PM run lint 2>&1 | grep -c "error"; fi
+# 타입: Step 1 과 동일 기준 (typecheck 스크립트/`tsc -b`). 실행 → exit code 저장 → 요약 순서.
+# (`… 2>&1 | grep -c "error"` 는 실패한 명령의 종료 코드를 버리고, "Type checking failed" 처럼 error 라는
+#  단어가 없는 실패를 0 으로 센다 — 2026-09 교차 리뷰 재현)
+LOG="${TMPDIR:-/tmp}/fe-rail-fix.log"
+if grep -q '"typecheck"' package.json; then $PM run typecheck > "$LOG" 2>&1; TSC_RC=$?
+elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b > "$LOG" 2>&1; TSC_RC=$?
+else $PX tsc --noEmit > "$LOG" 2>&1; TSC_RC=$?; fi
+echo "typecheck exit=$TSC_RC  (error lines: $(grep -c "error" "$LOG"))"; [ "$TSC_RC" -ne 0 ] && head -50 "$LOG"
+if grep -q '"lint"' package.json; then $PM run lint > "$LOG" 2>&1; LINT_RC=$?; echo "lint exit=$LINT_RC"; [ "$LINT_RC" -ne 0 ] && head -50 "$LOG"; fi
 ```
 
 ### Step 5: 반복 (최대 3회)

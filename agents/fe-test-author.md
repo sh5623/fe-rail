@@ -106,7 +106,8 @@ PM="npm"
 
 | 필수 | 기준 |
 |------|------|
-| 한국어 테스트 명 | `it('버튼 클릭 시 모달이 열린다')` |
+| 프로젝트 규칙 우선 | 아래 «한국어 테스트 명»·«단일 it 단일 assert» 는 **기본값**이다 — 소비자 CLAUDE.md·기존 테스트 파일의 관례(영문 테스트명, 시나리오당 복수 assert 등)가 다르면 그 관례를 따른다. 기본값을 프로젝트 규칙 위에 강제하지 않는다 |
+| 한국어 테스트 명 | `it('버튼 클릭 시 모달이 열린다')` (기본값 — 위 «프로젝트 규칙 우선») |
 | Deep Render | Provider 포함 전체 트리 렌더링 |
 | AAA 구조 | Arrange / Act / Assert 분리 |
 | TDD Red→Green→Refactor | tdd 모드에서 실패 확인 후 구현 |
@@ -147,23 +148,27 @@ Then: 기대 결과 (DOM 변화, API 호출)
 ### Step 3-A: generate 모드
 ```typescript
 // 1) 테스트 파일 생성
-// 2) $PM test --run <파일명> 으로 검증 (PM 감지: pnpm-lock.yaml→pnpm, yarn.lock→yarn, bun.lockb/bun.lock→bun, 없으면 npm)
+// 2) Step 4 의 실행 명령으로 검증 (PM 감지: pnpm-lock.yaml→pnpm, yarn.lock→yarn, bun.lockb/bun.lock→bun, 없으면 npm)
 // 3) 컴파일 에러 자체 수정 (최대 5회)
 ```
 
 ### Step 3-B: tdd 모드
 ```typescript
-// Red: 실패하는 테스트 먼저 작성
-// $PM test --run <파일명> → 실패 확인
+// Red: 실패하는 테스트 먼저 작성 → Step 4 명령으로 실패(exit≠0) 확인
 // Green: 최소 구현으로 통과
 // Refactor: 코드 정리 후 테스트 재실행
 ```
 
-### Step 4: 검증 보고
+### Step 4: 검증 보고 — 인수 전달과 exit code
 ```bash
-# PM 감지 후 실행 ($PM test = npm 스크립트)
+# PM 감지 후 실행. scripts.test 는 반드시 `$PM run test` 로 — `bun test` 는 Bun 내장 러너라 스크립트를 타지 않는다.
+# npm 은 스크립트 인수를 `--` 뒤에 둬야 전달된다(`npm test --run x` 는 --run 을 npm 자신이 삼킨다 — 2026-09 재현).
+# pnpm·yarn·bun 은 `run test <args>` 로 그대로 전달. test 스크립트가 watch 모드면 --run(vitest)/--watchAll=false(jest).
 PM="npm"; PX="npx"; [ -f "pnpm-lock.yaml" ] && PM="pnpm" && PX="pnpm"; [ -f "yarn.lock" ] && PM="yarn" && PX="yarn"; { [ -f "bun.lockb" ] || [ -f "bun.lock" ]; } && PM="bun" && PX="bun"
-$PM test --run <파일명> 2>&1 | tail -20
+LOG="${TMPDIR:-/tmp}/fe-rail-test-author.log"
+if [ "$PM" = npm ]; then npm run test -- --run <파일명> > "$LOG" 2>&1; RC=$?
+else $PM run test --run <파일명> > "$LOG" 2>&1; RC=$?; fi
+echo "exit=$RC"; tail -20 "$LOG"      # 판정은 RC(0=통과), tail 은 요약용 — 파이프 직결 금지
 ```
 
 </workflow>

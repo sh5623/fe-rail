@@ -22,6 +22,23 @@ CMD="${CMD:-${TOOL_INPUT_COMMAND}}"
 
 [ -z "$CMD" ] && exit 0
 
+# ─── git 전역 옵션 정규화 ────────────────────────────────────────────────────
+# `git -C <dir> reset --hard` · `git -c k=v commit -n` · `git --git-dir=x push --force` 처럼 서브커맨드
+# 앞에 전역 옵션이 오면 아래 `git[[:space:]]+<sub>` 패턴이 전부 비껴간다(2026-09 교차 리뷰 재현:
+# `-C` 를 붙인 reset --hard·push --force 가 exit 0). 값을 받는 옵션과 플래그형 옵션을 걷어내
+# `git <sub>` 로 접은 뒤 검사한다. 원문은 CMD_RAW 에 보존한다.
+_fe_git_norm() {
+  local s="$1" prev="" sq="'"
+  while [ "$s" != "$prev" ]; do
+    prev="$s"
+    s=$(printf '%s\n' "$s" | sed -E "s/git[[:space:]]+(-C|-c|--git-dir|--work-tree|--namespace|--exec-path|--config-env)([[:space:]]+|=)(\"[^\"]*\"|${sq}[^${sq}]*${sq}|[^[:space:]]+)[[:space:]]+/git /g")
+    s=$(printf '%s\n' "$s" | sed -E 's/git[[:space:]]+(--no-pager|--paginate|-p|-P|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-replace-objects|--no-lazy-fetch|--no-advice|--bare)[[:space:]]+/git /g')
+  done
+  printf '%s\n' "$s"
+}
+CMD_RAW="$CMD"
+CMD=$(_fe_git_norm "$CMD")
+
 # 차단 사유는 stderr 로 출력한다.
 # Claude Code 는 exit 2 시 stderr 를 모델에 피드백하므로, stdout 으로 내면 사유가 전달되지 않는다.
 block() {
@@ -61,11 +78,14 @@ fi
 #    `git commit --no-verify;git push` 처럼 뒤에 공백 없이 다른 명령이 이어지면
 #    빠져나갔다(치명적 우회). `--no-verify` 는 완전한 리터럴이라 부분매칭 위험이 없으므로
 #    경계 없이 어디서든 매칭해야 우회를 막는다.
-#    커밋 메시지(따옴표 내부)는 먼저 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용 오탐 방지.
-#    sed 는 줄 단위로 동작해 여러 줄 커밋 본문(Conventional Commits 본문 등)에 걸친 따옴표는
-#    못 지운다 — 개행을 공백으로 접어 한 줄로 만든 뒤 제거한다.
-CMD_NOQUOTE=$(printf '%s\n' "$CMD" | tr '\n' ' ' | sed 's/"[^"]*"//g; '"s/'[^']*'//g")
-if echo "$CMD_NOQUOTE" | grep -qE 'git[[:space:]]+commit[[:space:]]+(.*[[:space:]]+)?(--no-verify|-[a-zA-Z]*n([[:space:]]|$))'; then
+#    커밋 메시지 인수(`-m`/`--message` 의 값)만 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용
+#    오탐 방지. 종전처럼 «따옴표 안 전부» 를 지우면 `bash -c "git commit --no-verify -m fix"` 같은
+#    셸 래핑의 실제 명령까지 사라져 우회됐다(2026-09 교차 리뷰 재현: exit 0).
+#    sed 는 줄 단위로 동작해 여러 줄 커밋 본문(HEREDOC)에 걸친 따옴표는 못 지운다 — 개행을 공백으로
+#    접어 한 줄로 만든 뒤 제거한다.
+_FE_SQ="'"
+CMD_NOMSG=$(printf '%s\n' "$CMD" | tr '\n' ' ' | sed -E "s/(-m|--message)([[:space:]]*=|[[:space:]]+)(\"[^\"]*\"|${_FE_SQ}[^${_FE_SQ}]*${_FE_SQ}|[^[:space:]]+)//g")
+if echo "$CMD_NOMSG" | grep -qE 'git[[:space:]]+commit[[:space:]]+(.*[[:space:]]+)?(--no-verify|-[a-zA-Z]*n([[:space:]]|$))'; then
   block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
 fi
 

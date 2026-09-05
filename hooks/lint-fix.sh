@@ -29,12 +29,16 @@ case "$FILE_PATH" in
   *) exit 0 ;;
 esac
 
-# 프로젝트 루트 탐색
-PROJECT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null || pwd)
-
 # 공유 감지·실행 로직 로드
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 [ -f "$LIB_DIR/scripts/lint-lib.sh" ] && . "$LIB_DIR/scripts/lint-lib.sh"
+command -v fe_pkg_root >/dev/null 2>&1 || fe_pkg_root() { printf '%s\n' "$2"; }
+
+# 루트 탐색 — Git 루트가 아니라 «파일에서 가장 가까운 package.json»(패키지 루트) 기준으로 설정·도구를
+# 찾는다(모노레포 앱 로컬 설정 대응). 바이너리는 패키지 → 상위(root-hoisted) 순으로 Git 루트까지 탐색.
+GIT_ROOT=$(git -C "$(dirname "$FILE_PATH")" rev-parse --show-toplevel 2>/dev/null || pwd)
+PROJECT_ROOT=$(fe_pkg_root "$(cd "$(dirname "$FILE_PATH")" && pwd)" "$GIT_ROOT")
+FE_BIN_TOP="$GIT_ROOT"
 
 # ── Biome (lint + format 통합) ───────────────────────────────────────────────
 if fe_has_biome "$PROJECT_ROOT"; then

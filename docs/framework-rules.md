@@ -415,9 +415,13 @@ const productRoute = createRoute({
 > `package.json` 에 `"react-router"` **또는** `"react-router-dom"` 의 major 가 **7 이상**이고 `"@tanstack/react-router"` 가 **없을 때** 적용. (`react-router-dom` 이 v6 이하면 레거시 — 이 섹션 대상 아님)
 > **`react-router` major 로 v7 ↔ v8 을 분기한다** — v8(2026-06)에서 `react-router-dom` 패키지가 **제거**돼 import 출처 규칙이 달라진다(아래 import 항목). 데이터 소유·라우팅 설계 원칙은 두 버전 공통이므로, v7 프로젝트는 기존 규칙을 그대로 쓰면 된다.
 > v8 은 Node 22.22+·React 19.2.7+·ESM 전용을 요구한다 — 이 조건을 못 맞추는 프로젝트는 v7 에 머무는 것이 정상이며, 억지 업그레이드를 권하지 않는다.
-> **핵심 원칙: React Router 는 라우팅·레이아웃만 담당, 서버 데이터는 TanStack Query 가 단독 소유한다.**
+> **데이터 소유는 프로젝트 정책이다.** 소비자 CLAUDE.md 가 선언한 정책을 먼저 따르고, 선언이 없으면 `@tanstack/react-query` 유무로 판단한다:
+> - **TQ 를 쓰는 프로젝트**: React Router 는 라우팅·레이아웃만, 서버 데이터는 TanStack Query 가 단독 소유 — loader/action 에서 직접 fetch 하면 이중 캐시·동기화 문제(아래 ❌).
+> - **TQ 가 없는 프로젝트**: React Router 의 공식 **data mode** 가 loader/action 으로 데이터를 제공한다 — loader 의 데이터 fetch 는 위반이 아니라 정상 경로다. 이 경우 아래 ❌ 는 적용하지 않는다.
+> (React Router 사용만으로 loader 데이터 요청을 위반으로 보지 않는다 — 2026-09 리뷰에서 과잉 적용으로 지적된 규칙.)
 
 ```typescript
+// ── TQ 를 쓰는 프로젝트 ──
 // ✅ 라우팅은 RR7, 서버 데이터는 컴포넌트/훅에서 useQuery — 단일 소스
 import { useParams } from 'react-router'
 
@@ -427,12 +431,18 @@ function ProductPage() {
   return <ProductDetail product={data} loading={isLoading} />
 }
 
-// ❌ RR7 loader/action 에서 직접 데이터 fetch — TQ 캐시와 소유권이 갈려 이중 캐시·동기화 문제
+// ❌ (TQ 프로젝트 한정) RR7 loader/action 에서 직접 데이터 fetch — TQ 캐시와 소유권이 갈려 이중 캐시·동기화 문제
 const router = createBrowserRouter([
   { path: '/products/:id', loader: ({ params }) => fetchProduct(params.id) },
 ])
 // loader 를 꼭 써야 하면 TanStack Query 에 위임만:
 //   loader: ({ params }) => queryClient.ensureQueryData(productQueryOptions(params.id))
+
+// ── TQ 가 없는 프로젝트 (RR data mode) ──
+// ✅ loader 가 곧 데이터 경로 — 공식 문서(reactrouter.com/start/data/data-loading) 그대로
+const router = createBrowserRouter([
+  { path: '/products/:id', loader: ({ params }) => fetchProduct(params.id), Component: ProductPage },
+])
 ```
 
 ```typescript

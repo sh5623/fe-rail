@@ -346,9 +346,9 @@ assert_warn_stderr design-nudge.sh \
   '{"tool_input":{"file_path":"'"$TMP"'/nodesign/src/H.tsx","content":"<div className=\"shadow-2xl\"/>"}}' \
   "$TMP/nodesign" "design-nudge: 안내 stderr(stdout 아님)"
 
-# nextjs-guard.sh — file_path 를 실제로 읽으므로 next.config.js + 클라이언트 훅 쓴 .tsx 실물 필요
+# nextjs-guard.sh — file_path 를 실제로 읽으므로 next.config.js + app/ (App Router 신호) + 클라이언트 훅 쓴 .tsx 실물 필요
 NEXTJS_REPO="$TMP/nextjsguard"
-mkdir -p "$NEXTJS_REPO/src"
+mkdir -p "$NEXTJS_REPO/src" "$NEXTJS_REPO/app"
 : > "$NEXTJS_REPO/next.config.js"
 printf '%s\n' "export function C() { const [x] = useState(0); return null }" > "$NEXTJS_REPO/src/C.tsx"
 assert_warn_stderr nextjs-guard.sh \
@@ -414,6 +414,137 @@ assert_warn_stderr quality-gate.sh "" "$QGATE_TSNPX" "quality-gate: tsc 로컬·
 
 # read-guard.sh — stdin JSON 만으로 판단, cwd 무관
 assert_warn_stderr read-guard.sh '{"tool_input":{"file_path":"/p/.env"}}' "" "read-guard: 안내 stderr(stdout 아님)"
+
+echo "━━━ F. 2026-09 교차 리뷰 회귀 (전역 옵션·셸 래핑·설정 전후 비교·훅 경로 인용·패키지 루트·검사 범위) ━━━"
+# ── R3 guard: git 전역 옵션·셸 래핑 ──────────────────────────────────────────
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git -C /tmp/example reset --hard"}}'                 "guard: git -C <dir> reset --hard 차단(R3)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git -C /tmp/example push --force origin HEAD"}}'     "guard: git -C <dir> push --force 차단(R3)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git -c core.hooksPath=/dev/null commit -n"}}'        "guard: git -c k=v commit -n 차단(R3)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git --git-dir=/r/.git --work-tree=/r checkout ."}}'  "guard: --git-dir/--work-tree 뒤 checkout . 차단(R3)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"bash -c \"git commit --no-verify -m fix\""}}'        "guard: bash -c 래핑 --no-verify 차단(R3)"
+assert_hook BLOCK guard.sh '{"tool_input":{"command":"git -C \"/tmp/with space\" add ."}}'                 "guard: -C \"공백 경로\" 뒤 git add . 차단(R3)"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git -C /tmp/example status -sb"}}'                   "guard: git -C <dir> status 허용"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit -m \"docs: explain why --no-verify is blocked\""}}' "guard: 메시지 값 안의 --no-verify 언급 허용(R3)"
+assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit -m \"$(cat <<'"'"'EOF'"'"'\nfix: -n flag doc\nEOF\n)\""}}' "guard: HEREDOC 메시지 안의 -n 오탐 없음"
+# ── R3 config-protection: 실파일 편집 전 ↔ 후 비교 ────────────────────────────
+CFG_REPO="$TMP/cfgprot"; mkdir -p "$CFG_REPO"
+printf '%s\n' '{"compilerOptions":{"strict":true,"paths":{}}}' > "$CFG_REPO/tsconfig.json"
+assert_hook BLOCK config-protection.sh '{"tool_name":"Edit","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.json","old_string":"true","new_string":"false"}}' "config-protection: 값만 바꾸는 Edit(true→false) 차단(R3)"
+assert_hook BLOCK config-protection.sh '{"tool_name":"Write","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.json","content":"{\"compilerOptions\":{\"paths\":{}}}"}}' "config-protection: strict 키를 뺀 Write 차단(R3)"
+assert_hook BLOCK config-protection.sh '{"tool_name":"MultiEdit","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.json","edits":[{"old_string":"\"paths\":{}","new_string":"\"paths\":{\"@/*\":[\"src/*\"]}"},{"old_string":"true","new_string":"false"}]}}' "config-protection: MultiEdit 중 하나가 strict 를 뒤집으면 차단(R3)"
+assert_hook ALLOW config-protection.sh '{"tool_name":"Edit","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.json","old_string":"\"paths\":{}","new_string":"\"paths\":{\"@/*\":[\"src/*\"]}"}}' "config-protection: 실파일 경로 alias 추가 허용(R3)"
+assert_hook ALLOW config-protection.sh '{"tool_name":"Write","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.json","content":"{\"compilerOptions\":{\"strict\":true,\"paths\":{\"@/*\":[\"src/*\"]}}}"}}' "config-protection: strict:true 유지한 전체 Write 허용(R3)"
+printf '%s\n' '{"compilerOptions":{"strict":true,"noImplicitAny":false}}' > "$CFG_REPO/tsconfig.base.json"
+assert_hook ALLOW config-protection.sh '{"tool_name":"Edit","tool_input":{"file_path":"'"$CFG_REPO"'/tsconfig.base.json","old_string":"\"strict\":true","new_string":"\"strict\":true,\"target\":\"es2022\""}}' "config-protection: 이미 false 인 옵션이 있는 파일의 무관한 Edit 허용(R3)"
+# ── R2 hooks.json: 모든 command 가 인용됐고, 공백 포함 설치 경로에서 실제로 실행된다 ──
+if command -v jq >/dev/null 2>&1; then
+  bad=0
+  while IFS= read -r cmd; do
+    [ -n "$cmd" ] || continue
+    case "$cmd" in "\"\${CLAUDE_PLUGIN_ROOT}/"*) ;; *) ng "hooks.json command 미인용(공백 경로에서 exit 127): $cmd"; bad=1 ;; esac
+  done < <(jq -r '.. | .command? // empty' "$HOOKS/hooks.json")
+  [ $bad -eq 0 ] && ok "hooks.json 모든 command 가 \"\${CLAUDE_PLUGIN_ROOT}/…\" 로 인용됨(R2)"
+  SPACED="$TMP/Application Support"; mkdir -p "$SPACED"; ln -s "$ROOT" "$SPACED/plugin"
+  GCMD=$(jq -r '.hooks.PreToolUse[] | select(.matcher=="Bash") | .hooks[0].command' "$HOOKS/hooks.json")
+  out=$(printf '%s' '{"tool_input":{"command":"git reset --hard"}}' | CLAUDE_PLUGIN_ROOT="$SPACED/plugin" bash -c "$GCMD" 2>&1); rc=$?
+  [ $rc -eq 2 ] && ok "hooks.json 의 실제 command 를 공백 포함 경로에서 실행 → 차단(R2)" || ng "hooks.json command 공백 경로 실행 실패 (rc=$rc: $out)"
+fi
+# ── R5 quality-gate/lint-fix/nextjs-guard: Git 루트 ≠ 패키지 루트 ──────────────
+_fake_tool(){  # <path> <calls-file> — 호출 인수를 기록하고 실패하는 가짜 도구
+  printf '%s\n' '#!/bin/sh' "printf '%s\\n' \"\$*\" >> \"$2\"" 'echo "error: fixture diagnostic" >&2' 'exit 1' > "$1"; chmod +x "$1"
+}
+_git_fixture(){ ( cd "$1" && git init -q && git config user.email t@t.com && git config user.name t && git config commit.gpgsign false \
+  && : > README.md && git add README.md && git commit -qm init ) >/dev/null 2>&1; }
+MONO="$TMP/mono"; mkdir -p "$MONO/apps/web/src" "$MONO/apps/web/app" "$MONO/apps/web/node_modules/.bin"; _git_fixture "$MONO"
+printf '%s\n' '{"dependencies":{"next":"16.0.0"}}' > "$MONO/apps/web/package.json"
+printf '%s\n' '{}' > "$MONO/apps/web/tsconfig.json"
+printf '%s\n' 'module.exports = {};' > "$MONO/apps/web/next.config.js"
+printf '%s\n' 'module.exports = [];' > "$MONO/apps/web/eslint.config.js"
+printf '%s\n' 'import { useState } from "react"; export default function New(){ const [n]=useState(0); return <p>{n}</p> }' > "$MONO/apps/web/src/New.tsx"
+_fake_tool "$MONO/apps/web/node_modules/.bin/tsc" "$MONO/apps/web/.calls"
+_fake_tool "$MONO/apps/web/node_modules/.bin/eslint" "$MONO/apps/web/.calls"
+assert_warn_stderr quality-gate.sh "" "$MONO/apps/web" "quality-gate: 모노레포 앱 로컬 설정·도구 → 경고(R5)"
+if [ -s "$MONO/apps/web/.calls" ] && grep -q "New.tsx" "$MONO/apps/web/.calls" && grep -q -- "--noEmit" "$MONO/apps/web/.calls"; then
+  ok "quality-gate: 모노레포에서 앱 로컬 eslint·tsc 실제 호출(R5, 종전 0회)"
+else ng "quality-gate: 모노레포 도구 호출 누락(R5): $(cat "$MONO/apps/web/.calls" 2>/dev/null)"; fi
+: > "$MONO/apps/web/.calls"
+assert_warn_stderr lint-fix.sh '{"tool_input":{"file_path":"'"$MONO"'/apps/web/src/New.tsx"}}' "$MONO/apps/web" "lint-fix: 모노레포 앱 로컬 eslint 호출(R5)"
+assert_warn_stderr nextjs-guard.sh '{"tool_input":{"file_path":"'"$MONO"'/apps/web/src/New.tsx"}}' "$MONO/apps/web" "nextjs-guard: 모노레포 앱 로컬 next.config 감지(R5)"
+# typecheck 스크립트만 있고 루트 tsconfig.json 이 없는 앱 (tsconfig.app.json 전용)
+TSS="$TMP/tss"; mkdir -p "$TSS/src"; _git_fixture "$TSS"
+printf '%s\n' '{"scripts":{"typecheck":"echo CALLED >> .calls; echo \"error: deliberate\" >&2; exit 1"}}' > "$TSS/package.json"
+printf '%s\n' '{}' > "$TSS/tsconfig.app.json"
+echo 'export const n: number = "bad"' > "$TSS/src/new.ts"
+if command -v npm >/dev/null 2>&1; then
+  assert_warn_stderr quality-gate.sh "" "$TSS" "quality-gate: typecheck 스크립트는 tsconfig.json 없어도 실행(R5)"
+  [ -f "$TSS/.calls" ] && ok "quality-gate: typecheck 스크립트 실제 호출됨(R5)" || ng "quality-gate: typecheck 스크립트 미호출(R5)"
+else ok "npm 없음 → typecheck 스크립트 fixture 스킵"; fi
+# 소스 삭제만 있어도 타입체크 트리거
+DEL="$TMP/del"; mkdir -p "$DEL/src" "$DEL/node_modules/.bin"; _git_fixture "$DEL"
+printf '%s\n' '{}' > "$DEL/tsconfig.json"; echo 'export const a = 1' > "$DEL/src/a.ts"; echo 'import { a } from "./a"; console.log(a)' > "$DEL/src/main.ts"
+( cd "$DEL" && git add tsconfig.json src && git commit -qm src ) >/dev/null 2>&1
+_fake_tool "$DEL/node_modules/.bin/tsc" "$DEL/.calls"; rm -f "$DEL/src/a.ts"
+assert_warn_stderr quality-gate.sh "" "$DEL" "quality-gate: 소스 삭제도 타입체크 트리거(R5)"
+# 변경 파일 21개 전부 린터에 전달 (종전 head -20 으로 21번째 누락)
+TW="$TMP/twentyone"; mkdir -p "$TW/src" "$TW/node_modules/.bin"; _git_fixture "$TW"
+printf '%s\n' 'module.exports = [];' > "$TW/eslint.config.js"; ( cd "$TW" && git add eslint.config.js && git commit -qm lint ) >/dev/null 2>&1
+_fake_tool "$TW/node_modules/.bin/eslint" "$TW/.calls"
+for n in $(seq 0 20); do printf 'export const n = 1\n' > "$TW/src/f$n.js"; done
+( cd "$TW" && bash "$HOOKS/quality-gate.sh" </dev/null >/dev/null 2>&1 )
+nfiles=$(tr ' ' '\n' < "$TW/.calls" 2>/dev/null | grep -c '\.js$')
+[ "$nfiles" -eq 21 ] && ok "quality-gate: 변경 파일 21개 전부 린터에 전달(R5)" || ng "quality-gate: 린터에 전달된 파일 $nfiles/21(R5)"
+# root-hoisted 도구: 설정은 앱에, 바이너리는 Git 루트 node_modules 에
+HOI="$TMP/hoist"; mkdir -p "$HOI/apps/web/src" "$HOI/node_modules/.bin"; _git_fixture "$HOI"
+printf '%s\n' '{}' > "$HOI/apps/web/package.json"; printf '%s\n' 'module.exports = [];' > "$HOI/apps/web/eslint.config.js"
+_fake_tool "$HOI/node_modules/.bin/eslint" "$HOI/.calls"; echo 'export const x = 1' > "$HOI/apps/web/src/x.ts"
+assert_warn_stderr quality-gate.sh "" "$HOI/apps/web" "quality-gate: root-hoisted eslint 를 앱 설정과 함께 찾음(R5)"
+# ── R10 nextjs-guard: pages/ 만 있는 Pages Router 프로젝트는 RSC 경고를 내지 않는다 ──
+PAGES="$TMP/pagesrouter"; mkdir -p "$PAGES/pages" "$PAGES/src"; : > "$PAGES/next.config.js"
+printf '%s\n' "export function C() { const [x] = useState(0); return null }" > "$PAGES/src/C.tsx"
+assert_hook SILENT nextjs-guard.sh '{"tool_input":{"file_path":"'"$PAGES"'/src/C.tsx"}}' "nextjs-guard: pages/ 만 있는 프로젝트(Pages Router)는 침묵(R10)" "" "$PAGES"
+# ── R4 git-operator 계약: `git commit --only -- <files>` 는 기존 staged 를 커밋에 넣지 않는다 ──
+ONLY="$TMP/gitonly"; mkdir -p "$ONLY"; _git_fixture "$ONLY"
+( cd "$ONLY" && echo u > user.txt && echo f > feature.txt && git add user.txt && git add feature.txt \
+  && git commit -q --only -m "feat: fixture" -- feature.txt ) >/dev/null 2>&1
+if [ "$(git -C "$ONLY" show --pretty= --name-only HEAD)" = "feature.txt" ] && [ "$(git -C "$ONLY" diff --cached --name-only)" = "user.txt" ]; then
+  ok "git 계약: commit --only -- <files> 는 사용자 기존 staged(user.txt)를 커밋에 넣지 않는다(R4)"
+else ng "git 계약: commit --only 가 기존 staged 를 격리하지 못함(R4)"; fi
+grep -q -- '--only' "$ROOT/agents/fe-git-operator.md" && grep -q 'diff --cached --name-only' "$ROOT/agents/fe-git-operator.md" \
+  && ok "fe-git-operator: 기존 staged 보존(--only + cached 대조) 지침 존재(R4)" || ng "fe-git-operator: --only / cached 대조 지침 누락(R4)"
+# ── R1/R6/R7/R8 self-lint: 범위·exit code·검증 계약·푸시 담당 ─────────────────
+bad=0
+for f in fe-reviewer fe-test-runner fe-perf-auditor fe-a11y-auditor; do
+  grep -q 'ls-files --others --exclude-standard' "$ROOT/agents/$f.md" || { ng "agents/$f.md 범위 결정에 untracked(ls-files --others) 없음(R1)"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "리뷰·검사 에이전트 4개 범위 = tracked diff ∪ untracked(R1)"
+bad=0
+for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
+  [ -e "$f" ] || continue
+  grep -nE '(run (typecheck|lint|test|build)|tsc (-b|--noEmit)|vitest run|jest)[^|]*2>&1 \| (head|tail|grep -c)' "$f" >/dev/null \
+    && { ng "$(basename "$f"): 검증 명령 뒤 바로 | head/tail/grep -c (exit code 소실, R6)"; bad=1; }
+  grep -qE '\$PM test( |$)' "$f" && { ng "$(basename "$f"): bare \$PM test (bun 은 내장 러너와 충돌 — \$PM run test, R6)"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "검증 명령의 exit code 보존(요약 파이프 직결 없음)·\$PM run test 통일(R6)"
+grep -q '검증 결과 객체' "$ROOT/skills/fe-start/SKILL.md" && grep -q '검증 결과 객체' "$ROOT/agents/fe-pr-author.md" \
+  && ok "fe-start ↔ fe-pr-author: 검증 결과 객체 계약 존재(R7)" || ng "검증 결과 객체 계약 누락(R7)"
+grep -q 'git push' "$ROOT/agents/fe-git-operator.md" && grep -qE '커밋·푸시' "$ROOT/skills/fe-start/SKILL.md" \
+  && ok "푸시 담당 = fe-git-operator, --no-pr = 커밋·푸시까지(R8)" || ng "푸시 담당·--no-pr 의미 불일치(R8)"
+# ── 실제 YAML 파서·플러그인 매니페스트 (도구가 있을 때만) ────────────────────
+if command -v ruby >/dev/null 2>&1; then
+  bad=0
+  for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
+    [ -e "$f" ] || continue
+    ruby -ryaml -e 'src=File.read(ARGV[0]); fm=src[/\A---\n(.*?)\n---\n/m,1] or exit 1; d=YAML.safe_load(fm); exit((d.is_a?(Hash) && d["name"].is_a?(String)) ? 0 : 1)' "$f" 2>/dev/null \
+      || { ng "frontmatter 실제 YAML 파싱 실패: ${f#"$ROOT"/}"; bad=1; }
+  done
+  [ $bad -eq 0 ] && ok "모든 agent/skill frontmatter 가 실제 YAML 파서(Psych)로 mapping 파싱됨"
+else ok "ruby 없음 → 실제 YAML 파싱 검사 스킵(정규식 검사만)"; fi
+if command -v claude >/dev/null 2>&1; then
+  # 플러그인 매니페스트 검증 — 오류만 실패로 본다. 루트 CLAUDE.md 가 소비자 컨텍스트로 로드되지 않는다는
+  # «경고» 는 이 레포의 알려진 설계(CLAUDE.md 는 기여자·에이전트용 레포 컨텍스트)라 --strict 로 막지 않는다.
+  pv=$(claude plugin validate "$ROOT/.claude-plugin/plugin.json" 2>&1); pvrc=$?
+  if [ $pvrc -eq 0 ] && ! printf '%s' "$pv" | grep -q 'error'; then ok "claude plugin validate(plugin.json) 통과(경고 허용)"; else ng "claude plugin validate 실패: $(printf '%s' "$pv" | tail -3)"; fi
+else ok "claude CLI 없음 → plugin validate 스킵"; fi
 
 echo
 echo "════════════════════════════════════════"

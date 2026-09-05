@@ -37,9 +37,15 @@ allowed-tools:
 
 모든 에이전트는 READ-ONLY — 메인 세션이 결과를 받아 수정 여부를 결정한다.
 
-### Phase 2 — 리뷰 결과 보고
+### Phase 2 — 리뷰 결과 보고 (합산 판정)
 
-`fe-reviewer` 에이전트의 출력을 그대로 전달한다. 형식:
+`fe-reviewer` 의 출력을 본문으로 전달하되, **"커밋 준비 완료" 판정은 메인이 합산해서 내린다** — reviewer BLOCK 0
+**그리고** `fe-test-runner` exit 0 **그리고** 추가 감사(a11y·perf) BLOCK 0 일 때만. 테스트가 실패했는데 reviewer
+BLOCK 이 0 이라고 "준비 완료" 로 적지 않는다. 요약 줄에 각 소스의 결과를 나란히 적는다:
+`리뷰 BLOCK 0 · 테스트 exit 0 (42/42) · a11y BLOCK 0 → 커밋 준비 완료` / `리뷰 BLOCK 0 · 테스트 exit 1 (2 실패) → 수정 후 재검토`.
+위임 컨텍스트에는 **변경 파일 목록(신규 파일 포함)** 을 넘긴다 — 에이전트는 tracked diff ∪ untracked 와 교차 확인한다.
+
+형식:
 
 ```
 ## 코드 리뷰 결과
@@ -56,8 +62,8 @@ allowed-tools:
 - [축] file:line — 내용
 
 ---
-요약: BLOCK N개 / WARN N개 / INFO N개
-BLOCK 0이면 "커밋 준비 완료", 있으면 "N개 수정 후 재검토"
+요약: BLOCK N개 / WARN N개 / INFO N개 · 테스트 exit N (Pass/Fail) · 추가 감사 BLOCK N개
+전부 0 이면 "커밋 준비 완료", 하나라도 남으면 "N개 수정 후 재검토"
 ```
 
 BLOCK 항목이 있으면 수정 후 에이전트 재위임합니다.

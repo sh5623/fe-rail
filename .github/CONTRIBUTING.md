@@ -19,16 +19,23 @@ git clone https://github.com/sh5623/fe-rail
 cd fe-rail
 ```
 
-There's no build step — agents/skills/hooks are plain Markdown + shell. Install the
-plugin locally in a test project to exercise changes end to end:
+There's no build step — agents/skills/hooks are plain Markdown + shell. To exercise your
+working tree end to end, point Claude Code straight at it from a **test project**:
 
 ```bash
-/plugin marketplace add /path/to/your/local/fe-rail
-/plugin install fe-rail@fe-rail-market
+cd /path/to/some/test-project
+claude --plugin-dir /path/to/your/local/fe-rail
 ```
 
-Hooks only load at session start — restart your Claude Code session after installing
-or editing a hook for the change to take effect.
+Do **not** rely on `/plugin marketplace add /path/to/your/local/fe-rail` for this —
+`.claude-plugin/marketplace.json` declares the plugin's `source` as the GitHub repo
+`sh5623/fe-rail`, so a marketplace registered from your clone still installs the
+published tree, not the one you are editing. If you must go through a marketplace, make
+a throwaway one whose plugin `source` is a local path.
+
+Hooks only load at session start — restart your Claude Code session after editing a hook
+for the change to take effect. If the published plugin is also installed, check that only
+one copy is active (`/plugin` lists both) so you do not test against a cached install.
 
 ## Testing your change
 

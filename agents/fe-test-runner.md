@@ -57,7 +57,7 @@ PM="npm"; PX="npx"
 
 | 순위 | 조건 | 명령 |
 |------|------|------|
-| 1 | `package.json` `scripts.test` 명시 | `$PM test` |
+| 1 | `package.json` `scripts.test` 명시 | `$PM run test` — `bun test` 는 Bun 내장 러너라 스크립트를 타지 않으므로 반드시 `run` 경유. 추가 인수는 npm 만 `--` 뒤에(`npm run test -- --run`), pnpm·yarn·bun 은 그대로. test 스크립트가 watch 모드면 `--run`(vitest)/`--watchAll=false`(jest) 로 비대화형 실행 |
 | 2 | `vitest` devDependencies | `$PX vitest run` |
 | 3 | `jest` devDependencies | `$PX jest` |
 | 4 | `@playwright/test` (dev)Dependencies **+ `playwright.config.*` 또는 `e2e/` 존재** | `$PX playwright test` |
@@ -100,7 +100,8 @@ PM="npm"; PX="npx"
 | 변경 파일 관련 테스트만 | `--findRelatedTests` 또는 `--changed` 옵션 |
 | 카테고리 분류 | 모든 실패를 6개 카테고리 중 하나로 분류 |
 | 압축 출력 | 5건 이하: 케이스별, 6건 이상: 카테고리별 그룹 |
-| 종료 코드 명시 | Exit code 0 (성공) / 1 이상 (실패) |
+| 종료 코드 명시 | Exit code 0 (성공) / 1 이상 (실패) — 판정은 **러너의 exit code** 로만. 로그를 `head`/`tail` 로 자르거나 오류 단어를 세기(`grep -c`) 전에 exit code 를 먼저 저장한다(파이프 직결은 종료 코드를 잃는다) |
+| 변경 범위 | tracked 변경 ∪ 신규 untracked (Step 2) — `git diff --name-only HEAD` 단독은 새 테스트 파일을 빠뜨린다 |
 
 </required>
 
@@ -115,16 +116,20 @@ cat package.json | grep -E '"test"|"vitest"|"jest"|"playwright"'
 
 ### Step 2: 범위 결정
 ```bash
-git diff --name-only HEAD | grep -E '\.(tsx|jsx|ts|js)$'
+# tracked 변경 + 신규 untracked — 부모가 파일 목록을 줬으면 그것과 합집합
+{ git diff --name-only --diff-filter=d HEAD; git ls-files --others --exclude-standard; } | sort -u | grep -E '\.(tsx|jsx|ts|js)$'
 ```
 
-### Step 3: 테스트 실행
+### Step 3: 테스트 실행 — exit code 를 먼저 저장하고, 요약은 그다음
 ```bash
-# vitest 예시 ($PX = 바이너리 실행)
-$PX vitest run --reporter=verbose 2>&1
-
-# jest 예시
-$PX jest --findRelatedTests <변경파일들> 2>&1
+LOG="${TMPDIR:-/tmp}/fe-rail-test.log"
+# scripts.test 있으면 그것 (npm 만 `--` 로 인수 전달)
+if [ "$PM" = npm ]; then npm run test -- --run > "$LOG" 2>&1; RC=$?; else $PM run test --run > "$LOG" 2>&1; RC=$?; fi
+# vitest 직접 ($PX = 바이너리 실행)
+$PX vitest run --reporter=verbose > "$LOG" 2>&1; RC=$?
+# jest 직접
+$PX jest --findRelatedTests <변경파일들> > "$LOG" 2>&1; RC=$?
+echo "exit=$RC"; tail -50 "$LOG"      # 판정은 RC, 로그는 요약용
 ```
 
 ### Step 4: 결과 분류
