@@ -9,7 +9,7 @@
 </div>
 
 > Frontend-focused Claude Code plugin
-> Automated spec → build → review → PR workflow for Next.js App Router / Vite SPA (TanStack Router · React Router 7·8) + TypeScript, with full Tailwind v3/v4 / shadcn/ui support.
+> Automated spec → build → review → PR workflow for Next.js App Router / Vite SPA (TanStack Router · React Router 7·8) + TypeScript, with Tailwind v3/v4 and shadcn/ui support.
 
 ## Installation
 
@@ -31,21 +31,21 @@ $ claude
 > /fe-rail:fe-spec
 
 [fe-spec] Analyzing requirements... (fe-analyst, fe-architect)
-✔ feature.md generated — 7 sections, 3 open questions resolved
+✔ feature.md generated: 7 sections, 3 open questions resolved
 
 Next step?
-  ❯ Full auto (recommended) — hand off to fe-start automatically
-    Build only — I'll review the spec first
+  ❯ Full auto (recommended): hand off to fe-start automatically
+    Build only: I'll review the spec first
     Revise spec
 
 > Full auto
 
-[fe-start] Phase 2 — implementing types → hooks → components → tests
+[fe-start] Phase 2: implementing types → hooks → components → tests
 ✔ 12 files created, tsc clean, lint clean, 8 tests passing
 
 Commit and open a PR?
-  ❯ Yes — split by type (feat/fix/test) and open a draft PR
-    No — leave changes uncommitted
+  ❯ Yes: split by type (feat/fix/test) and open a draft PR
+    No: leave changes uncommitted
 
 > Yes
 
@@ -54,51 +54,51 @@ Commit and open a PR?
 ✔ Draft PR: https://github.com/you/your-app/pull/42
 ```
 
-Two human touch-points total — **"Implement?"** and **"Commit?"** — everything else runs unattended.
+You are asked two things, "Implement?" and "Commit?". Everything else runs unattended.
 
 ## Skills
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document. Phase 3 presents a radio UI to choose the next step (full auto · build only · revise spec) — selecting "full auto" hands off directly to the fe-start pipeline |
+| fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document. Phase 3 presents a radio UI to choose the next step (full auto · build only · revise spec); "full auto" hands off directly to the fe-start pipeline |
 | fe-build | `/fe-rail:fe-build` | Frontend implementation (types → logic → components → tests) |
 | fe-review | `/fe-rail:fe-review` | 4-axis code review: types · performance · a11y · quality |
-| fe-start | `/fe-rail:fe-start feature.md` | All-in-one — automates through PR creation. Phase 1 · 5 use radio UI to confirm implementation and commit intent |
+| fe-start | `/fe-rail:fe-start feature.md` | All-in-one: automates through PR creation. Phases 1 and 5 use a radio UI to confirm implementation and commit intent |
 | fe-doc-sync | `/fe-rail:fe-doc-sync` | Scans the **consumer project** (routes · deps · structure · ENV) → proposes updates to that project's CLAUDE.md · README.md |
 
 ## Hooks
 
-Policy: **Block dangers (exit 2), warn on quality issues (stderr)**.
+Policy: block dangers (exit 2), warn on quality issues (stderr).
 
 | Hook | Event | Role | Blocks |
 |------|-------|------|--------|
 | `session-init.sh` | SessionStart | Remote version check + new version notification (GitHub, once/day) | — |
 | `guard.sh` | PreToolUse:Bash | Blocks `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .`, etc. Git global options (`git -C <dir> …`, `-c k=v`, `--git-dir`) are normalized first and shell wrapping (`bash -c "git commit --no-verify …"`) is caught; only the `-m` message value is excluded from the commit check. A regex backstop for the common shapes, not a guarantee over arbitrary shell | ✅ |
-| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks creating/editing sensitive files: `.env*`, certificates (`*.pem`/`*.key`, etc.), secret-payload files (`*.secret`, `*credentials*.json`, etc.) — source files like `.env.example`, `CredentialForm.tsx` are allowed | ✅ |
-| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks only **weakening** edits to linter/formatter/TS config — `strict:false`, `@ts-nocheck`, linter `recommended:false`, removing an existing `strict:true`. Judged on the **whole file before vs. after** the edit (reconstructed from disk + the Edit/MultiEdit/Write payload), so a value-only `true → false` Edit and a Write that drops the `strict` key are caught too. Normal edits (path aliases, adding plugins, etc.) pass through | ✅ |
-| `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env*`·`.envrc`, keys like `*.pem`/`*.key`/`id_rsa`, `.npmrc`·`*credential*` — symmetric with write-guard's block list) | — |
+| `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks creating/editing sensitive files: `.env*`, certificates (`*.pem`/`*.key`, etc.), secret-payload files (`*.secret`, `*credentials*.json`, etc.); source files such as `.env.example` or `CredentialForm.tsx` are still allowed | ✅ |
+| `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | Blocks only **weakening** edits to linter/formatter/TS config: `strict:false`, `@ts-nocheck`, linter `recommended:false`, removing an existing `strict:true`. Judged on the whole file before vs. after the edit (reconstructed from disk plus the Edit/MultiEdit/Write payload), so a value-only `true → false` Edit and a Write that drops the `strict` key are caught too. Normal edits (path aliases, adding plugins, etc.) pass through | ✅ |
+| `read-guard.sh` | PreToolUse:Read | Warns on sensitive file reads (`.env*`·`.envrc`, keys like `*.pem`/`*.key`/`id_rsa`, `.npmrc`·`*credential*`; the list mirrors write-guard's block list) | — |
 | `task-guard.sh` | PreToolUse:Task\|Agent | Blocks injection patterns and dangerous command delegation in sub-agent prompts | ✅ |
-| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | Auto-detects consumer env → runs Biome `check --write` **or** ESLint `--fix` (+ Prettier). Config and binaries are resolved from the file's **nearest `package.json`** (monorepo app-local setups), binaries also root-hoisted (local binary first · npx fallback is opt-in via `FE_RAIL_ALLOW_NPX=1`) | — |
-| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | In App Router projects (`app/` present — Pages Router is skipped), flags React hooks/browser API/DOM events in files without `'use client'` as "check the import boundary" (a child imported only below a client boundary needs no directive — `next build` is the authority); warns when `page`/`layout` carries `'use client'` | — |
-| `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | Warns on generic/templated (AI-slop) signals in frontend edits (heavy/arbitrary shadows, default purple/indigo gradients). **Silent if DESIGN.md exists** (fe-reviewer's DESIGN Bans is the source of truth in that case) | — |
-| `quality-gate.sh` | Stop | Runs linter (Biome **or** ESLint) + type check (prefers the project's `typecheck` script — even without a root `tsconfig.json` — falls back to `tsc -b` for solution-style tsconfig) on changed files, outputs warnings. Changed files are grouped by their **nearest `package.json`** and each package is checked with its own config (monorepo), binaries resolved app-local → root-hoisted. Type check is judged by exit code (no false positives from success banners) · also triggers on `tsconfig*.json`/`package.json` changes and on **deleted** sources · file scope is not silently capped (up to 200, the rest reported as unchecked) | — |
+| `lint-fix.sh` | PostToolUse:Edit\|Write\|MultiEdit | Auto-detects consumer env → runs Biome `check --write` **or** ESLint `--fix` (+ Prettier). Config and binaries are resolved from the file's nearest `package.json` (monorepo app-local setups), binaries also root-hoisted (local binary first; npx fallback is opt-in via `FE_RAIL_ALLOW_NPX=1`) | — |
+| `nextjs-guard.sh` | PostToolUse:Edit\|Write\|MultiEdit | In App Router projects (`app/` present; Pages Router is skipped), flags React hooks/browser API/DOM events in files without `'use client'` as "check the import boundary" (a child imported only below a client boundary needs no directive; `next build` is the authority); warns when `page`/`layout` carries `'use client'` | — |
+| `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | Warns on generic/templated (AI-slop) signals in frontend edits (heavy or arbitrary shadows, default purple/indigo gradients). Silent if DESIGN.md exists, since fe-reviewer's DESIGN Bans is the source of truth in that case | — |
+| `quality-gate.sh` | Stop | Runs the linter (Biome **or** ESLint) + type check on changed files and outputs warnings. It prefers the project's `typecheck` script, even without a root `tsconfig.json`, and falls back to `tsc -b` for solution-style tsconfig. Changed files are grouped by their nearest `package.json` and each package is checked with its own config (monorepo), binaries resolved app-local → root-hoisted. The type check is judged by exit code (no false positives from success banners). It also triggers on `tsconfig*.json`/`package.json` changes and on deleted sources, and the file scope is not silently capped (up to 200, the rest reported as unchecked) | — |
 | `doc-sync-check.sh` | Stop | Detects changes to consumer project code / package.json / config files → suggests `/fe-rail:fe-doc-sync` (includes last 5 commits) | — |
-| `notify.sh` | (Optional) Notification | macOS terminal-notifier banner — activate with `bash hooks/scripts/setup-notifier.sh` | — |
+| `notify.sh` | (Optional) Notification | macOS terminal-notifier banner; activate with `bash hooks/scripts/setup-notifier.sh` | — |
 
 ### Hook profiles & toggles (intensity control)
 
-Hook intensity can be tuned via **environment variables** (no plugin file edits needed — set in the consumer project's shell/`.claude` environment).
+Hook intensity can be tuned via environment variables (no plugin file edits needed; set them in the consumer project's shell or `.claude` environment).
 
 | Env var | Value | Effect |
 |---|---|---|
-| `FE_RAIL_HOOK_PROFILE` | `minimal` | Only the irreversible-risk **blockers** (`guard`, `write-guard`, `task-guard`, `config-protection`). Quality warnings, auto-cleanup, and doc-sync prompts are turned off |
+| `FE_RAIL_HOOK_PROFILE` | `minimal` | Only the irreversible-risk blockers (`guard`, `write-guard`, `task-guard`, `config-protection`). Quality warnings, auto-cleanup, and doc-sync prompts are turned off |
 | | `standard` (default) | The above + all quality warnings/auto-cleanup/doc-sync |
 | | `strict` | One tier above `standard` (currently a superset, reserved for stricter behavior in the future) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
-| `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter or `tsc` binary is present (default is local-only — prevents auto-hooks from downloading or running unpinned latest versions). Doesn't affect a project's own `typecheck` script, which always runs via the package manager |
-| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | Lets fe-start's Phase 4.5 gate install Playwright browsers automatically (`playwright install --with-deps chromium`). Off by default — it's a several-hundred-MB download and `--with-deps` needs root, so an unattended pipeline shouldn't trigger it silently. While off, E2E is honestly reported as "not run (browsers missing)" rather than passed |
+| `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter or `tsc` binary is present (default is local only, which keeps auto-hooks from downloading or running unpinned latest versions). Doesn't affect a project's own `typecheck` script, which always runs via the package manager |
+| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | Lets fe-start's Phase 4.5 gate install Playwright browsers automatically (`playwright install --with-deps chromium`). Off by default: it is a several-hundred-MB download and `--with-deps` needs root, so an unattended pipeline shouldn't trigger it silently. While off, E2E is honestly reported as "not run (browsers missing)" rather than passed |
 
-> **Downgrading the profile to `minimal` does not disable the safety blockers** — to turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` ("no-compromise blocking" + an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
+> Downgrading the profile to `minimal` does not disable the safety blockers. To turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` (no-compromise blocking plus an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 
 ### Regression eval
 
@@ -106,29 +106,35 @@ Hook intensity can be tuned via **environment variables** (no plugin file edits 
 bash eval/run.sh   # exits 1 on failure (CI-ready)
 ```
 
-Deterministically verifies, with no live model required: hook behavior (fixture injection → exit code/warning assertions, including that block reasons go to stderr rather than stdout, and that the 5 non-blocking hooks' notices also go to stderr), profile toggles, and plugin self-lint (agent `model` value within the valid set — alias `opus`/`sonnet`/`haiku`/`fable`/`inherit` or a full model ID; agent `effort` value within `low`/`medium`/`high`/`xhigh`/`max` where set, and never set on `haiku` agents (unsupported); skill frontmatter; frontmatter plain scalars staying YAML-safe — a value containing `: ` (colon+space) breaks parsing and silently drops the whole frontmatter, including `tools`, `disallowedTools`, and `model`; `hooks.json` integrity, profile wiring, delegating skills listing Task/Agent in allowed-tools, bun `PX` detection consistency, typecheck branches always pairing a `references`(tsc -b) fallback, and binary+flag invocations using `$PX` rather than `$PM exec`). Useful for catching regressions when alias tiers shift with model updates, or when hooks/config change.
+It runs without a live model and verifies, deterministically:
 
-v1.17.0 adds section F, built from a cross-repo review that reproduced twelve findings against v1.16.2 in throwaway repos: git global options and shell wrapping reaching the guard, config protection judged on the whole file before/after, every `hooks.json` command executed from an install path containing a space, monorepo app-local and root-hoisted tools actually being called, `typecheck` running without a root `tsconfig.json`, deleted sources triggering the type check, all 21 of 21 changed files reaching the linter, the `git commit --only` isolation contract, and self-lint for agent scope (tracked ∪ untracked), exit-code preservation, `$PM run test`, the verification-result contract, and push ownership. When `ruby` or the `claude` CLI is present it also parses every frontmatter with a real YAML parser and runs `claude plugin validate --strict`.
+- hook behavior, by injecting fixtures and asserting exit codes and warnings, including that block reasons go to stderr rather than stdout and that the 5 non-blocking hooks send their notices to stderr as well
+- profile toggles
+- plugin self-lint: agent `model` values within the valid set (the aliases `opus`/`sonnet`/`haiku`/`fable`/`inherit` or a full model ID); agent `effort` values within `low`/`medium`/`high`/`xhigh`/`max` where set, and never set on `haiku` agents, which do not support it; skill frontmatter; frontmatter plain scalars that stay YAML-safe (a value containing `: `, colon plus space, breaks parsing and silently drops the whole frontmatter, including `tools`, `disallowedTools`, and `model`); `hooks.json` integrity and profile wiring; delegating skills listing Task/Agent in allowed-tools; bun `PX` detection consistency; typecheck branches always pairing a `references` (`tsc -b`) fallback; and binary+flag invocations using `$PX` rather than `$PM exec`
 
-v1.18.0 makes the framework rules actually reachable. `docs/framework-rules.md` and `docs/monorepo.md` used to be referenced only by this repo's own `CLAUDE.md` `@import`, which a consumer session never loads — so no agent ever saw them. Now the fe-build · fe-review · fe-start · fe-spec skills read the relevant section (common rules + the detected framework) via the skill base directory and pass the absolute path to the agents they delegate to (`fe-architect` · `fe-reviewer` · `fe-build-fixer` · `fe-perf-auditor`), with a plugin-cache glob fallback and an explicit "rules file not received" line when neither is available. The repo's own `CLAUDE.md` moved to `.claude/CLAUDE.md` for the same reason: a root `CLAUDE.md` ships in the plugin tree without being loaded, which is exactly what `claude plugin validate --strict` warns about — the eval now requires `--strict` to pass with zero warnings and self-lints both the root-file absence and the rules wiring.
+It exists to catch regressions when alias tiers shift with model updates, or when hooks and config change.
+
+v1.17.0 added section F. A cross-repo review reproduced twelve findings against v1.16.2 in throwaway repos, and each one is now a pinned regression: git global options and shell wrapping reaching the guard, config protection judged on the whole file before and after the edit, every `hooks.json` command executed from an install path containing a space, monorepo app-local and root-hoisted tools actually being called, `typecheck` running without a root `tsconfig.json`, deleted sources triggering the type check, all 21 of 21 changed files reaching the linter, the `git commit --only` isolation contract, and self-lint for agent scope (tracked ∪ untracked), exit-code preservation, `$PM run test`, the verification-result contract, and push ownership. When `ruby` or the `claude` CLI is present it also parses every frontmatter with a real YAML parser and runs `claude plugin validate --strict`.
+
+v1.18.0 makes the framework rules reachable. `docs/framework-rules.md` and `docs/monorepo.md` used to be referenced only by this repo's own `CLAUDE.md` `@import`, which a consumer session never loads, so no agent ever saw them. Now the fe-build, fe-review, fe-start, and fe-spec skills read the relevant section (common rules plus the detected framework) through the skill base directory and pass the absolute path to the agents they delegate to (`fe-architect`, `fe-reviewer`, `fe-build-fixer`, `fe-perf-auditor`). If no path arrives, an agent falls back to a plugin-cache glob, and if that finds nothing it says "rules file not received" on the first line of its report. The repo's own `CLAUDE.md` moved to `.claude/CLAUDE.md` for the same reason: a root `CLAUDE.md` ships in the plugin tree without being loaded, which is exactly what `claude plugin validate --strict` warns about. The eval now requires `--strict` to pass with zero warnings and self-lints both the absence of a root file and the rules wiring.
 
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
 Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags (`<purpose>`/`<forbidden>`/`<required>`/`<workflow>`/`<output>`).
 
-> **Model tiers are aliases.** Each agent's `model` is set to `opus`/`sonnet`/`haiku` — automatically using the latest tier on model family updates (e.g. Opus 4.8 → Opus 5) **on the Anthropic API**, where the aliases resolve to Opus 5 · Sonnet 5 · Haiku 4.5 (verified 2026-07). On Claude Platform on AWS, Amazon Bedrock, Google Cloud, or Microsoft Foundry, the same alias resolves to an older generation — as of the same date: Claude Platform on AWS `sonnet`=Sonnet 4.6, Amazon Bedrock / Google Cloud `sonnet`=Sonnet 4.5, Microsoft Foundry `opus`=Opus 4.6 and `sonnet`=Sonnet 4.5. Check Claude Code's model-config docs for your provider's exact resolution. Behavior may vary even with the same plugin version; run regression checks on each release if reproducibility matters.
-> Tier allocation: **opus** (high-judgment — `fe-analyst` · `fe-architect` · `fe-reviewer` · `fe-refactor-advisor`) / **haiku** (low-cost exploration — `fe-explorer`) / **sonnet** (all other execution/tool agents).
-> **Effort is pinned per agent, not inherited from the session** — otherwise a consumer running `/effort max` would push every fe-rail subagent to max. `high` for judgment gates and precision audits, `xhigh` for code-writing loops (`fe-build-fixer`, `fe-test-author`), `medium` for mechanical tool/research agents; `fe-explorer` (haiku) has none set, since Haiku doesn't support effort. Note that `xhigh` requires Sonnet 5 / Opus 4.7+ — on third-party providers where `sonnet` still resolves to 4.5/4.6, drop `fe-build-fixer` · `fe-test-author` to `high` if you hit an effort-related error.
+> **Model tiers are aliases.** Each agent's `model` is set to `opus`/`sonnet`/`haiku`, so on the Anthropic API it picks up the latest tier automatically when a model family updates (e.g. Opus 4.8 → Opus 5); there the aliases resolve to Opus 5 · Sonnet 5 · Haiku 4.5 (verified 2026-07). On Claude Platform on AWS, Amazon Bedrock, Google Cloud, or Microsoft Foundry, the same alias resolves to an older generation. As of the same date: Claude Platform on AWS `sonnet`=Sonnet 4.6, Amazon Bedrock / Google Cloud `sonnet`=Sonnet 4.5, Microsoft Foundry `opus`=Opus 4.6 and `sonnet`=Sonnet 4.5. Check Claude Code's model-config docs for your provider's exact resolution. Behavior may vary even with the same plugin version; run regression checks on each release if reproducibility matters.
+> Tier allocation: **opus** (high-judgment: `fe-analyst` · `fe-architect` · `fe-reviewer` · `fe-refactor-advisor`) / **haiku** (low-cost exploration: `fe-explorer`) / **sonnet** (all other execution/tool agents).
+> **Effort is pinned per agent, not inherited from the session.** Otherwise a consumer running `/effort max` would push every fe-rail subagent to max. `high` for judgment gates and precision audits, `xhigh` for code-writing loops (`fe-build-fixer`, `fe-test-author`), `medium` for mechanical tool/research agents; `fe-explorer` (haiku) has none set, since Haiku doesn't support effort. `xhigh` requires Sonnet 5 or Opus 4.7 and later; on third-party providers where `sonnet` still resolves to 4.5/4.6, drop `fe-build-fixer` · `fe-test-author` to `high` if you hit an effort-related error.
 
 ### Spec stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
 | `fe-analyst` | Requirements gap analysis (6 gaps / 7 sections); parallel scan of CLAUDE.md · DESIGN.md · PRODUCT.md · AGENTS.md | opus | Scoped (read-only) |
-| `fe-deck-reader` | PPT/deck decomposition — breaks multi-slide specs into policies · screens · flows (via PDF/PNG conversion) | sonnet | Scoped (read-only) |
-| `fe-vision` | (Extract) Figma · UI screenshots · PDF · PPT (via conversion) per-screen analysis (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) · (Contrast) implementation screenshot ↔ reference visual fidelity judgment (visual-verdict — Figma=pixel/PPT=layout, fe-start Phase 4.5) | sonnet | Scoped (read-only) |
+| `fe-deck-reader` | PPT/deck decomposition: breaks multi-slide specs into policies · screens · flows (via PDF/PNG conversion) | sonnet | Scoped (read-only) |
+| `fe-vision` | (Extract) Figma · UI screenshots · PDF · PPT (via conversion) per-screen analysis (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) · (Contrast) implementation screenshot ↔ reference visual fidelity judgment (visual-verdict; Figma=pixel/PPT=layout, fe-start Phase 4.5) | sonnet | Scoped (read-only) |
 | `fe-researcher` | External docs · library research (Context7 MCP preferred, WebSearch/WebFetch fallback) | sonnet | Tool (Context7/WebSearch/WebFetch) |
-| `fe-architect` | React/TS architecture — Next.js (RSC boundaries) / Vite SPA (TanStack Router · React Router 7·8 · Zustand) + Tailwind v3/v4 · shadcn · openapi-fetch (orthogonal detection) | opus | Scoped (read-only) |
+| `fe-architect` | React/TS architecture: Next.js (RSC boundaries) / Vite SPA (TanStack Router · React Router 7·8 · Zustand) + Tailwind v3/v4 · shadcn · openapi-fetch (orthogonal detection) | opus | Scoped (read-only) |
 
 ### Build stage
 | Agent | When to delegate | Model | Isolation |
@@ -140,9 +146,9 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 ### Review stage
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
-| `fe-reviewer` | 4-axis review (type · performance · a11y · quality — performance axis now covers React hook runtime bugs: missing cleanup · async race · infinite loop; includes Tailwind anti-patterns · openapi-fetch patterns · DESIGN.md design contract, if present) | opus | Scoped (read-only) |
-| `fe-a11y-auditor` | 8-axis a11y audit (Color Contrast — Tailwind palette-based included). `--live` runs a real Lighthouse a11y audit + accessibility-tree snapshot via Chrome DevTools MCP when installed; static-only otherwise | sonnet | Scoped (read-only) |
-| `fe-perf-auditor` | Performance audit — Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7·8 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply). `--live` runs a real dev-server measurement (LCP breakdown, console, network) via Chrome DevTools MCP when installed; static-only otherwise | sonnet | Scoped (read-only) |
+| `fe-reviewer` | 4-axis review (type · performance · a11y · quality). The performance axis also covers React hook runtime bugs such as missing cleanup, async races, and infinite loops, and the review checks Tailwind anti-patterns, openapi-fetch patterns, and the DESIGN.md design contract when present | opus | Scoped (read-only) |
+| `fe-a11y-auditor` | 8-axis a11y audit (color contrast included, Tailwind palette based). `--live` runs a real Lighthouse a11y audit + accessibility-tree snapshot via Chrome DevTools MCP when installed; static-only otherwise | sonnet | Scoped (read-only) |
+| `fe-perf-auditor` | Performance audit: Next.js (RSC · next/image · next/font) / Vite SPA (TanStack loader · RR7·8 TQ prefetch · fetchpriority · bundle) / Tailwind v3/v4 (purge · @source · @apply). `--live` runs a real dev-server measurement (LCP breakdown, console, network) via Chrome DevTools MCP when installed; static-only otherwise | sonnet | Scoped (read-only) |
 | `fe-test-runner` | Test execution + failure classification | sonnet | Context |
 | `fe-refactor-advisor` | 6-dimension refactoring analysis + Before/After | opus | Scoped (read-only) |
 
@@ -150,7 +156,7 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 | Agent | When to delegate | Model | Isolation |
 |-------|-----------------|-------|-----------|
 | `fe-git-operator` | Commit splitting · staging that leaves your pre-staged index alone (`git commit --only -- <files>`) + body authoring (fix = symptom·cause·fix / feat = added·core·impact) · owns `git push` | sonnet | Tool (Write/Edit blocked) |
-| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type + risk-ordered review points) from the verification-result object — test checklist = exit code @ SHA, never "passed" by assumption — + `gh pr create` (pushes only as a fallback when the branch has no upstream) | sonnet | Context + Tool |
+| `fe-pr-author` | PR body authoring (🐛/✨ blocks by change type + risk-ordered review points) from the verification-result object (the test checklist records exit code @ SHA and never says "passed" by assumption) + `gh pr create` (pushes only as a fallback when the branch has no upstream) | sonnet | Context + Tool |
 
 ## Workflow
 
@@ -159,13 +165,13 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [radio] "Commit?" → PR created
 ```
 
-> If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger — automation pauses and reports a diagnosis instead of looping indefinitely.
+> If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger: automation pauses and reports a diagnosis instead of looping indefinitely.
 
 **fe-spec → full-auto handoff**
 ```
 /fe-rail:fe-spec → [radio] select "Full auto" → fe-start runs automatically → [radio] "Commit?" → PR created
 ```
-> Selecting "Full auto" at fe-spec's "next step" gate counts as the first approval ("Implement?"), so fe-start only asks "Commit?" — two human approvals are still preserved overall.
+> Selecting "Full auto" at fe-spec's "next step" gate counts as the first approval ("Implement?"), so fe-start only asks "Commit?", and two human approvals are still preserved overall.
 
 **Step-by-step manual control**
 ```
@@ -175,17 +181,17 @@ Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [
 ## Prerequisites
 
 - Claude Code
-- Package manager (pnpm / npm / yarn / bun — auto-detected via lockfile)
+- Package manager (pnpm / npm / yarn / bun, auto-detected from the lockfile)
 - gh CLI (for automated PR creation)
 - TypeScript strict mode (Next.js / Vite SPA)
 
 ## Post-install Recommended Setup (Consumer Project)
 
-Plugin agents read and reason from the **consumer project's context**. Setting these up right after installation significantly improves output quality.
+Plugin agents read and reason from the consumer project's context. Setting these up right after installation makes a large difference to output quality.
 
 | Item | Why | How |
 |------|-----|-----|
-| **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it — without it, agents analyze blind (this repo's own `.claude/CLAUDE.md` is not loaded into consumer sessions; the framework rules in `docs/` reach agents only through the skills, see v1.18.0 above) | `/init` or `/fe-rail:fe-doc-sync` |
+| **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it; without it, agents analyze blind (this repo's own `.claude/CLAUDE.md` is not loaded into consumer sessions; the framework rules in `docs/` reach agents only through the skills, see v1.18.0 above) | `/init` or `/fe-rail:fe-doc-sync` |
 | **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Auto: run `bash <install-path>/hooks/scripts/setup-permissions.sh` from the project root (detects host → merges into `.claude/settings.local.json`, confirm once) · Manual: add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
 | **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`/`fe-a11y-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin. If not installed, each agent falls back and surfaces the enable command just-in-time (JIT) |
 | **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |
