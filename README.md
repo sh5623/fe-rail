@@ -121,6 +121,8 @@ v1.18.0 makes the framework rules reachable. `docs/framework-rules.md` and `docs
 
 v1.19.0 moves fe-start's build and E2E from before "Commit?" (Phase 4.5) to right before the commit (Phase 6-0); see Workflow below. The eval checks that the build/E2E block lives only in 6-0 and not in Phase 4.5, that 6-0 comes before 6-1, and pins one git contract: `git rebase --autostash` exits 0 even when re-applying the uncommitted changes conflicts, so a sync conflict has to be detected with `git diff --diff-filter=U` (fe-git-operator sync mode).
 
+v1.19.1 fixes three things a cross-check reproduced. The pre-commit gate result is now chained to the commit **only when the commit tree equals the tree that was checked**: a check that passed on a working tree mixed with out-of-scope changes could fail on the commit that holds only the scoped files. So Phase 6-0 first stops and asks when out-of-scope changes are present. The verification fingerprint moves from a hash of `git diff HEAD` to a "verified tree id" built in a temporary index, so edits to untracked files count too. Sync mode no longer rebases while changes are staged (autostash would unstage them). The eval pulls the snippets out of the docs and runs them in throwaway repositories.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.

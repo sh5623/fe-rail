@@ -580,6 +580,58 @@ grep -q 'diff-filter=U' "$ROOT/agents/fe-git-operator.md" && grep -q 'rebase --a
   && grep -q 'rebase-merge' "$ROOT/agents/fe-git-operator.md" \
   && ok "fe-git-operator 동기화 모드: --diff-filter=U 판정·rebase --abort 복원·진행 중 rebase 보호" \
   || ng "fe-git-operator 동기화 모드: 충돌 판정(--diff-filter=U)·abort·진행 중 rebase 보호 중 누락"
+# ── v1.19.1 — 검증 트리 id · 범위 밖 변경 · 동기화의 staged 보존 (2026-10-23 Codex 교차 검증 3건) ──
+# 문서의 스니펫을 그대로 꺼내 임시 저장소에서 실행한다(문구가 아니라 동작을 고정).
+TREEID_SNIP=$(awk '/^> \*\*검증 결과 객체/{f=1} f&&/^> ```bash/{c=1;next} c&&/^> ```/{exit} c{sub(/^> ?/,"");print}' "$SK")
+_treeid(){ ( cd "$1" && eval "$TREEID_SNIP" ) 2>/dev/null | tail -1; }
+TI="$TMP/treeid"; mkdir -p "$TI"; _git_fixture "$TI"
+t0=$(_treeid "$TI"); h0=$(git -C "$TI" rev-parse 'HEAD^{tree}')
+echo v1 > "$TI/new.ts"; t1=$(_treeid "$TI"); echo v2 > "$TI/new.ts"; t2=$(_treeid "$TI")
+( cd "$TI" && echo s > user.txt && git add user.txt ) >/dev/null 2>&1
+c0=$(git -C "$TI" diff --cached --name-only); _treeid "$TI" >/dev/null; c1=$(git -C "$TI" diff --cached --name-only)
+if [ -n "$TREEID_SNIP" ] && [ -n "$t0" ] && [ "$t0" = "$h0" ] && [ -n "$t1" ] && [ "$t1" != "$t2" ] && [ "$c0" = "user.txt" ] && [ "$c0" = "$c1" ]; then
+  ok "검증 트리 id: 깨끗하면 HEAD^{tree} 와 같고, untracked 파일 수정을 잡고, 실제 index 를 건드리지 않는다(v1.19.1)"
+else ng "검증 트리 id 계약 위반(t0=$t0 h0=$h0 t1=$t1 t2=$t2 idx=${c0}→${c1}) — git diff HEAD 는 untracked 를 못 본다"; fi
+# 범위 밖 staged(user.txt)가 섞인 트리를 검증하고 범위 파일만 --only 커밋하면 트리가 달라야 한다 → 이어 붙이지 않는다
+echo m > "$TI/README.md"; tv=$(_treeid "$TI")
+( cd "$TI" && git add README.md new.ts && git commit -q --only -m f -- README.md new.ts ) >/dev/null 2>&1
+tc=$(git -C "$TI" rev-parse 'HEAD^{tree}')
+TC="$TMP/treeid-clean"; mkdir -p "$TC"; _git_fixture "$TC"
+echo m > "$TC/README.md"; echo a > "$TC/a.ts"; tv2=$(_treeid "$TC")
+( cd "$TC" && git add README.md a.ts && git commit -q --only -m f -- README.md a.ts ) >/dev/null 2>&1
+if [ -n "$tv" ] && [ "$tv" != "$tc" ] && [ -n "$tv2" ] && [ "$tv2" = "$(git -C "$TC" rev-parse 'HEAD^{tree}')" ]; then
+  ok "결과 연결: 범위 밖 변경이 섞이면 커밋 트리 ≠ 검증 트리(연결 금지), 범위만 있으면 같다(연결 허용)(v1.19.1)"
+else ng "결과 연결 판정이 커밋 트리와 검증 트리를 가르지 못한다(tv=$tv tc=$tc tv2=$tv2)"; fi
+grep -q 'HEAD^{tree}' "$SK" && grep -q '범위 확인' "$SK" \
+  && ok "fe-start 6-0: 범위 확인(범위 밖 변경 STOP) + 커밋 트리 비교로만 결과를 잇는다" \
+  || ng "fe-start 6-0: 범위 확인 또는 HEAD^{tree} 비교 지시 누락"
+SYNC_SNIP=$(awk '/^### 동기화 모드/{s=1} s&&/^```bash/{c=1;next} c&&/^```/{exit} c' "$ROOT/agents/fe-git-operator.md")
+_sync_fixture(){ # $1 → origin.git(bare) · pub(상류에 커밋하는 쪽) · loc(작업 브랜치 work, upstream 없음)
+  ( mkdir -p "$1" && cd "$1" && git init -q --bare origin.git && git -C origin.git symbolic-ref HEAD refs/heads/main \
+    && git clone -q origin.git pub 2>/dev/null && cd pub && git config user.email t@t.com && git config user.name t \
+    && git config commit.gpgsign false && git checkout -q -b main && echo base > a.txt && git add a.txt && git commit -qm base \
+    && git push -q origin main && cd .. && git clone -q origin.git loc && cd loc && git config user.email t@t.com \
+    && git config user.name t && git checkout -q -b work ) >/dev/null 2>&1; }
+_upstream(){ ( cd "$1/pub" && echo up > "$2" && git add "$2" && git commit -qm up && git push -q origin main ) >/dev/null 2>&1; }
+SY="$TMP/sync-staged"; _sync_fixture "$SY"
+( cd "$SY/loc" && echo s > a.txt && git add a.txt && echo u > b.txt ) >/dev/null 2>&1; _upstream "$SY" c.txt
+sh0=$(git -C "$SY/loc" rev-parse HEAD); sout=$( cd "$SY/loc" && bash -c "$SYNC_SNIP" 2>&1 )
+if printf '%s' "$sout" | grep -q '중단: staged' && [ "$(git -C "$SY/loc" rev-parse HEAD)" = "$sh0" ] \
+   && [ "$(git -C "$SY/loc" diff --cached --name-only)" = "a.txt" ]; then
+  ok "동기화 모드: staged 변경이 있으면 rebase 하지 않고 멈춘다 — index 보존(v1.19.1)"
+else ng "동기화 모드: staged 변경을 autostash 로 풀어 버린다(staged=$(git -C "$SY/loc" diff --cached --name-only | tr '\n' ' '))"; fi
+SU="$TMP/sync-untracked"; _sync_fixture "$SU"; echo mine > "$SU/loc/c.txt"; _upstream "$SU" c.txt
+uh0=$(git -C "$SU/loc" rev-parse HEAD); uout=$( cd "$SU/loc" && bash -c "$SYNC_SNIP" 2>&1 )
+if ! printf '%s' "$uout" | grep -q 'no rebase in progress' && [ "$(git -C "$SU/loc" rev-parse HEAD)" = "$uh0" ] \
+   && [ "$(cat "$SU/loc/c.txt")" = "mine" ]; then
+  ok "동기화 모드: untracked 경로 충돌로 rebase 가 시작 거부되면 abort 없이 그대로 둔다(v1.19.1)"
+else ng "동기화 모드: 시작 거부 뒤 abort 오류 또는 상태 변화(out=$(printf '%s' "$uout" | tail -1))"; fi
+SN="$TMP/sync-normal"; _sync_fixture "$SN"; echo d > "$SN/loc/a.txt"; _upstream "$SN" c.txt
+( cd "$SN/loc" && bash -c "$SYNC_SNIP" ) >/dev/null 2>&1
+if [ "$(git -C "$SN/loc" rev-parse HEAD)" = "$(git -C "$SN/loc" rev-parse origin/main)" ] && [ "$(cat "$SN/loc/a.txt")" = "d" ] \
+   && [ -z "$(git -C "$SN/loc" diff --cached --name-only)" ]; then
+  ok "동기화 모드: 정상 경로 — 상류를 받아오고 미커밋 변경을 그대로 다시 얹는다"
+else ng "동기화 모드 정상 경로 실패(HEAD=$(git -C "$SN/loc" rev-parse --short HEAD) a.txt=$(cat "$SN/loc/a.txt"))"; fi
 
 echo
 echo "════════════════════════════════════════"

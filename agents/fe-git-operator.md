@@ -279,6 +279,8 @@ git rev-parse HEAD; git rev-parse --abbrev-ref --symbolic-full-name @{u}   # pus
 git status -sb
 # 이미 진행 중인 rebase·merge 가 있으면 손대지 않는다(아래 rebase --abort 가 사용자의 rebase 를 날리지 않게)
 for p in rebase-merge rebase-apply MERGE_HEAD; do [ -e "$(git rev-parse --git-path $p)" ] && { echo "중단: 진행 중인 $p — 사람에게 넘긴다"; exit 0; }; done
+# staged 변경이 있으면 손대지 않는다 — autostash 는 staged 를 unstaged 로 풀어 버린다(내용은 보존되지만 index 상태가 사라진다)
+git diff --cached --quiet || { echo "중단: staged 변경 있음 — $(git diff --cached --name-only | tr '\n' ' ')"; exit 0; }
 git fetch origin || { echo "동기화 생략: fetch 실패(원격 없음·인증)"; exit 0; }   # 파괴 없음 — 사유를 보고하고 끝낸다
 UP=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)   # 이미 push 된 브랜치면 그 upstream
 BASE=${BASE:-$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')}; BASE=${BASE:-main}
@@ -290,7 +292,9 @@ if [ "$BEHIND" -gt 0 ]; then
   CONFLICT=$(git diff --name-only --diff-filter=U)
   # rc 만으로 판정하지 않는다. 로컬 커밋끼리 충돌하면 rc≠0 이지만, 미커밋 변경을 다시 얹다가 충돌하면 rc=0 으로 끝나고
   # 작업 트리에 충돌 마커를 남긴다(변경 원본은 stash 목록의 autostash 항목에 보존된다). 둘 다 충돌이다.
-  if [ "$RC" -ne 0 ]; then git rebase --abort; fi   # HEAD·미커밋 변경을 동기화 전으로 되돌린다
+  INPROG=""; for p in rebase-merge rebase-apply; do [ -e "$(git rev-parse --git-path $p)" ] && INPROG=1; done
+  # rc≠0 이어도 rebase 가 시작조차 못 했을 수 있다(예: untracked 파일과 상류 새 파일의 경로 충돌) — 그땐 되돌릴 것이 없다
+  if [ "$RC" -ne 0 ] && [ -n "$INPROG" ]; then git rebase --abort; fi   # HEAD·미커밋 변경을 동기화 전으로 되돌린다
 fi
 git rev-parse HEAD                         # AFTER
 if [ -n "$UP" ] && [ "$UP" != "origin/$BASE" ]; then   # 공개 브랜치의 base 뒤처짐 — 기록만(rebase 하지 않는다)
@@ -301,7 +305,9 @@ fi
 판정:
 - `BEHIND=0` → "동기화 불필요". 가져온 커밋 0 · 코드 불변.
 - rc=0 · `CONFLICT` 비어 있음 → "동기화 완료". 가져온 커밋 수와 BEFORE→AFTER 를 보고한다(코드가 바뀌었으므로 부모가 가벼운 묶음부터 다시 돈다).
-- rc≠0 → "충돌 — 동기화 전으로 되돌림". 충돌 파일을 보고한다(`rebase --abort` 가 미커밋 변경까지 복원한다).
+- 첫 줄 "중단: staged 변경 있음" → 동기화하지 않았다. 경로를 보고한다(부모가 범위 밖 변경으로 STOP).
+- rc≠0 · rebase 진행 중이었음 → "충돌 — 동기화 전으로 되돌림". 충돌 파일을 보고한다(`rebase --abort` 가 미커밋 변경까지 복원한다).
+- rc≠0 · rebase 진행 안 됨 → "시작 거부 — 아무것도 바뀌지 않음". git 이 낸 이유(예: untracked 파일이 상류 새 파일과 같은 경로)를 그대로 보고한다.
 - rc=0 이지만 `CONFLICT` 있음 → "충돌 — 상류는 반영됐고 미커밋 변경 재적용이 충돌". 충돌 파일 + "변경 원본은 `git stash list` 의 autostash 항목에 보존" 을 보고한다. 정리하지 않는다.
 - 충돌이면 부모(fe-start)가 STOP 으로 사람에게 넘긴다 — 이 에이전트는 해소하지 않는다.
 

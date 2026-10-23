@@ -4,7 +4,7 @@ description: >-
   Takes a feature.md file and automatically runs spec confirmation → implementation → review → commit → PR.
   Use when: the user says "fe-start feature.md" or "start with feature.md".
   Do NOT load for: one-off bug hotfixes, 1-line changes, exploratory work, or tasks where pass/fail signals are ambiguous (a single skill or a direct prompt is better).
-  Human checkpoints: two — "Implement now?" and "Commit now?" — when entering via fe-spec's full-auto handoff, only "Commit now?" is asked (the fe-spec Phase 3 choice doubles as the first approval, keeping the total at 2). Can STOP with an exception escalation once the re-delegation cap is exhausted or when the pre-commit base sync hits a conflict.
+  Human checkpoints: two — "Implement now?" and "Commit now?" — when entering via fe-spec's full-auto handoff, only "Commit now?" is asked (the fe-spec Phase 3 choice doubles as the first approval, keeping the total at 2). Can STOP with an exception escalation once the re-delegation cap is exhausted or when the pre-commit step finds out-of-scope changes or the base sync hits a conflict.
 allowed-tools:
   - Read
   - Write
@@ -117,10 +117,19 @@ if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 
 > **검증 결과 객체 (Phase 3·4.5·6-0 공통 — 최종 코드까지 이어지는 계약)**
 > 실행한 검사마다 아래 필드를 기록한다: `kind`(typecheck/lint/test/build/e2e/visual) · `command` · `cwd` ·
-> `status`(통과/실패/미실행) · `exit_code` · `대상 리비전`(`git rev-parse HEAD` + 미커밋 변경 지문
-> `git diff HEAD | shasum`) · `skip 사유`. **판정은 exit_code 로만** 한다(로그 요약은 그다음).
-> **코드가 바뀌면 그 이전 결과는 무효다** — 리비전·지문이 지금과 다른 결과는 재사용하지 않고 재실행한다.
-> 같은 지문에 대한 중복 실행만 생략한다. 이 객체는 Phase 5 보고와 Phase 6-2 의 PR 위임 입력으로 그대로 전달된다.
+> `status`(통과/실패/미실행) · `exit_code` · `대상 리비전`(`git rev-parse HEAD` + 아래 **검증 트리 id**) ·
+> `skip 사유`. **판정은 exit_code 로만** 한다(로그 요약은 그다음).
+> **코드가 바뀌면 그 이전 결과는 무효다** — 트리 id 가 지금과 다른 결과는 재사용하지 않고 재실행한다.
+> 같은 트리 id 에 대한 중복 실행만 생략한다. 이 객체는 Phase 5 보고와 Phase 6-2 의 PR 위임 입력으로 그대로 전달된다.
+> ```bash
+> # 검증 트리 id — 추적 파일과 untracked(무시 제외) 파일 전체의 경로·내용·모드를 한 값으로. 실제 index 는 건드리지 않는다.
+> # (`git diff HEAD | shasum` 은 untracked 파일을 못 봐서 신규 파일을 고쳐도 지문이 그대로였다 — v1.19.1 에서 교체)
+> T=$(mktemp -d)/index; cp "$(git rev-parse --git-path index)" "$T"
+> git ls-files -z -m -d -o --exclude-standard | GIT_INDEX_FILE=$T git update-index -z --add --remove --stdin
+> GIT_INDEX_FILE=$T git write-tree; rm -rf "$(dirname "$T")"
+> ```
+> 작업 트리가 깨끗하면 이 값은 `git rev-parse HEAD^{tree}` 와 같다. 그래서 6-0 의 결과를 커밋에 이어 붙일 수 있는지를
+> 커밋 트리와 직접 비교해 판정한다(6-0 의 5).
 
 ### Phase 4 — 리뷰 (에이전트 위임)
 
@@ -132,7 +141,7 @@ if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 결과를 받아 BLOCK/WARN/INFO 항목을 간략 보고한다.
 BLOCK이 있으면 수정 후 재위임하되 **같은 BLOCK 군 3회 초과 시 → "재위임 상한·실패 출구"로**.
 **리뷰 수정으로 코드가 바뀌었으면 Phase 3 의 검증 결과 객체는 무효다** — 타입·린트·단위를 최종 코드에서
-재실행해 객체를 갱신한 뒤 Phase 4.5 로 간다(리비전 지문이 같을 때만 재사용).
+재실행해 객체를 갱신한 뒤 Phase 4.5 로 간다(트리 id 가 같을 때만 재사용).
 BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은 완료 기준 통과(Phase 4.5 의 가벼운 묶음 +
 Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지적함" ≠ "완료").
 
@@ -145,7 +154,7 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
 1. `## 완료 기준 (Acceptance Criteria)` 섹션을 읽어 **두 부류로** 처리한다 (문구를 명령으로 파싱하지 않고
    고정 체크리스트를 표준 게이트에 매핑). 섹션이 없으면(fe-spec 우회·손작성) "완료 기준 미정의"로 기록하고
    자동 게이트만 돌린 뒤 STOP 에 표기한다.
-   - **자동 실행 항목** ← 타입·린트·단위 **전체**(검증 결과 객체의 리비전 지문이 현재 코드와 같을 때만 Phase 3 결과 재사용, 다르면 재실행). 빌드·E2E 는 여기서 돌리지 않고 Phase 6-0 으로 넘긴다.
+   - **자동 실행 항목** ← 타입·린트·단위 **전체**(검증 결과 객체의 트리 id 가 현재 코드와 같을 때만 Phase 3 결과 재사용, 다르면 재실행). 빌드·E2E 는 여기서 돌리지 않고 Phase 6-0 으로 넘긴다.
    - **사람 검증 항목** ← 자동 불가: 반응형(375/768/1280)·접근성(키보드·aria·대비)·다크모드·DESIGN.md Bans
      → 실행하지 않고 STOP 에서 사람 확인 대상으로 노출.
 2. **build·E2E 를 STOP 2 앞에서 돌리지 않는 이유** — STOP 2 는 사용자가 로컬에서 동작을 보고 수정을 요청하는
@@ -159,7 +168,7 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
    - **판정**: `fe-vision` **대조 모드**에 `reference_images`+`generated_screenshot`+`category_hint`(Figma=`figma-hifi` / PPT-PDF=`ppt-layout`)를 넘겨 JSON 판정을 받는다.
    - **루프**: `score < 임계` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
    - 최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
-   - 루프로 코드가 바뀌었으면 타입·린트·단위를 최종 코드에서 다시 돌려 검증 결과 객체를 갱신한다(지문 규칙).
+   - 루프로 코드가 바뀌었으면 타입·린트·단위를 최종 코드에서 다시 돌려 검증 결과 객체를 갱신한다(트리 id 규칙).
 
 ### Phase 5 — 두 번째 확인 ⛔ STOP
 
@@ -204,12 +213,19 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
 
 STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않는 마지막 지점이므로 여기서 낸 결과가 PR `## 테스트` 의 근거가 된다.
 
+0. **범위 확인 (먼저)** — `git status --porcelain --untracked-files=all` 의 경로 중 작업 범위(Phase 2 파일 목록 ∪ feature.md ∪
+   6-0 게이트 수정) **밖**의 변경(staged·unstaged·untracked)이 있으면 ⛔ STOP 한다. 이유 둘:
+   ① 6-1 은 범위 파일만 커밋하므로(`commit --only`) 그 변경이 섞인 트리에서 돈 build·E2E 는 커밋의 근거가 될 수 없다
+   (작업 트리에서 통과한 검사가 커밋만 꺼내면 실패하는 경우가 재현됐다). ② 1 의 autostash 는 staged 변경을 unstaged 로 풀어
+   버린다(내용은 보존되지만 사용자의 index 상태가 사라진다). 범위 밖 경로를 보여 주고 `AskUserQuestion` 으로 묻는다 —
+   «정리 후 계속»(사용자가 직접 커밋·stash 해 치운 뒤 0 부터 다시) / «동기화 없이 진행»(1 을 건너뛰고 2~4 만 — 결과는 커밋에
+   이어 붙이지 않고 PR 에 «미검증 — 범위 밖 변경이 섞인 트리» 로 적는다) / «중단». 범위 밖 변경이 없으면 묻지 않는다.
 1. **base 동기화** — `fe-git-operator` 를 **동기화 모드**(커밋·푸시 없음)로 위임한다. 넘길 것: PR base(지정이 없으면 에이전트가 `origin/HEAD` 로 감지). 받을 것: 동기화 대상 · 가져온 커밋 수 · 전후 HEAD · 충돌 여부.
    - 대상은 현재 브랜치의 upstream(`@{u}`)이 있으면 그것, 없으면 `origin/<base>` 다. 뒤처졌으면 `git rebase --autostash <대상>` 으로 맞춘다(로컬 커밋이 없으면 FF 와 같다).
-   - **충돌이면 ⛔ STOP** — 자동 해소하지 않는다. 충돌 파일과 상태(동기화 전으로 되돌렸는지, 미커밋 변경이 stash 에 보존돼 있는지)를 보고하고 사람 지시를 기다린다. 이미 진행 중인 rebase·merge 가 있어 에이전트가 손대지 않고 돌아온 경우도 같은 STOP 이다.
+   - **충돌이면 ⛔ STOP** — 자동 해소하지 않는다. 충돌 파일과 상태(동기화 전으로 되돌렸는지, 미커밋 변경이 stash 에 보존돼 있는지)를 보고하고 사람 지시를 기다린다. 이미 진행 중인 rebase·merge 나 staged 변경이 있어 에이전트가 손대지 않고 돌아온 경우도 같은 STOP 이다.
    - 이미 push 된 브랜치에서 base 만 앞서 있으면 rebase 하지 않는다(공개 히스토리 재작성 = force push). 뒤처진 커밋 수만 기록하고 통합 검증은 PR(CI)에 맡긴다.
    - 원격이 없거나 fetch 가 실패하면 "동기화 생략(사유)" 로 기록하고 2 로 간다.
-2. **무거운 게이트 1회** — 동기화된 트리에서 돈다. 가져온 커밋이 있으면 코드가 바뀐 것이므로 타입·린트·단위도 이 트리에서 다시 돈다(지문 규칙).
+2. **무거운 게이트 1회** — 동기화된 트리에서 돈다. 가져온 커밋이 있으면 코드가 바뀐 것이므로 타입·린트·단위도 이 트리에서 다시 돈다(트리 id 규칙).
    **명령은 소비자 프로젝트가 정한다** — 소비자 CLAUDE.md·AGENTS.md 에 푸시 전(무거운) 게이트 명령이 선언돼 있으면 그것을 쓴다
    (변경→spec 매핑·preview 모드·앱 범위는 프로젝트가 더 잘 안다). 선언이 없으면 아래 기본, 곧 **전체 build + 전체 E2E** 다.
    기본을 휴리스틱으로 좁히지 않는다 — 플러그인은 변경→spec 매핑을 모르고, 좁히면 셸·공용 모듈 변경을 놓친다.
@@ -238,9 +254,12 @@ STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않�
 4. **빨강이면** `fe-build-fixer` 에 실패 요약을 넘겨 최소 수정 → **같은 지점에서** 게이트를 1회 다시 돈다(코드가 바뀌었으므로
    가벼운 묶음 포함). 같은 실패 군 3회 초과 → "재위임 상한·실패 출구"로. 이 단계의 수정은 STOP 2 에서 사용자가 본 코드가
    아니므로, 6-1 보고와 PR 에 «6-0 게이트 수정» 으로 파일·이유를 따로 적는다.
-5. 6-0 과 6-1 사이에는 코드를 바꾸지 않는다. 6-1 이 커밋한 트리가 곧 6-0 이 검증한 트리이므로, 6-2 에 넘길 때 검증 결과
-   객체의 대상 리비전을 push SHA 로 이어 붙인다(`6-0 검증 = <HEAD>+<지문> → 커밋 <SHA>`). 커밋 훅이 파일을 고쳤거나
-   그 사이 편집이 있었으면 이어 붙이지 않고 그 SHA 에서 2~4 를 다시 돈다.
+5. 6-0 과 6-1 사이에는 코드를 바꾸지 않는다. 6-1 이 끝나면 **커밋 트리(`git rev-parse HEAD^{tree}`)가 6-0 의 검증 트리 id 와
+   같을 때만** 검증 결과 객체의 대상 리비전을 push SHA 로 이어 붙인다(`6-0 검증 트리 <id> = 커밋 <SHA> 의 트리`).
+   «편집이 없었다» 는 판단으로 잇지 않는다 — 트리 비교만이 근거다. 다르면:
+   작업 트리가 커밋과 같아졌으면(`git status --porcelain` 이 비어 있음 · 예: 커밋 훅이 파일을 고치고 다시 스테이징) 그 SHA 에서
+   2~4 를 다시 돌고, 아니면 이어 붙이지 않고 PR 에 «미검증 — 커밋 트리 ≠ 검사 트리» 로 적는다. 같은 dirty 작업 트리에서
+   다시 돌리는 것으로는 해결되지 않는다(검사 트리가 또 커밋과 다르다).
 
 > **CI 위임(A안)**: `--ci-live` 면 1(동기화)은 그대로 하고, 2 의 build·e2e 는 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.
 > 기본(플래그 없음)은 로컬 실행(B안)이 floor — `buildspec.yml`·`.github/workflows` 등 *설정 파일 존재*만으로
@@ -267,7 +286,7 @@ STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않�
 - feature.md 경로
 - 커밋 범위 (base..HEAD) · 브랜치/remote/base · 6-1 의 push 완료 SHA
 - Phase 4 리뷰 요약 (통과/경고 항목)
-- **검증 결과 객체** (Phase 3·4.5·6-0 최종 — 6-0 의 5 로 대상 리비전을 push SHA 에 이어 붙인 것 · 미검증 사유·skip 포함) — PR 의 `## 테스트` 체크리스트는 이것으로 채운다
+- **검증 결과 객체** (Phase 3·4.5·6-0 최종 — 6-0 의 5 에서 커밋 트리가 검증 트리와 같아 push SHA 에 이어 붙인 것 · 미검증 사유·skip 포함) — PR 의 `## 테스트` 체크리스트는 이것으로 채운다
 - 6-0 동기화 결과(대상·가져온 커밋 수) · 6-0 게이트 수정(있으면 — `## 리뷰 포인트` 에 «STOP 2 이후 수정» 으로 올린다)
 - 플래그: `--ci-live` / `--skip-e2e` / `--no-draft`
 
