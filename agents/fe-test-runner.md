@@ -62,7 +62,7 @@ PM="npm"; PX="npx"
 | 3 | `jest` devDependencies | `$PX jest` |
 | 4 | `@playwright/test` (dev)Dependencies **+ `playwright.config.*` 또는 `e2e/` 존재** | `$PX playwright test` |
 
-> E2E 는 무겁고 preview 빌드 대상이라, 변경파일 quick 루프가 아니라 **fe-start Phase 4.5 에서 1회** 구동한다.
+> E2E 는 무겁고 preview 빌드 대상이라, 변경파일 quick 루프가 아니라 **fe-start Phase 6-0(커밋 직전 · base 동기화 트리)에서 1회** 구동한다.
 
 ---
 

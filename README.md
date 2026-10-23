@@ -44,11 +44,12 @@ Next step?
 ✔ 12 files created, tsc clean, lint clean, 8 tests passing
 
 Commit and open a PR?
-  ❯ Yes: split by type (feat/fix/test) and open a draft PR
+  ❯ Yes: sync with the base, run build + E2E once, then commit by type (feat/fix/test) and open a draft PR
     No: leave changes uncommitted
 
 > Yes
 
+✔ Synced with origin/main (2 upstream commits) · build passed · E2E passed
 ✔ 2 commits created
 ✔ Pushed to feat/product-search-autocomplete
 ✔ Draft PR: https://github.com/you/your-app/pull/42
@@ -96,7 +97,7 @@ Hook intensity can be tuned via environment variables (no plugin file edits need
 | | `strict` | One tier above `standard` (currently a superset, reserved for stricter behavior in the future) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
 | `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter or `tsc` binary is present (default is local only, which keeps auto-hooks from downloading or running unpinned latest versions). Doesn't affect a project's own `typecheck` script, which always runs via the package manager |
-| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | Lets fe-start's Phase 4.5 gate install Playwright browsers automatically (`playwright install --with-deps chromium`). Off by default: it is a several-hundred-MB download and `--with-deps` needs root, so an unattended pipeline shouldn't trigger it silently. While off, E2E is honestly reported as "not run (browsers missing)" rather than passed |
+| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | Lets fe-start's Phase 6-0 (pre-commit) gate install Playwright browsers automatically (`playwright install --with-deps chromium`). Off by default: it is a several-hundred-MB download and `--with-deps` needs root, so an unattended pipeline shouldn't trigger it silently. While off, E2E is honestly reported as "not run (browsers missing)" rather than passed |
 
 > Downgrading the profile to `minimal` does not disable the safety blockers. To turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` (no-compromise blocking plus an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 
@@ -117,6 +118,8 @@ It exists to catch regressions when alias tiers shift with model updates, or whe
 v1.17.0 added section F. A cross-repo review reproduced twelve findings against v1.16.2 in throwaway repos, and each one is now a pinned regression: git global options and shell wrapping reaching the guard, config protection judged on the whole file before and after the edit, every `hooks.json` command executed from an install path containing a space, monorepo app-local and root-hoisted tools actually being called, `typecheck` running without a root `tsconfig.json`, deleted sources triggering the type check, all 21 of 21 changed files reaching the linter, the `git commit --only` isolation contract, and self-lint for agent scope (tracked ∪ untracked), exit-code preservation, `$PM run test`, the verification-result contract, and push ownership. When `ruby` or the `claude` CLI is present it also parses every frontmatter with a real YAML parser and runs `claude plugin validate --strict`.
 
 v1.18.0 makes the framework rules reachable. `docs/framework-rules.md` and `docs/monorepo.md` used to be referenced only by this repo's own `CLAUDE.md` `@import`, which a consumer session never loads, so no agent ever saw them. Now the fe-build, fe-review, fe-start, and fe-spec skills read the relevant section (common rules plus the detected framework) through the skill base directory and pass the absolute path to the agents they delegate to (`fe-architect`, `fe-reviewer`, `fe-build-fixer`, `fe-perf-auditor`). If no path arrives, an agent falls back to a plugin-cache glob, and if that finds nothing it says "rules file not received" on the first line of its report. The repo's own `CLAUDE.md` moved to `.claude/CLAUDE.md` for the same reason: a root `CLAUDE.md` ships in the plugin tree without being loaded, which is exactly what `claude plugin validate --strict` warns about. The eval now requires `--strict` to pass with zero warnings and self-lints both the absence of a root file and the rules wiring.
+
+v1.19.0 moves fe-start's build and E2E from before "Commit?" (Phase 4.5) to right before the commit (Phase 6-0); see Workflow below. The eval checks that the build/E2E block lives only in 6-0 and not in Phase 4.5, that 6-0 comes before 6-1, and pins one git contract: `git rebase --autostash` exits 0 even when re-applying the uncommitted changes conflicts, so a sync conflict has to be detected with `git diff --diff-filter=U` (fe-git-operator sync mode).
 
 ## Agents
 
@@ -162,10 +165,12 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 
 **All-in-one automation (fe-start)**
 ```
-Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [radio] "Commit?" → PR created
+Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [radio] "Commit?" → base sync + build · E2E once → commit · push → PR created
 ```
 
-> If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger: automation pauses and reports a diagnosis instead of looping indefinitely.
+> If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger: automation pauses and reports a diagnosis instead of looping indefinitely. A conflict during the pre-commit base sync stops the same way.
+
+Heavy gates such as build and E2E run after you approve "Commit?", right before the commit, not before the question (v1.19.0). "Commit?" is where you look at the change locally and ask for fixes, so a build or E2E run made before it is thrown away by the next fix or by one new upstream commit. Before "Commit?" fe-start runs only the full type check, lint and unit tests (plus visual fidelity for reference-matched screens). After you approve, it brings the working tree up to date with the branch it will land on (fetch, then fast-forward or rebase) and runs build and E2E once on that tree. Asking for fixes any number of times still means one heavy run. If your project has its own pre-push gate (a change-aware E2E runner, say), declare the command in your CLAUDE.md or AGENTS.md; otherwise fe-start runs the full build and the full E2E suite.
 
 **fe-spec → full-auto handoff**
 ```
@@ -194,7 +199,7 @@ Plugin agents read and reason from the consumer project's context. Setting these
 | **Project CLAUDE.md** | `fe-analyst` · `fe-architect`, etc. read the stack · rules · constraints from it; without it, agents analyze blind (this repo's own `.claude/CLAUDE.md` is not loaded into consumer sessions; the framework rules in `docs/` reach agents only through the skills, see v1.18.0 above) | `/init` or `/fe-rail:fe-doc-sync` |
 | **Bash permissions** | Prevents a permission prompt on every `fe-git-operator` · `fe-pr-author` action | Auto: run `bash <install-path>/hooks/scripts/setup-permissions.sh` from the project root (detects host → merges into `.claude/settings.local.json`, confirm once) · Manual: add `Bash(git *)` · `Bash(gh pr *)` to `permissions.allow` in `.claude/settings.json` |
 | **MCP (optional)** | Enables `fe-vision`'s direct Figma lookups, `fe-researcher`'s Context7 doc queries, and `fe-perf-auditor`/`fe-a11y-auditor`'s live measurement via `--live` (falls back to local images / WebSearch / static analysis if not installed) | Figma: claude.ai connector (`/mcp` → "claude.ai Figma", OAuth) · Context7: install the plugin · Chrome DevTools: install the plugin. If not installed, each agent falls back and surfaces the enable command just-in-time (JIT) |
-| **Validation scripts** | Phase 3 auto-validation uses `typecheck`/`lint`/`test`; the Phase 4.5 done-criteria gate uses `build`/`e2e` if present | Define those scripts |
+| **Validation scripts** | Phases 3 and 4.5 use `typecheck`/`lint`/`test`; the Phase 6-0 pre-commit gate uses `build`/`e2e` if present | Define those scripts. If your project has its own pre-push gate, declare the command in CLAUDE.md or AGENTS.md |
 
 ## License
 

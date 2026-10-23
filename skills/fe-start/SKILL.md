@@ -4,7 +4,7 @@ description: >-
   Takes a feature.md file and automatically runs spec confirmation → implementation → review → commit → PR.
   Use when: the user says "fe-start feature.md" or "start with feature.md".
   Do NOT load for: one-off bug hotfixes, 1-line changes, exploratory work, or tasks where pass/fail signals are ambiguous (a single skill or a direct prompt is better).
-  Human checkpoints: two — "Implement now?" and "Commit now?" — when entering via fe-spec's full-auto handoff, only "Commit now?" is asked (the fe-spec Phase 3 choice doubles as the first approval, keeping the total at 2). Can STOP with an exception escalation once the re-delegation cap is exhausted.
+  Human checkpoints: two — "Implement now?" and "Commit now?" — when entering via fe-spec's full-auto handoff, only "Commit now?" is asked (the fe-spec Phase 3 choice doubles as the first approval, keeping the total at 2). Can STOP with an exception escalation once the re-delegation cap is exhausted or when the pre-commit base sync hits a conflict.
 allowed-tools:
   - Read
   - Write
@@ -82,7 +82,7 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 4. 컴포넌트 구현
 5. 테스트 작성
 
-> **재위임 상한·실패 출구 (Phase 3·4 공통)**
+> **재위임 상한·실패 출구 (Phase 3·4·4.5·6-0 공통)**
 > 자동 수정/리뷰 재위임은 **같은 항목 군(群) 기준 누적 3회**까지. 3회 후 미해소면 루프를 멈추고
 > **사람에게 에스컬레이션** — 미해소 항목·시도 이력(각 회차 무엇을 바꿨고 왜 막혔는지)·추정 원인을
 > STOP 으로 보고한다. (개별 에이전트 `maxTurns` 는 단일 호출 경계라 이 오케스트레이션 루프를 못 막는다.)
@@ -115,7 +115,7 @@ if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 실패 시 `fe-build-fixer` 에이전트에 위임하여 최소 diff로 오류 수정 후 재검증.
 **같은 오류 군 3회 초과 시 → 위 "재위임 상한·실패 출구"로** (무한 수정 루프 차단).
 
-> **검증 결과 객체 (Phase 3·4.5 공통 — 최종 코드까지 이어지는 계약)**
+> **검증 결과 객체 (Phase 3·4.5·6-0 공통 — 최종 코드까지 이어지는 계약)**
 > 실행한 검사마다 아래 필드를 기록한다: `kind`(typecheck/lint/test/build/e2e/visual) · `command` · `cwd` ·
 > `status`(통과/실패/미실행) · `exit_code` · `대상 리비전`(`git rev-parse HEAD` + 미커밋 변경 지문
 > `git diff HEAD | shasum`) · `skip 사유`. **판정은 exit_code 로만** 한다(로그 요약은 그다음).
@@ -133,23 +133,86 @@ if grep -q '"test"' package.json; then $PM run test; else $PX vitest run; fi
 BLOCK이 있으면 수정 후 재위임하되 **같은 BLOCK 군 3회 초과 시 → "재위임 상한·실패 출구"로**.
 **리뷰 수정으로 코드가 바뀌었으면 Phase 3 의 검증 결과 객체는 무효다** — 타입·린트·단위를 최종 코드에서
 재실행해 객체를 갱신한 뒤 Phase 4.5 로 간다(리비전 지문이 같을 때만 재사용).
-BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은 Phase 4.5 의 완료 기준 통과로 한다
-(BLOCK 0 = "리뷰어가 그만 지적함" ≠ "완료").
+BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은 완료 기준 통과(Phase 4.5 의 가벼운 묶음 +
+Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지적함" ≠ "완료").
 
-### Phase 4.5 — 완료 기준 게이트 (런타임 검증)
+### Phase 4.5 — 완료 기준 게이트 (STOP 2 앞 · 가벼운 묶음)
 
 > **"완료"의 정의는 `feature.md` 의 '완료 기준'(Acceptance Criteria)이다.** (fe-spec 생성 feature.md 는 항상 포함.)
+> 자동 항목은 두 지점에서 나눠 검증한다. 여기(STOP 2 앞)서는 **가벼운 묶음**(타입·린트·단위 전체 + 고증 화면의
+> 시각 충실도)만 돌고, **무거운 묶음(build·E2E)은 Phase 6-0(커밋 직전)에서 1회** 돈다.
 
 1. `## 완료 기준 (Acceptance Criteria)` 섹션을 읽어 **두 부류로** 처리한다 (문구를 명령으로 파싱하지 않고
    고정 체크리스트를 표준 게이트에 매핑). 섹션이 없으면(fe-spec 우회·손작성) "완료 기준 미정의"로 기록하고
    자동 게이트만 돌린 뒤 STOP 에 표기한다.
-   - **자동 실행 항목** ← 타입·린트·단위(검증 결과 객체의 리비전 지문이 현재 코드와 같을 때만 Phase 3 결과 재사용, 다르면 재실행) + 빌드·E2E(아래).
+   - **자동 실행 항목** ← 타입·린트·단위 **전체**(검증 결과 객체의 리비전 지문이 현재 코드와 같을 때만 Phase 3 결과 재사용, 다르면 재실행). 빌드·E2E 는 여기서 돌리지 않고 Phase 6-0 으로 넘긴다.
    - **사람 검증 항목** ← 자동 불가: 반응형(375/768/1280)·접근성(키보드·aria·대비)·다크모드·DESIGN.md Bans
      → 실행하지 않고 STOP 에서 사람 확인 대상으로 노출.
-2. **무거운 게이트(build·e2e)는 «최종 코드» 에서 1회만** 실행한다 — 재위임 루프 안에서 반복하지 않는다.
-   아래 4 의 시각 충실도 루프처럼 build·e2e **이후에 코드가 또 바뀌면** 그 결과는 무효이므로, 루프가 끝난 최종
-   코드에서 build(와 영향받는 e2e)를 한 번 더 돌려 검증 결과 객체를 갱신한다. «1회» 는 루프 중간 미실행을
-   뜻하지, 옛 코드의 결과를 최종 코드에 붙여 쓰라는 뜻이 아니다.
+2. **build·E2E 를 STOP 2 앞에서 돌리지 않는 이유** — STOP 2 는 사용자가 로컬에서 동작을 보고 수정을 요청하는
+   지점이다. 여기서 돈 build·E2E 는 그 뒤의 수정 반영이나 base 전진(FF/rebase)으로 코드가 바뀌면 전부 무효가 된다
+   (실측: 전체 E2E 3회, 약 40분이 상류 1커밋으로 무효가 돼 4회째가 필요했다). 그래서 코드가 더 바뀌지 않는 마지막
+   지점, 곧 커밋 직전 base 에 동기화한 트리에서 1회만 돈다(Phase 6-0).
+   **단위 테스트는 변경 경로로 좁히지 않는다** — 전 앱을 glob 으로 읽는 대장·스냅샷형 테스트는 경로 매핑으로 원리적으로 고를 수 없다.
+3. **(고증 화면 한정) 시각 충실도 게이트** — `화면 흐름` 충실도 등급=**고증 시안** 이고 `레퍼런스` 가 있는 화면만.
+   코드가 수렴하는 단계라 STOP 2 앞에 둔다. (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
+   - **캡처**: dev 서버(또는 빌드 preview) 기동 후 해당 라우트를 레퍼런스와 **동일 뷰포트**로 스크린샷(Playwright `page.screenshot()` 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 **"미검증"**(통과 아님)으로 기록.
+   - **판정**: `fe-vision` **대조 모드**에 `reference_images`+`generated_screenshot`+`category_hint`(Figma=`figma-hifi` / PPT-PDF=`ppt-layout`)를 넘겨 JSON 판정을 받는다.
+   - **루프**: `score < 임계` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
+   - 최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
+   - 루프로 코드가 바뀌었으면 타입·린트·단위를 최종 코드에서 다시 돌려 검증 결과 객체를 갱신한다(지문 규칙).
+
+### Phase 5 — 두 번째 확인 ⛔ STOP
+
+**먼저** 실제 실행된 검증만 텍스트로 보고하고("검증 완료" 같은 포괄 표현 금지 — Phase 3·4.5 결과를 그대로 채운다), **그다음 `AskUserQuestion` 으로 커밋·PR 여부를 묻는다** (단일 선택 라디오).
+
+보고(질문 앞 본문):
+> **"자동 검증 — 타입·린트·단위: {통과/실패}{, 시각 충실도: {점수/미검증} — 고증 화면 시}.
+> 빌드·E2E: 커밋 직전 1회로 미룸(Phase 6-0){ — `--skip-e2e`: E2E 미검증 / `--ci-live`: push 후 CI 에서 검증}.
+> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."**
+
+```jsonc
+// AskUserQuestion 호출 — 단일 선택(라디오)
+{
+  "questions": [{
+    "header": "커밋·PR",
+    "question": "로컬에서 동작을 직접 확인하셨다면, 커밋·PR 을 진행할까요?",
+    "multiSelect": false,
+    "options": [
+      { "label": "커밋·PR 진행", "description": "base 동기화 → 빌드·E2E 1회 → 커밋·푸시 → PR 생성 (Phase 6 전체)" },
+      { "label": "커밋·푸시만",  "description": "base 동기화 → 빌드·E2E 1회 → 커밋·push, PR 은 만들지 않음 (--no-pr 와 동일)" },
+      { "label": "중단",         "description": "커밋하지 않고 멈춤 (빌드·E2E 도 돌지 않는다)" }
+    ]
+  }]
+}
+```
+
+- **커밋·PR 진행** → Phase 6 전체(6-0 → 6-1 → 6-2). **커밋·푸시만** → 6-0 → 6-1(PR 생략). **중단** → 커밋하지 않고 멈춘다(빌드·E2E 는 미실행으로 보고).
+- **Other 로 수정을 요청하면** 반영 → Phase 3(가벼운 묶음) 재실행(리뷰 대상 변경이면 Phase 4, 고증 화면이면 시각 충실도까지) → 다시 이 STOP 2 로 돌아온다. 수정을 몇 번 반복해도 무거운 게이트는 6-0 에서 1회다.
+- 역할은 한 곳에서 정한다: **커밋과 push = fe-git-operator(6-1)**, **PR 생성 = fe-pr-author(6-2)**. `--no-pr` 는 6-2 만 건너뛰므로 push 는 항상 실행된다.
+- `--no-pr` 가 이미 켜져 있으면 "커밋·PR 진행" 대신 "커밋 진행"으로 좁혀 묻는다(PR 항목 제외).
+
+---
+
+### Phase 6 — 커밋 & PR (에이전트 위임)
+
+본문에서 git/gh 명령을 직접 실행하지 않고 전담 에이전트에 순차 위임합니다.
+이렇게 하면 `hooks/guard.sh` 의 위험 명령 차단 정책과 자연스럽게 일치하고,
+메인 세션 컨텍스트가 diff·커밋 메시지로 오염되지 않습니다.
+(6-0 의 base 동기화도 git 작업이라 fe-git-operator 가 맡고, build·E2E 실행은 Phase 3 처럼 메인 세션이 한다.)
+
+#### 6-0. 커밋 직전 — base 동기화 + 무거운 게이트(build·E2E) 1회
+
+STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않는 마지막 지점이므로 여기서 낸 결과가 PR `## 테스트` 의 근거가 된다.
+
+1. **base 동기화** — `fe-git-operator` 를 **동기화 모드**(커밋·푸시 없음)로 위임한다. 넘길 것: PR base(지정이 없으면 에이전트가 `origin/HEAD` 로 감지). 받을 것: 동기화 대상 · 가져온 커밋 수 · 전후 HEAD · 충돌 여부.
+   - 대상은 현재 브랜치의 upstream(`@{u}`)이 있으면 그것, 없으면 `origin/<base>` 다. 뒤처졌으면 `git rebase --autostash <대상>` 으로 맞춘다(로컬 커밋이 없으면 FF 와 같다).
+   - **충돌이면 ⛔ STOP** — 자동 해소하지 않는다. 충돌 파일과 상태(동기화 전으로 되돌렸는지, 미커밋 변경이 stash 에 보존돼 있는지)를 보고하고 사람 지시를 기다린다. 이미 진행 중인 rebase·merge 가 있어 에이전트가 손대지 않고 돌아온 경우도 같은 STOP 이다.
+   - 이미 push 된 브랜치에서 base 만 앞서 있으면 rebase 하지 않는다(공개 히스토리 재작성 = force push). 뒤처진 커밋 수만 기록하고 통합 검증은 PR(CI)에 맡긴다.
+   - 원격이 없거나 fetch 가 실패하면 "동기화 생략(사유)" 로 기록하고 2 로 간다.
+2. **무거운 게이트 1회** — 동기화된 트리에서 돈다. 가져온 커밋이 있으면 코드가 바뀐 것이므로 타입·린트·단위도 이 트리에서 다시 돈다(지문 규칙).
+   **명령은 소비자 프로젝트가 정한다** — 소비자 CLAUDE.md·AGENTS.md 에 푸시 전(무거운) 게이트 명령이 선언돼 있으면 그것을 쓴다
+   (변경→spec 매핑·preview 모드·앱 범위는 프로젝트가 더 잘 안다). 선언이 없으면 아래 기본, 곧 **전체 build + 전체 E2E** 다.
+   기본을 휴리스틱으로 좁히지 않는다 — 플러그인은 변경→spec 매핑을 모르고, 좁히면 셸·공용 모듈 변경을 놓친다.
    ```bash
    # PM/PX 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있어 독립 선언)
    PM=npm; PX=npx
@@ -172,61 +235,25 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
 3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
    **미실행을 통과로 표기하지 않는다.** 브라우저 미설치로 E2E 가 실패하면 그 사유를 그대로 적고
    해소 방법을 함께 노출한다 — `FE_RAIL_ALLOW_PW_INSTALL=1`(자동 설치 허용) 또는 `npx playwright install` 수동 실행.
-4. **(고증 화면 한정) 시각 충실도 게이트** — `화면 흐름` 충실도 등급=**고증 시안** 이고 `레퍼런스` 가 있는 화면만.
-   (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
-   - **캡처**: 빌드/dev 서버 기동 후 해당 라우트를 레퍼런스와 **동일 뷰포트**로 스크린샷(Playwright `page.screenshot()` 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 **"미검증"**(통과 아님)으로 기록.
-   - **판정**: `fe-vision` **대조 모드**에 `reference_images`+`generated_screenshot`+`category_hint`(Figma=`figma-hifi` / PPT-PDF=`ppt-layout`)를 넘겨 JSON 판정을 받는다.
-   - **루프**: `score < 임계` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
-   - 최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
+4. **빨강이면** `fe-build-fixer` 에 실패 요약을 넘겨 최소 수정 → **같은 지점에서** 게이트를 1회 다시 돈다(코드가 바뀌었으므로
+   가벼운 묶음 포함). 같은 실패 군 3회 초과 → "재위임 상한·실패 출구"로. 이 단계의 수정은 STOP 2 에서 사용자가 본 코드가
+   아니므로, 6-1 보고와 PR 에 «6-0 게이트 수정» 으로 파일·이유를 따로 적는다.
+5. 6-0 과 6-1 사이에는 코드를 바꾸지 않는다. 6-1 이 커밋한 트리가 곧 6-0 이 검증한 트리이므로, 6-2 에 넘길 때 검증 결과
+   객체의 대상 리비전을 push SHA 로 이어 붙인다(`6-0 검증 = <HEAD>+<지문> → 커밋 <SHA>`). 커밋 훅이 파일을 고쳤거나
+   그 사이 편집이 있었으면 이어 붙이지 않고 그 SHA 에서 2~4 를 다시 돈다.
 
-> **CI 위임(A안)**: `--ci-live` 면 build·e2e 를 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.
+> **CI 위임(A안)**: `--ci-live` 면 1(동기화)은 그대로 하고, 2 의 build·e2e 는 로컬 실행 대신 "CI(push 후)에서 검증" 으로 위임한다.
 > 기본(플래그 없음)은 로컬 실행(B안)이 floor — `buildspec.yml`·`.github/workflows` 등 *설정 파일 존재*만으로
 > CI 가 살아있다고 가정하지 않는다.
-> **건너뛰기**: `--skip-e2e` 면 e2e 생략하되 STOP·PR 에 "E2E 미검증" 을 명시한다.
-
-### Phase 5 — 두 번째 확인 ⛔ STOP
-
-**먼저** 실제 실행된 검증만 텍스트로 보고하고("검증 완료" 같은 포괄 표현 금지 — Phase 3·4.5 결과를 그대로 채운다), **그다음 `AskUserQuestion` 으로 커밋·PR 여부를 묻는다** (단일 선택 라디오).
-
-보고(질문 앞 본문):
-> **"자동 검증 — 타입·린트·단위: {통과/실패}, 빌드: {통과/실패/미실행}, E2E: {통과/실패/미실행(사유)}{, 시각 충실도: {점수/미검증} — 고증 화면 시}.
-> 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."**
-
-```jsonc
-// AskUserQuestion 호출 — 단일 선택(라디오)
-{
-  "questions": [{
-    "header": "커밋·PR",
-    "question": "로컬에서 동작을 직접 확인하셨다면, 커밋·PR 을 진행할까요?",
-    "multiSelect": false,
-    "options": [
-      { "label": "커밋·PR 진행", "description": "커밋·푸시 후 PR 생성 (Phase 6 전체)" },
-      { "label": "커밋·푸시만",  "description": "커밋하고 브랜치를 push 하되 PR 은 만들지 않음 (--no-pr 와 동일)" },
-      { "label": "중단",         "description": "커밋하지 않고 멈춤" }
-    ]
-  }]
-}
-```
-
-- **커밋·PR 진행** → Phase 6 전체. **커밋·푸시만** → 6-1 만(커밋 + push, PR 생략). **중단·Other** → 커밋하지 않고 멈춘다.
-- 역할은 한 곳에서 정한다: **커밋과 push = fe-git-operator(6-1)**, **PR 생성 = fe-pr-author(6-2)**. `--no-pr` 는 6-2 만 건너뛰므로 push 는 항상 실행된다.
-- E2E 미실행/미검증이면 보고에 그대로 노출한다 (예: "E2E: 미실행 — 로컬 미수행·CI 미연결").
-- `--ci-live` 면: 보고에 "E2E·빌드는 push 후 CI 에서 검증" 으로 표기.
-- `--no-pr` 가 이미 켜져 있으면 "커밋·PR 진행" 대신 "커밋 진행"으로 좁혀 묻는다(PR 항목 제외).
-
----
-
-### Phase 6 — 커밋 & PR (에이전트 위임)
-
-본문에서 git/gh 명령을 직접 실행하지 않고 전담 에이전트에 순차 위임합니다.
-이렇게 하면 `hooks/guard.sh` 의 위험 명령 차단 정책과 자연스럽게 일치하고,
-메인 세션 컨텍스트가 diff·커밋 메시지로 오염되지 않습니다.
+> **건너뛰기**: `--skip-e2e` 면 2 에서 e2e 만 생략하고(build 는 돈다) 6-1 보고·PR 에 "E2E 미검증" 을 명시한다.
+> 6-1 보고에는 6-0 결과를 그대로 노출한다 — 예: "빌드: 통과 · E2E: 미실행(브라우저 미설치)" / "빌드·E2E: push 후 CI 에서 검증".
 
 #### 6-1. `fe-git-operator` 위임 — 커밋 & 푸시
 
 전달할 컨텍스트:
-- Phase 2에서 작성/수정한 **파일 목록** (명시적 스테이징 대상 — 신규 파일 포함)
+- Phase 2에서 작성/수정한 **파일 목록** (명시적 스테이징 대상 — 신규 파일 포함 · 6-0 게이트 수정 파일 포함)
 - 기능명, 주요 변경사항 요약, 관련 이슈 번호
+- 6-0 게이트 수정(있으면) — 커밋 본문에 «6-0 게이트 수정» 으로 드러낸다
 
 에이전트가 책임지는 것:
 - 시작 상태 기록 — 사용자가 먼저 staged 해 둔 범위 밖 파일은 커밋에 넣지 않고 그대로 둔다(`git commit --only -- <파일>`)
@@ -240,7 +267,8 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
 - feature.md 경로
 - 커밋 범위 (base..HEAD) · 브랜치/remote/base · 6-1 의 push 완료 SHA
 - Phase 4 리뷰 요약 (통과/경고 항목)
-- **검증 결과 객체** (Phase 3·4.5 최종 — 미검증 사유·skip 포함) — PR 의 `## 테스트` 체크리스트는 이것으로 채운다
+- **검증 결과 객체** (Phase 3·4.5·6-0 최종 — 6-0 의 5 로 대상 리비전을 push SHA 에 이어 붙인 것 · 미검증 사유·skip 포함) — PR 의 `## 테스트` 체크리스트는 이것으로 채운다
+- 6-0 동기화 결과(대상·가져온 커밋 수) · 6-0 게이트 수정(있으면 — `## 리뷰 포인트` 에 «STOP 2 이후 수정» 으로 올린다)
 - 플래그: `--ci-live` / `--skip-e2e` / `--no-draft`
 
 에이전트가 책임지는 것:
@@ -256,12 +284,12 @@ BLOCK 0 은 **Phase 4.5 진행의 필요조건**일 뿐, 최종 종료 판정은
 | 플래그 | 설명 |
 |--------|------|
 | `--plan-only` | Phase 1까지만 (계획 확인만) |
-| `--no-pr` | 커밋·푸시까지만(6-1), PR 생성(6-2) 안 함 |
+| `--no-pr` | 커밋·푸시까지만(6-0 → 6-1), PR 생성(6-2) 안 함 |
 | `--no-draft` | PR을 바로 ready 상태로 생성 |
-| `--ci-live` | push 후 CI 가 build·e2e 를 실제로 돌린다고 선언 → Phase 4.5 무거운 게이트를 로컬 대신 CI 에 위임 |
-| `--skip-e2e` | Phase 4.5 로컬 E2E 생략 (STOP·PR 에 "E2E 미검증" 명시) |
+| `--ci-live` | push 후 CI 가 build·e2e 를 실제로 돌린다고 선언 → Phase 6-0 의 무거운 게이트를 로컬 대신 CI 에 위임 (base 동기화는 그대로) |
+| `--skip-e2e` | Phase 6-0 로컬 E2E 생략 (build 는 실행 · STOP 2·6-1 보고·PR 에 "E2E 미검증" 명시) |
 
-> 환경변수 `FE_RAIL_ALLOW_PW_INSTALL=1` — Phase 4.5 에서 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용한다. 기본은 꺼짐(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 자동 파이프라인이 무통보로 유발하지 않기 위함). 꺼진 상태에서 브라우저가 없으면 E2E 는 "미실행(브라우저 미설치)" 로 정직 보고된다.
+> 환경변수 `FE_RAIL_ALLOW_PW_INSTALL=1` — Phase 6-0 에서 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용한다. 기본은 꺼짐(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 자동 파이프라인이 무통보로 유발하지 않기 위함). 꺼진 상태에서 브라우저가 없으면 E2E 는 "미실행(브라우저 미설치)" 로 정직 보고된다.
 
 > **신규 도입 순서(권장)**: `--plan-only`(계획만) → `--no-pr`(커밋까지) → 풀 파이프라인.
 > 핵심 워크플로에 전면 적용하기 전, 제한 범위에서 비용·효과를 먼저 확인한다.

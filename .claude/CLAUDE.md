@@ -67,10 +67,10 @@ fe-rail/
 
 ### 훅 프로파일 · 회귀 eval
 
-- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용. 같은 원칙으로 fe-start Phase 4.5 의 Playwright 브라우저 자동 설치도 기본 꺼짐 — 필요 시 `FE_RAIL_ALLOW_PW_INSTALL=1` 로 옵트인한다(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 무인 파이프라인이 무통보로 유발하지 않기 위함).
+- **프로파일**: `FE_RAIL_HOOK_PROFILE`(`minimal` | `standard`(기본) | `strict`) + `FE_RAIL_DISABLED_HOOKS="a,b"` 로 소비자 환경에서 훅 강도를 조절한다(플러그인 파일 수정 없이). `minimal`=안전 차단기만(guard·write-guard·task-guard·config-protection), `standard`=+품질 경고 전부. **프로파일 하향으로는 차단기가 꺼지지 않으며**, 끄려면 `DISABLED_HOOKS`에 이름을 명시해야 한다. 공유 로직: `hooks/scripts/profile-lib.sh`. 린터·타입체크(tsc) npx 폴백은 기본 꺼짐 — 로컬 바이너리만 쓰고, 필요 시 `FE_RAIL_ALLOW_NPX=1` 로 옵트인한다(자동 훅의 네트워크·미고정 최신버전 부작용 방지). 단 `package.json` 에 `typecheck` 스크립트가 있으면 프로젝트 자신의 lockfile 로 실행되므로 이 옵트인과 무관하게 항상 허용. 같은 원칙으로 fe-start Phase 6-0 의 Playwright 브라우저 자동 설치도 기본 꺼짐 — 필요 시 `FE_RAIL_ALLOW_PW_INSTALL=1` 로 옵트인한다(수백 MB 다운로드 + `--with-deps` 의 root 권한 요구를 무인 파이프라인이 무통보로 유발하지 않기 위함).
 - **훅의 범위 규칙 (v1.17.0)**: `quality-gate`·`lint-fix`·`nextjs-guard` 는 **Git 루트가 아니라 파일에서 가장 가까운 `package.json`(패키지 루트)** 기준으로 설정·도구를 찾고, 변경 파일을 패키지별로 묶어 돌린다(모노레포 `apps/web` 로컬 설정 대응). 바이너리는 패키지 → 상위(root-hoisted) 순으로 Git 루트까지 찾는다(`lint-lib.sh` `fe_find_bin`). `typecheck` 스크립트는 `tsconfig.json` 이 없어도 실행되고, 소스 **삭제**도 타입체크 트리거다. 검사 범위는 20개에서 조용히 자르지 않는다(상한 200, 초과분은 «미검사» 로 명시). `guard.sh` 는 `git -C/-c/--git-dir …` 전역 옵션을 정규화한 뒤 검사하고 커밋 검사는 `-m` 값만 제외한다(셸 래핑 `bash -c "git commit --no-verify …"` 도 잡는다). `config-protection.sh` 는 편집 조각이 아니라 **실파일의 편집 전 ↔ 후** 를 재구성해 비교한다(값만 바꾸는 Edit·strict 를 뺀 Write 차단). `hooks.json` 의 모든 command 는 `"${CLAUDE_PLUGIN_ROOT}/…"` 로 인용돼 공백이 든 설치 경로에서도 실행된다. `nextjs-guard` 는 `app/` 이 있는 App Router 프로젝트에서만 RSC 경고를 내고, 지시어 «추가 필요» 가 아니라 «import 경계 확인 필요» 로 알린다(클라이언트 경계 아래 자식은 지시어 불필요 — 확정 근거는 `next build`).
 - **플러그인 트리와 레포 컨텍스트 (v1.18.0)**: 이 파일은 플러그인 루트가 아니라 `.claude/CLAUDE.md` 에 있다. 루트 `CLAUDE.md` 는 플러그인 설치 트리에 실리면서도 **소비자 세션에 로드되지 않으며**, `claude plugin validate --strict` 가 그 사실을 경고로 낸다(v1.17.0 까지는 eval 이 경고를 허용해 우회했다). `.claude/CLAUDE.md` 는 Claude Code 가 이 레포에서 열릴 때 동일하게 프로젝트 메모리로 로드되고 `@../docs/…` import 도 파일 기준 상대경로로 풀린다(실측). 같은 이유로 **`docs/framework-rules.md`·`docs/monorepo.md` 는 이 파일의 @import 만으로는 소비자에게 닿지 않는다** — fe-build·fe-review·fe-start·fe-spec 스킬이 스킬 로드 시 주어지는 base directory 기준 `../../docs/` 에서 **감지한 프레임워크 절만** Read 하고, 위임하는 에이전트(fe-architect·fe-reviewer·fe-build-fixer·fe-perf-auditor)에는 그 **절대경로를 브리프로 넘긴다**(에이전트는 플러그인 트리 위치를 모른다 — 경로가 없으면 `~/.claude/plugins/cache/*/fe-rail/*/docs/` Glob 폴백, 그것도 없으면 내장 규칙만으로 진행하고 보고 첫 줄에 «규칙 파일 미수신» 을 적는다). 소비자 프로젝트 CLAUDE.md 규칙이 항상 우선한다.
-- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1). v1.17.0 에 **F 절**이 추가됐다: git 전역 옵션·셸 래핑 차단, 실파일 편집 전후 비교, `hooks.json` command 를 공백 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구 호출, typecheck 스크립트 단독·소스 삭제 트리거, 21개 파일 전달, `git commit --only` 격리 계약, 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체·푸시 담당 self-lint, 그리고 ruby(Psych)·`claude plugin validate --strict` 가 있으면 실제 파서 검사. v1.18.0 은 `--strict` 를 복원하고(루트 CLAUDE.md 이동으로 경고 0 이 정상 상태) «플러그인 루트에 CLAUDE.md 없음»·«스킬 4종·에이전트 4종이 `framework-rules.md` 를 명시적으로 참조» self-lint 를 추가했다.
+- **회귀 eval**: `bash eval/run.sh` — 라이브 모델 없이 훅 동작(차단 사유가 stdout이 아닌 stderr로 전달되는지, 비차단 훅 5개의 안내도 동일하게 stderr로 나가는지 포함)·프로파일·self-lint(agent `model` 별칭·skill frontmatter·frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭됨)·`hooks.json` 무결성·위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부·bun `PX` 감지 일관성·`typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부·바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지·bare `$PM lint`/`$PM tsc` 금지(→`$PM run lint`/`$PX tsc`)·fe-researcher Context7 이중 접두사(plugin+직접))를 결정적으로 검증(실패 시 exit 1). v1.17.0 에 **F 절**이 추가됐다: git 전역 옵션·셸 래핑 차단, 실파일 편집 전후 비교, `hooks.json` command 를 공백 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구 호출, typecheck 스크립트 단독·소스 삭제 트리거, 21개 파일 전달, `git commit --only` 격리 계약, 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체·푸시 담당 self-lint, 그리고 ruby(Psych)·`claude plugin validate --strict` 가 있으면 실제 파서 검사. v1.18.0 은 `--strict` 를 복원하고(루트 CLAUDE.md 이동으로 경고 0 이 정상 상태) «플러그인 루트에 CLAUDE.md 없음»·«스킬 4종·에이전트 4종이 `framework-rules.md` 를 명시적으로 참조» self-lint 를 추가했다. v1.19.0 은 «build·E2E 실행 블록이 fe-start Phase 4.5 에 없고 6-0 에만 있으며 6-0 이 6-1 보다 앞» self-lint 와, `git rebase --autostash` 가 미커밋 변경 재적용 충돌에도 rc=0 을 낸다는 git 계약 fixture(동기화 충돌은 `--diff-filter=U` 로 판정)를 추가했다.
 
 ---
 
@@ -145,12 +145,14 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
             └─ 에이전트: fe-reviewer·fe-a11y-auditor·fe-perf-auditor·fe-test-runner·fe-refactor-advisor
     │
     ▼
-커밋 & PR  →  git + gh CLI (사용자 승인 필요)
+커밋 & PR  →  (승인 뒤) base 동기화 → build·E2E 1회 → 커밋·푸시 → PR (사용자 승인 필요)
             └─ 에이전트: fe-git-operator·fe-pr-author
 ```
 
 **원스톱 자동화**: `fe-start` 스킬이 위 전체 흐름을 자동으로 처리한다.
 사람 개입은 "구현할까요?"와 "커밋할까요?" 두 번뿐이다.
+
+**무거운 게이트 시점 (v1.19.0)**: build·E2E 는 "커밋할까요?"(Phase 5 · STOP 2) 앞이 아니라 승인 뒤 커밋 직전(Phase 6-0)에 1회 돈다. STOP 2 는 사용자가 로컬에서 보고 수정을 요청하는 지점이라, 그 앞에서 돈 무거운 게이트는 수정·상류 전진(FF/rebase) 한 번에 무효가 된다(실측: 전체 E2E 3회 ≈40분이 상류 1커밋으로 무효 → 4회째). STOP 2 앞(Phase 4.5)은 가벼운 묶음(타입·린트·단위 전체 + 고증 화면의 시각 충실도)만, 6-0 은 fe-git-operator 동기화 모드(fetch → `rebase --autostash`, 충돌이면 STOP) → 소비자 CLAUDE.md·AGENTS.md 가 선언한 푸시 전 게이트(없으면 전체 build + 전체 E2E) 1회 → 빨강이면 fe-build-fixer(3회 상한) 후 같은 지점에서 재실행. 플러그인은 변경→spec 매핑을 모르므로 기본을 휴리스틱으로 좁히지 않고, 단위 테스트도 경로로 좁히지 않는다(전 앱을 glob 으로 읽는 대장 테스트를 못 본다). 6-0 결과는 6-1 커밋 SHA 로 이어 붙여 PR `## 테스트` 근거가 된다.
 
 fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "풀 자동"을 고르면 fe-start 로 이어진다. 이때 "구현할까요?"는 fe-spec 게이트가 대신하므로 fe-start 는 "커밋할까요?"만 묻는다(전체 승인 2회 유지).
 
@@ -277,7 +279,7 @@ echo "exit=$RC"; tail -30 "$LOG"        # ③ 요약 (판정은 RC)
 - **스펙 먼저** — `feature.md` 없이 코드 작성 시작 금지
 - **사용자 승인 두 번** — 구현 시작 전, 커밋 전
 - **타입 먼저** — 구현 순서: 타입 정의 → 훅/서비스 → 컴포넌트 → 테스트
-- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) + 완료 기준 게이트(`build`/`e2e` 존재 시 · 고증 화면이면 시각 충실도 대조, fe-start Phase 4.5) 통과 후 완료 선언. "완료"는 `feature.md` 의 완료 기준 충족이다 (리뷰 BLOCK 0 ≠ 완료)
+- **검증 후 보고** — 자동 검증(`tsc`, `lint`, `test`) + 완료 기준 게이트(고증 화면이면 시각 충실도 대조 — fe-start Phase 4.5 · `build`/`e2e` 존재 시 커밋 직전 1회 — Phase 6-0) 통과 후 완료 선언. "완료"는 `feature.md` 의 완료 기준 충족이다 (리뷰 BLOCK 0 ≠ 완료)
 
 ### 하지 말 것
 

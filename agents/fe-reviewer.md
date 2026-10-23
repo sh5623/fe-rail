@@ -232,7 +232,7 @@ BLOCK → WARN → INFO 순서
 **요약:** BLOCK 1개 / WARN 1개 / INFO 1개
 
 > 본 리뷰는 git diff 기반 정적 4축 분석이며 앱을 기동하지 않았다 — 런타임 동작은
-> fe-start Phase 4.5(완료기준 게이트)/CI 에서만 검증된다. BLOCK 0 = 정적 리뷰 통과일 뿐 "완료" 아님.
+> fe-start Phase 4.5(완료기준 게이트)·6-0(커밋 직전 build·E2E)/CI 에서만 검증된다. BLOCK 0 = 정적 리뷰 통과일 뿐 "완료" 아님.
 > BLOCK 해결은 커밋의 필요조건이다 (충분조건은 완료 기준 통과).
 ```
 

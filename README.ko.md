@@ -44,11 +44,12 @@ $ claude
 ✔ 12개 파일 생성, tsc 통과, lint 통과, 테스트 8개 통과
 
 커밋하고 PR을 열까요?
-  ❯ 예: type별로 분리해서 드래프트 PR 생성
+  ❯ 예: base 동기화 → 빌드·E2E 1회 → type별로 분리 커밋 → 드래프트 PR 생성
     아니오: 변경사항만 남기고 종료
 
 > 예
 
+✔ origin/main 동기화(상류 커밋 2개) · 빌드 통과 · E2E 통과
 ✔ 커밋 2개 생성
 ✔ feat/product-search-autocomplete 브랜치로 푸시
 ✔ 드래프트 PR: https://github.com/you/your-app/pull/42
@@ -96,7 +97,7 @@ $ claude
 | | `strict` | `standard` 상위 티어(현재는 상위집합, 향후 더 엄격한 동작 예약) |
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | 특정 훅만 콕 집어 비활성 (예: `"doc-sync-check,design-nudge"`) |
 | `FE_RAIL_ALLOW_NPX` | `1` | 로컬 린터·`tsc` 바이너리가 없을 때 npx 폴백 허용. 기본은 로컬 전용이라 자동 훅이 네트워크 다운로드나 미고정 최신버전 실행을 하지 않는다. 프로젝트 자체 `typecheck` 스크립트는 패키지 매니저로 실행되므로 이 옵트인과 무관하게 항상 허용 |
-| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | fe-start Phase 4.5 게이트가 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용. 기본은 꺼짐이다. 수백 MB 다운로드에 `--with-deps` 는 root 권한을 요구하므로 무인 파이프라인이 무통보로 유발하지 않게 한다. 꺼진 상태에서 브라우저가 없으면 E2E 는 통과가 아니라 "미실행(브라우저 미설치)" 로 정직하게 보고한다 |
+| `FE_RAIL_ALLOW_PW_INSTALL` | `1` | fe-start Phase 6-0(커밋 직전) 게이트가 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용. 기본은 꺼짐이다. 수백 MB 다운로드에 `--with-deps` 는 root 권한을 요구하므로 무인 파이프라인이 무통보로 유발하지 않게 한다. 꺼진 상태에서 브라우저가 없으면 E2E 는 통과가 아니라 "미실행(브라우저 미설치)" 로 정직하게 보고한다 |
 
 > 프로파일을 `minimal`로 낮춰도 안전 차단기는 꺼지지 않습니다. 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다(타협 없는 차단에 명시적 탈출구를 더한 구조). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
 
@@ -117,6 +118,8 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 v1.17.0 에 F 절이 추가됐습니다. v1.16.2 에 대한 교차 레포 리뷰가 임시 저장소에서 지적 12개를 재현했고, 그 각각이 이제 회귀로 고정돼 있습니다: git 전역 옵션·셸 래핑이 차단기에 닿는지, 설정 보호가 실파일 전 ↔ 후로 판정하는지, `hooks.json` 의 모든 command 를 공백 포함 설치 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구가 실제 호출되는지, 루트 `tsconfig.json` 없이 `typecheck` 실행, 소스 삭제의 타입체크 트리거, 변경 파일 21개 중 21개가 린터에 전달되는지, `git commit --only` 격리 계약, 그리고 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체 계약·푸시 담당의 self-lint. `ruby` 나 `claude` CLI 가 있으면 실제 YAML 파서로 frontmatter 를 파싱하고 `claude plugin validate --strict` 도 돌립니다.
 
 v1.18.0 은 프레임워크 규칙이 실제로 소비자에게 닿게 합니다. `docs/framework-rules.md`·`docs/monorepo.md` 는 그동안 이 레포 자체의 `CLAUDE.md` 가 `@import` 할 뿐이었는데, 소비자 세션은 그 파일을 로드하지 않으므로 어떤 에이전트도 본 적이 없었습니다. 이제 fe-build, fe-review, fe-start, fe-spec 스킬이 스킬 base directory 기준으로 해당 절(공통 규칙 + 감지한 프레임워크)만 읽고, 위임하는 에이전트(`fe-architect`, `fe-reviewer`, `fe-build-fixer`, `fe-perf-auditor`)에 절대경로를 넘깁니다. 경로가 없으면 플러그인 캐시 glob 으로 폴백하고, 그것도 없으면 보고 첫 줄에 «규칙 파일 미수신» 을 적습니다. 같은 이유로 레포 자체의 `CLAUDE.md` 는 `.claude/CLAUDE.md` 로 옮겼습니다. 루트 `CLAUDE.md` 는 플러그인 트리에 실리면서 로드되지 않는 파일이고, `claude plugin validate --strict` 가 경고하는 것이 정확히 그 지점입니다. eval 은 이제 `--strict` 가 경고 0 으로 통과해야 하며, 루트 파일 부재와 규칙 배선을 self-lint 합니다.
+
+v1.19.0 은 fe-start 의 빌드·E2E 를 "커밋할까요?" 앞(Phase 4.5)에서 커밋 직전(Phase 6-0)으로 옮깁니다(아래 워크플로우 참조). eval 은 빌드·E2E 실행 블록이 Phase 4.5 에 없고 6-0 에만 있는지, 6-0 이 6-1 보다 앞인지, 그리고 git 계약 하나를 고정합니다: `git rebase --autostash` 는 미커밋 변경을 다시 얹다 충돌해도 rc=0 으로 끝나므로, 동기화 충돌은 `git diff --diff-filter=U` 로 판정해야 합니다(fe-git-operator 동기화 모드).
 
 ## 포함된 Agents
 
@@ -162,10 +165,12 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 
 **원스톱 자동화**
 ```
-feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → PR 생성 완료
+feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인 → "커밋할까요?" 승인 → base 동기화 + 빌드·E2E 1회 → 커밋·푸시 → PR 생성 완료
 ```
 
-> 재위임이 같은 항목을 3회 반복해도 안 풀리면 자동 진행을 멈추고 진단을 보고하는 예외 STOP 이 한 번 더 걸릴 수 있습니다.
+> 재위임이 같은 항목을 3회 반복해도 안 풀리면 자동 진행을 멈추고 진단을 보고하는 예외 STOP 이 한 번 더 걸릴 수 있습니다. 커밋 직전 base 동기화에서 충돌이 나도 같은 예외 STOP 으로 멈춥니다.
+
+빌드·E2E 같은 무거운 게이트는 "커밋할까요?" 앞이 아니라 승인 뒤, 커밋 직전에 돕니다(v1.19.0). "커밋할까요?" 는 사용자가 로컬에서 보고 수정을 요청하는 지점이라, 그 앞에서 돈 빌드·E2E 는 수정이나 상류 전진 한 번에 버려지기 때문입니다. 그래서 "커밋할까요?" 앞에서는 타입·린트·단위 전체(와 고증 화면의 시각 충실도)만 돌고, 승인 뒤 작업 트리를 착지할 브랜치에 맞춘(fetch → FF/rebase) 다음 그 트리에서 빌드·E2E 를 한 번 돕니다. 수정 요청을 몇 번 반복해도 무거운 게이트는 한 번입니다. 프로젝트에 전용 푸시 전 게이트(변경 범위 E2E 러너 등)가 있으면 CLAUDE.md·AGENTS.md 에 명령을 적어 두세요. 없으면 전체 빌드와 전체 E2E 를 돕니다.
 
 **fe-spec 에서 이어가기 (핸드오프)**
 ```
@@ -195,7 +200,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 | **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론한다. 없으면 빈손으로 분석한다 (이 레포의 `.claude/CLAUDE.md` 는 소비자 세션에 로드되지 않고, `docs/` 의 프레임워크 규칙은 스킬을 통해서만 에이전트에 닿는다. 위 v1.18.0 참조) | `/init` 또는 `/fe-rail:fe-doc-sync` |
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | 자동: 프로젝트 루트에서 `bash <설치경로>/hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json` 병합, 확인 1회) · 수동: `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
 | **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
-| **검증 스크립트** | Phase 3 자동 검증이 `typecheck`/`lint`/`test` 를, Phase 4.5 완료기준 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장 |
+| **검증 스크립트** | Phase 3·4.5 가 `typecheck`/`lint`/`test` 를, Phase 6-0 커밋 직전 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장. 프로젝트 전용 푸시 전 게이트가 있으면 CLAUDE.md·AGENTS.md 에 명령을 선언 |
 
 ## 라이선스
 

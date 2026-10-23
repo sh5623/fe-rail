@@ -218,7 +218,7 @@ done
 [ $bad -eq 0 ] && ok "모든 훅에 프로파일 가드 배선됨 (10개)"
 # PM/PX 감지 관용구 복붙 드리프트 방지: bun 대응은 PX="bun" 이어야 한다 (bunx 는 별개 문제 —
 # bare `bun <cmd>` 가 node_modules/.bin 바이너리를 resolve 하므로 8곳이 이미 이 기준으로 일관됨.
-# fe-start Phase 4.5 가 한 번 PX=bunx 로 갈라져 있었던 회귀를 여기서 고정한다).
+# fe-start 의 무거운 게이트 블록(당시 Phase 4.5 · v1.19.0 부터 6-0)이 한 번 PX=bunx 로 갈라져 있었던 회귀를 여기서 고정한다).
 bad=0
 for f in "$ROOT"/agents/*.md "$ROOT"/skills/*/SKILL.md; do
   [ -e "$f" ] || continue
@@ -556,6 +556,30 @@ for a in fe-architect fe-reviewer fe-build-fixer fe-perf-auditor; do
   grep -q 'framework-rules.md' "$ROOT/agents/$a.md" || { ng "agents/$a: framework-rules.md 경로 수신 지시 없음"; bad=1; }
 done
 [ $bad -eq 0 ] && ok "docs/framework-rules.md 가 스킬 4종(로드+전달)·에이전트 4종(수신)에서 명시적으로 도달 가능"
+# ── 무거운 게이트 시점 (v1.19.0) — build·E2E 는 STOP 2 앞(Phase 4.5)이 아니라 커밋 직전(Phase 6-0) 1회 ──
+SK="$ROOT/skills/fe-start/SKILL.md"
+p45=$(awk '/^### Phase 4\.5/{s=1;next} /^### Phase 5/{s=0} s' "$SK")
+p60=$(awk '/^#### 6-0/{s=1;next} /^#### 6-1/{s=0} s' "$SK")
+if [ -n "$p45" ] && [ -n "$p60" ] && ! printf '%s' "$p45" | grep -qE 'run build|playwright test|run e2e' \
+   && printf '%s' "$p60" | grep -q 'run build' && printf '%s' "$p60" | grep -q 'playwright test'; then
+  ok "fe-start: build·E2E 실행 블록은 Phase 6-0 에만 있고 Phase 4.5(STOP 2 앞)에는 없다"
+else ng "fe-start: build·E2E 실행 블록이 Phase 4.5 에 있거나 6-0 에 없다(STOP 2 뒤 수정·상류 전진에 결과가 버려지는 회귀)"; fi
+awk '/^#### 6-0/{a=NR} /^#### 6-1/{b=NR} END{exit !(a && b && a<b)}' "$SK" \
+  && ok "fe-start: 6-0(커밋 직전 게이트)이 6-1(커밋·푸시)보다 앞" || ng "fe-start: 6-0 이 없거나 6-1 뒤에 있다"
+# git 계약: `rebase --autostash` 는 미커밋 변경 재적용 충돌에도 rc=0 → 동기화 충돌은 --diff-filter=U 로 판정해야 한다
+AS="$TMP/autostash"; mkdir -p "$AS"; _git_fixture "$AS"
+( cd "$AS" && printf 'a\nb\nc\n' > f.txt && git add f.txt && git commit -qm base && git branch -q up \
+  && git checkout -q up && printf 'a\nUP\nc\n' > f.txt && git commit -qam up && git checkout -q - \
+  && printf 'a\nLOCAL\nc\n' > f.txt ) >/dev/null 2>&1
+( cd "$AS" && git rebase --autostash up ) >/dev/null 2>&1; asrc=$?
+asu=$(git -C "$AS" diff --name-only --diff-filter=U)
+if [ "$asrc" -eq 0 ] && [ "$asu" = "f.txt" ] && git -C "$AS" stash list | grep -q autostash; then
+  ok "git 계약: rebase --autostash 재적용 충돌은 rc=0 + U 파일 + stash 보존 — rc 만으로 판정하면 안 된다(v1.19.0)"
+else ng "git 계약: autostash 재적용 충돌 동작이 기대와 다르다(rc=$asrc U=$asu) — fe-git-operator 동기화 판정 재검토"; fi
+grep -q 'diff-filter=U' "$ROOT/agents/fe-git-operator.md" && grep -q 'rebase --abort' "$ROOT/agents/fe-git-operator.md" \
+  && grep -q 'rebase-merge' "$ROOT/agents/fe-git-operator.md" \
+  && ok "fe-git-operator 동기화 모드: --diff-filter=U 판정·rebase --abort 복원·진행 중 rebase 보호" \
+  || ng "fe-git-operator 동기화 모드: 충돌 판정(--diff-filter=U)·abort·진행 중 rebase 보호 중 누락"
 
 echo
 echo "════════════════════════════════════════"
