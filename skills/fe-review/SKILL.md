@@ -32,7 +32,7 @@ allowed-tools:
 | `fe-reviewer` | 타입·성능·a11y·품질 4축 기본 리뷰 | 항상 |
 | `fe-a11y-auditor` | WCAG AA 정밀 감사 | fe-reviewer에서 접근성(a11y) BLOCK/WARN 발생 시 |
 | `fe-perf-auditor` | 번들·Image·Font·Tailwind purge 정밀 감사 (Next.js / Vite SPA 공통) | fe-reviewer에서 성능 BLOCK/WARN 발생 시 |
-| `fe-test-runner` | 테스트 실행·실패 분류 | 항상 (스택트레이스는 에이전트 내부에서 처리) |
+| `fe-test-runner` | 테스트 실행·실패 분류 | 항상 (스택트레이스는 에이전트 내부에서 처리) — 단 같은 세션에 **같은 검증 트리 id·명령·cwd** 의 결과가 이미 있으면(fe-start 검증 결과 객체) 다시 돌리지 않고 그 결과를 인용한다. 트리 id 가 다르거나 명령·cwd 가 다르면 재실행 |
 | `fe-refactor-advisor` | 리팩토링 방향 분석 | 명시적 요청 시 |
 
 모든 에이전트는 READ-ONLY — 메인 세션이 결과를 받아 수정 여부를 결정한다.

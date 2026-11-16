@@ -112,17 +112,17 @@ maxTurns: 20
 **출력 — JSON only**:
 
 ```json
-{ "score": 0, "verdict": "pass | revise | fail", "category_match": false,
+{ "score": 0, "verdict": "pass | revise | fail | unverified", "category_match": false,
   "differences": ["..."], "suggestions": ["..."], "reasoning": "1-2문장" }
 ```
 
 - `differences[]`: 불일치를 **토큰·간격·타이포 단위**로 (예: `"nav 좌우 padding 시안 대비 약 4px 좁음"`, `"primary 버튼 font-weight 500→600"`). 생 Hex 나열 대신 DESIGN.md 토큰으로 — 추출 모드의 토큰 매핑을 그대로 재사용.
 - `suggestions[]`: `differences` 에 1:1 대응하는 실행 가능한 수정(토큰/유틸 단위).
-- `verdict`: `score ≥ 임계` → `pass`, 수정 여지 → `revise`, 카테고리 자체 불일치 → `fail`.
+- `verdict`: `score ≥ 임계` → `pass`, 수정 여지 → `revise`, 카테고리 자체 불일치 → `fail`, 입력 부족으로 판정하지 못함 → `unverified`(점수 없음 — 아래 하드룰). 호출자는 `revise` 만 수정 루프에 넣는다.
 - `category_match`: 입력된 `category_hint` 가 실제 이미지 분석 결과와 부합하는지 여부 (`true` | `false`). `false` 면 힌트를 재검토해야 한다.
 
 **환각 방지 (하드룰)**:
-- **레퍼런스와 구현 스크린샷이 모두 실재할 때만** 판정한다. 하나라도 없으면 점수를 만들지 말고 JSON 형태로 반환한다: `{ "score": 0, "verdict": "fail", "category_match": false, "differences": [], "suggestions": [], "reasoning": "판정 불가 — 입력 부족: 레퍼런스 또는 구현 스크린샷 미제공" }`
+- **레퍼런스와 구현 스크린샷이 모두 실재할 때만** 판정한다. 하나라도 없으면 점수를 만들지 말고 JSON 형태로 반환한다: `{ "score": null, "verdict": "unverified", "category_match": null, "differences": [], "suggestions": [], "reasoning": "판정 불가 — 입력 부족: 레퍼런스 또는 구현 스크린샷 미제공" }` — `score: 0` 으로 내면 호출자가 «임계 미달» 로 읽어 고칠 근거 없는 수정 루프에 들어간다.
 - `ppt-layout` 에서 색·타이포를 채점하지 않는다 — 충실하지 않은 슬라이드로부터의 추정은 곧 환각.
 - 픽셀 diff(pixelmatch)는 hotspot 국소화용 **보조 도구**일 뿐, 최종 판정 권위는 이 시각 판단이다.
 

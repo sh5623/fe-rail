@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # eval 은 bash·grep·sed·awk·jq 만 쓴다(네트워크·npm·python 불필요).
+      # eval 은 bash·grep·sed·awk·jq 와 node(게이트 명령 선택기 검사) 만 쓴다(네트워크·npm·python 불필요 · node 는 러너 기본 포함).
       # 로컬은 BSD 계열, CI 는 GNU/mawk 라 버전을 남겨 재현에 쓴다.
       - name: 도구 버전
         run: |

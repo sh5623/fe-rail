@@ -82,6 +82,8 @@ Phase 0 요약을 보여준 뒤 AskUserQuestion 으로 진행 여부를 묻는�
 4. 컴포넌트 구현
 5. 테스트 작성
 
+> 위 순서는 기본값이다. 레포의 모범 파일이 다른 순서를 쓰거나 프로젝트가 테스트를 먼저 쓰는 방식(TDD — `fe-test-author` 의 Red-Green)이면 그것을 따른다.
+
 > **재위임 상한·실패 출구 (Phase 3·4·4.5·6-0 공통)**
 > 자동 수정/리뷰 재위임은 **같은 항목 군(群) 기준 누적 3회**까지. 3회 후 미해소면 루프를 멈추고
 > **사람에게 에스컬레이션** — 미해소 항목·시도 이력(각 회차 무엇을 바꿨고 왜 막혔는지)·추정 원인을
@@ -103,6 +105,7 @@ fi
 ```bash
 # 타입: typecheck 스크립트 우선 → 없고 솔루션 스타일 tsconfig(references)면 tsc -b → 그 외 tsc --noEmit
 # (bare tsc --noEmit 은 files:[]+references 구성에서 아무 파일도 검사하지 않는 no-op — fe-build-fixer 등과 동일 기준)
+# 바이너리+플래그 실행은 반드시 $PX 로 — `npm exec tsc -b` 는 npm 이 -b 를 자기 설정으로 삼켜 bare tsc 로 만들어 no-op 이 된다
 if grep -q '"typecheck"' package.json; then $PM run typecheck
 elif grep -q '"references"' tsconfig.json 2>/dev/null; then $PX tsc -b
 else $PX tsc --noEmit; fi
@@ -155,7 +158,7 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
    고정 체크리스트를 표준 게이트에 매핑). 섹션이 없으면(fe-spec 우회·손작성) "완료 기준 미정의"로 기록하고
    자동 게이트만 돌린 뒤 STOP 에 표기한다.
    - **자동 실행 항목** ← 타입·린트·단위 **전체**(검증 결과 객체의 트리 id 가 현재 코드와 같을 때만 Phase 3 결과 재사용, 다르면 재실행). 빌드·E2E 는 여기서 돌리지 않고 Phase 6-0 으로 넘긴다.
-   - **사람 검증 항목** ← 자동 불가: 반응형(375/768/1280)·접근성(키보드·aria·대비)·다크모드·DESIGN.md Bans
+   - **사람 검증 항목** ← 자동 불가: 반응형(그 화면이 지원하는 뷰포트)·접근성(키보드·aria·대비)·다크모드·DESIGN.md Bans
      → 실행하지 않고 STOP 에서 사람 확인 대상으로 노출.
 2. **build·E2E 를 STOP 2 앞에서 돌리지 않는 이유** — STOP 2 는 사용자가 로컬에서 동작을 보고 수정을 요청하는
    지점이다. 여기서 돈 build·E2E 는 그 뒤의 수정 반영이나 base 전진(FF/rebase)으로 코드가 바뀌면 전부 무효가 된다
@@ -166,7 +169,11 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
    코드가 수렴하는 단계라 STOP 2 앞에 둔다. (와이어프레임·스케치·레퍼런스 없음 → 건너뜀 — 레퍼런스 없이 충실도를 채점하면 환각.)
    - **캡처**: dev 서버(또는 빌드 preview) 기동 후 해당 라우트를 레퍼런스와 **동일 뷰포트**로 스크린샷(Playwright `page.screenshot()` 또는 chrome-devtools MCP). 앱 미기동·라우트 부재면 **"미검증"**(통과 아님)으로 기록.
    - **판정**: `fe-vision` **대조 모드**에 `reference_images`+`generated_screenshot`+`category_hint`(Figma=`figma-hifi` / PPT-PDF=`ppt-layout`)를 넘겨 JSON 판정을 받는다.
-   - **루프**: `score < 임계` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
+   - **판정별 처리** — 점수가 아니라 `verdict` 로 가른다:
+     - `pass` → 통과. `revise`(score < 임계) → 아래 루프.
+     - `unverified`(레퍼런스·캡처 입력 부족) → **수정 루프에 넣지 않고** "미검증(사유)" 로 기록한다. 판정하지 못한 화면을 0점으로 보고 코드를 고치면 고칠 근거 없이 루프만 돈다.
+     - `fail`(`category_match: false` — 힌트와 이미지 종류가 다름) → 코드가 아니라 `category_hint` 를 재검토할 대상이므로 루프 없이 STOP 보고에 올린다.
+   - **루프**: `revise` 면 `differences`/`suggestions` 를 `fe-build`(또는 `fe-build-fixer`)에 먹여 타깃 수정 → 재캡처 → 재판정. 위 **"재위임 상한"(같은 화면 3회)** 으로 bound, 초과 시 출구로.
    - 최종 점수·미해결 차이를 Phase 5 보고에 그대로 노출(미달도 정직 보고 — "통과" 단정 금지).
    - 루프로 코드가 바뀌었으면 타입·린트·단위를 최종 코드에서 다시 돌려 검증 결과 객체를 갱신한다(트리 id 규칙).
 
@@ -178,6 +185,11 @@ Phase 6-0 의 무거운 게이트)로 한다 (BLOCK 0 = "리뷰어가 그만 지
 > **"자동 검증 — 타입·린트·단위: {통과/실패}{, 시각 충실도: {점수/미검증} — 고증 화면 시}.
 > 빌드·E2E: 커밋 직전 1회로 미룸(Phase 6-0){ — `--skip-e2e`: E2E 미검증 / `--ci-live`: push 후 CI 에서 검증}.
 > 사람 확인 필요 — 반응형·접근성·다크모드{·DESIGN}."**
+>
+> **변경 동작별 근거** — feature.md `정책/규칙` 의 `인터랙션` 항목(이번 변경이 만들거나 바꾸는 동작 · 시작 상태 → 입력·조건 → 관찰 가능한 결과)마다
+> 그 결과를 확인한 근거를 하나 붙인다: 테스트(파일·테스트 이름) / 브라우저 관찰(무엇을 발동하고 무엇을 봤는지) / 사람 확인 필요.
+> 근거가 없으면 그 동작만 "미확인" 으로 적는다. 문구·색상만 바꾼 작업처럼 인터랙션 항목이 없으면 이 줄을 생략한다.
+> 시각 충실도 점수는 배치·간격·타이포 차이를 찾는 용도이고, 동작의 통과 근거로 쓰지 않는다.
 
 ```jsonc
 // AskUserQuestion 호출 — 단일 선택(라디오)
@@ -227,28 +239,27 @@ STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않�
    - 원격이 없거나 fetch 가 실패하면 "동기화 생략(사유)" 로 기록하고 2 로 간다.
 2. **무거운 게이트 1회** — 동기화된 트리에서 돈다. 가져온 커밋이 있으면 코드가 바뀐 것이므로 타입·린트·단위도 이 트리에서 다시 돈다(트리 id 규칙).
    **명령은 소비자 프로젝트가 정한다** — 소비자 CLAUDE.md·AGENTS.md 에 푸시 전(무거운) 게이트 명령이 선언돼 있으면 그것을 쓴다
-   (변경→spec 매핑·preview 모드·앱 범위는 프로젝트가 더 잘 안다). 선언이 없으면 아래 기본, 곧 **전체 build + 전체 E2E** 다.
+   (변경→spec 매핑·preview 모드·앱 범위는 프로젝트가 더 잘 안다). 선언이 없으면 기본 선택기가 고른 명령, 곧 **전체 build + 전체 E2E** 다.
    기본을 휴리스틱으로 좁히지 않는다 — 플러그인은 변경→spec 매핑을 모르고, 좁히면 셸·공용 모듈 변경을 놓친다.
    ```bash
-   # PM/PX 재감지 (Phase 3 변수가 이 블록에 전달되지 않을 수 있어 독립 선언)
-   PM=npm; PX=npx
-   [ -f pnpm-lock.yaml ] && PM=pnpm && PX=pnpm
-   [ -f yarn.lock ]      && PM=yarn && PX=yarn
-   { [ -f bun.lockb ] || [ -f bun.lock ]; } && PM=bun && PX=bun
-   if grep -q '"build"' package.json; then $PM run build; fi
-   # E2E: 완료기준이 "(E2E/Playwright 존재 시)" 로 조건부 → 의존성 + (설정파일 또는 e2e 디렉터리) 있을 때만.
-   # 테스트 디렉터리 이름은 프로젝트마다 다르므로(e2e/tests/specs…) playwright.config.* 를 1차 신호로 본다.
-   if grep -q '@playwright/test' package.json \
-      && { ls playwright.config.* >/dev/null 2>&1 || [ -d e2e ]; }; then
-     # 브라우저 자동 설치는 옵트인 — 수백 MB 다운로드이고 --with-deps 는 root 권한을 요구한다.
-     # (FE_RAIL_ALLOW_NPX 와 같은 원칙: 자동 파이프라인이 임의로 네트워크·시스템을 건드리지 않는다)
-     if [ -n "${FE_RAIL_ALLOW_PW_INSTALL:-}" ]; then
-       $PX playwright install --with-deps chromium >/dev/null
-     fi
-     if grep -q '"e2e"' package.json; then $PM run e2e; else $PX playwright test; fi
-   fi
+   # 레포 루트에서. 이 스킬의 base directory 기준 scripts/gate-commands.mjs — 명령을 고르기만 하고 실행하지 않는다.
+   node "<fe-start base directory>/scripts/gate-commands.mjs" build e2e
+   # 출력 한 줄 = <kind> TAB <cwd> TAB <명령>   예) build	.	pnpm run build  /  e2e	apps/web	pnpm run e2e
+   #           또는 <kind> TAB - TAB 미실행: <사유>
    ```
-3. 결과를 **통과/실패/미실행(사유: e2e 없음·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
+   선택 순서(kind 마다 · 근거는 스크립트 머리 주석):
+   ① 루트 `package.json` 의 `scripts` — build 는 `build`, E2E 는 `e2e` → `test:e2e`. 루트가 합본 검사를 소유하는 구성(`pnpm -r e2e`)을
+   보존하고 앱 단위로 좁히지 않는다. 스크립트가 어떤 러너를 쓰든(Cypress 등) 그대로 부른다.
+   ② 루트에 없으면 워크스페이스(`pnpm-workspace.yaml` 의 `packages` · `package.json` `workspaces`) 패키지 중 그 스크립트가 있는 곳 **전부**.
+   ③ (E2E) 둘 다 없으면 루트 `playwright.config.*` 와 `@playwright/test` 의존성이 함께 있을 때만 `playwright test`.
+   ④ 그 외는 미실행 — 하위 폴더에 Playwright 설정이 있으면 사유에 경로를 적는다(설정이 있는 프로젝트를 «e2e 없음» 으로 분류하지 않는다).
+   스크립트 존재는 `package.json` 을 파싱해 `scripts` 키에서 확인한다. 파일 전체 문자열 검색(`grep '"e2e"'`)은 `"workspaces": ["e2e"]` 같은 값에
+   걸려 없는 스크립트를 고르고, `test:e2e` 는 놓쳐 설정 없는 `playwright test` 로 떨어진다 — 루트 설정이 없는 레포에서는 단위 테스트 파일까지 읽어
+   E2E 가 «실패» 로 끝나고 4 의 수정 루프로 들어갔다(v1.20.0 계기).
+   **실행**: 출력된 명령을 위에서부터 한 줄씩 그 `cwd` 에서 돌리고, 줄마다 검증 결과 객체(kind·command·cwd·exit_code)를 하나씩 남긴다.
+   `e2e-setup`(브라우저 설치) 줄은 `FE_RAIL_ALLOW_PW_INSTALL` 옵트인일 때만 나온다 — 수백 MB 다운로드이고 `--with-deps` 는 root 권한을
+   요구하므로, 자동 파이프라인이 임의로 네트워크·시스템을 건드리지 않는다(`FE_RAIL_ALLOW_NPX` 와 같은 원칙). `--skip-e2e` 면 `e2e*` 줄은 돌리지 않는다.
+3. 결과를 **통과/실패/미실행(사유: 선택기의 미실행 사유·브라우저·포트 등 환경 미비)** 로 구분 기록한다.
    **미실행을 통과로 표기하지 않는다.** 브라우저 미설치로 E2E 가 실패하면 그 사유를 그대로 적고
    해소 방법을 함께 노출한다 — `FE_RAIL_ALLOW_PW_INSTALL=1`(자동 설치 허용) 또는 `npx playwright install` 수동 실행.
 4. **빨강이면** `fe-build-fixer` 에 실패 요약을 넘겨 최소 수정 → **같은 지점에서** 게이트를 1회 다시 돈다(코드가 바뀌었으므로
@@ -292,7 +303,7 @@ STOP 2 승인 뒤 커밋 전에 한 번만 돈다. 코드가 더 바뀌지 않�
 
 에이전트가 책임지는 것:
 - PR 제목·본문 작성 (변경사항·완료 기준 체크리스트 포함 — 검증 객체에 없는 항목은 [x] 로 표기하지 않는다, `--ci-live` 분은 "CI 대기")
-- `gh pr create --draft` 실행 (push 는 6-1 에서 끝났으므로 미푸시일 때만 폴백)
+- 호스트 감지 후 PR 생성 (GitHub `gh pr create --draft` / CodeCommit `aws codecommit create-pull-request` / 그 외 호스트는 만들지 않고 보고) — push 는 6-1 에서 끝났으므로 미푸시일 때만 폴백
 - 메인 세션은 **PR URL만** 결과로 받음
 
 > PR은 기본 draft로 생성합니다. 준비되면 직접 ready for review로 전환하세요.

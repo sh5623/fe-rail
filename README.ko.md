@@ -73,7 +73,7 @@ $ claude
 
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
-| `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회) | — |
+| `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회 · `FE_RAIL_NO_UPDATE_CHECK=1` 로 끔) | — |
 | `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다. 커밋 검사에서 제외하는 것은 `-m` 메시지 값뿐이다. 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단: `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 편집 조각이 아니라 실파일의 편집 전 ↔ 후 전체(디스크 내용 + Edit/MultiEdit/Write 페이로드로 재구성)를 비교하므로, 값만 바꾸는 `true → false` Edit 과 `strict` 키를 뺀 Write 도 잡는다. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
@@ -123,6 +123,8 @@ v1.19.0 은 fe-start 의 빌드·E2E 를 "커밋할까요?" 앞(Phase 4.5)에서
 
 v1.19.1 은 교차 검증이 재현한 세 가지를 고칩니다. 커밋 직전 게이트 결과는 이제 **커밋 트리가 검사한 트리와 같을 때만** 커밋에 이어 붙습니다. 작업 범위 밖 변경이 섞인 트리에서 통과한 검사가 범위 파일만 담은 커밋에서는 실패할 수 있었기 때문입니다. 그래서 6-0 은 범위 밖 변경이 있으면 먼저 멈춰 묻습니다. 검증 지문은 `git diff HEAD` 해시에서 임시 index 로 만든 «검증 트리 id» 로 바뀌어, untracked 파일 수정도 잡습니다. 동기화 모드는 staged 변경이 있으면 rebase 하지 않습니다(autostash 가 staged 를 풀어 버린다). eval 은 문서의 스니펫을 그대로 꺼내 임시 저장소에서 이 동작들을 돌립니다.
 
+v1.20.0 은 게이트를 선언하지 않은 프로젝트에서 fe-start 가 커밋 직전 기본 명령을 고르는 방식을 바꿉니다. 선택은 스킬 본문의 셸에서 `skills/fe-start/scripts/gate-commands.mjs` 로 옮겼고, 이 스크립트는 고르기만 하고 실행하지 않습니다. 파일 전체를 grep 하지 않고 `package.json` 을 읽어 `scripts` 키를 봅니다. 순서는 루트 스크립트(`build` · `e2e` 다음 `test:e2e`) → 그 스크립트가 있는 워크스페이스 패키지 전부 → 루트 `playwright.config.*` 와 `@playwright/test` 가 함께 있을 때의 `playwright test` 입니다. 그 밖은 미실행으로 적고, 하위 폴더의 Playwright 설정이 있으면 사유에 경로를 남깁니다. 예전 grep 은 `test:e2e` 를 놓쳐 설정 없는 `playwright test` 로 떨어졌습니다. 설정이 하위 폴더에 있는 단일 앱에서는 그 실행이 단위 테스트 파일까지 읽어 실패했고, 게이트는 수정 루프로 들어갔습니다. `"workspaces": ["e2e"]` 같은 값 때문에 없는 스크립트를 부를 수도 있었습니다. eval 은 실제 소비 프로젝트 꼴의 fixture 로 선택 결과를 고정합니다. 작은 수정도 함께 들어갑니다. fe-vision 은 입력이 없으면 점수 없이 `verdict: "unverified"` 를 내고, fe-start 는 `revise` 만 수정 루프에 넣습니다. 판정하지 못한 화면을 0점으로 다루지 않습니다. fe-pr-author 는 리모트 호스트를 감지해 GitHub 는 `gh pr create`, CodeCommit 은 `aws codecommit create-pull-request` 로 PR 을 만들고, 그 밖의 호스트에서는 멈추고 보고합니다. 세션 시작의 버전 확인은 `FE_RAIL_NO_UPDATE_CHECK=1` 로 끌 수 있고, 플러그인 경로가 없을 때 뒤 안내까지 건너뛰지 않습니다. 완료 기준의 린트는 프로젝트 명령의 통과 여부로, 뷰포트는 화면이 지원하는 범위로 바꿨고, fe-build 의 구현 순서와 «변형 2개 제안» 은 레포의 기존 패턴이 있으면 그것을 따릅니다.
+
 ## 포함된 Agents
 
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
@@ -161,7 +163,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
 | `fe-git-operator` | 커밋 분리·사용자가 미리 스테이징한 인덱스를 건드리지 않는 스테이징(`git commit --only -- <파일>`) + 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향) · `git push` 담당 | sonnet | 도구 (Write/Edit 금지) |
-| `fe-pr-author` | 검증 결과 객체 기반 PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트 위험순. 테스트 체크리스트는 exit code @ SHA 를 적고 추정으로 «통과» 를 쓰지 않는다) + `gh pr create` (푸시는 upstream 이 없을 때만 폴백) | sonnet | 컨텍스트 + 도구 |
+| `fe-pr-author` | 검증 결과 객체 기반 PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트 위험순. 테스트 체크리스트는 exit code @ SHA 를 적고 추정으로 «통과» 를 쓰지 않는다) + 리모트 호스트 감지 후 PR 생성 (GitHub `gh pr create` / CodeCommit `aws codecommit create-pull-request` / 그 외 호스트는 멈추고 보고 · 푸시는 upstream 이 없을 때만 폴백) | sonnet | 컨텍스트 + 도구 |
 
 ## 워크플로우
 

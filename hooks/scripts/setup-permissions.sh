@@ -20,7 +20,7 @@ set -eu
 AUTO_YES=0
 case "${1:-}" in --yes|-y) AUTO_YES=1 ;; esac
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 HOOKS_DIR="$(dirname "$SCRIPT_DIR")"
 
 # 대상 프로젝트: 스크립트가 어디 설치돼 있든(마켓플레이스 설치 시 플러그인 경로가 됨) 상관없이

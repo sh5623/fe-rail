@@ -42,7 +42,7 @@ allowed-tools:
 | tsc·린터(ESLint/Biome) 오류 수정 | `fe-build-fixer` — 최소 diff 오류 제거 |
 
 ### Phase 2 — 구현 순서
-반드시 이 순서를 지킵니다:
+기본 순서다. Phase 1 ③ 의 모범 파일이 다른 순서를 쓰거나 프로젝트가 테스트를 먼저 쓰면(TDD — `fe-test-author` 의 Red-Green) 그것을 따른다:
 ```
 
 1. 타입 정의 먼저 (types/ 또는 컴포넌트 상단)
@@ -101,7 +101,7 @@ function CampaignList() {
 ```
 
 **UI 컴포넌트 기준**
-- 새 UI 컴포넌트 작성 시 변형 2개 이상 먼저 제안
+- 설계 선택이 열려 있을 때(시안도 기존 패턴도 없는 새 UI)만 변형을 2개 이상 먼저 제안한다 — 시안이 확정됐거나 레포의 기존 패턴을 따르는 작업이면 생략
 - **화면 충실도 존중** — feature.md 「화면 흐름」의 등급을 따른다. 와이어프레임/스케치면 배치·구조만 재현하고 색·타이포·간격은 디자인 토큰/시스템 기본값으로(시안에 없는 수치 임의 생성 금지). 고증 시안이면 fe-vision 추출값으로 충실 재현
 - 폰트는 프로젝트 DESIGN.md 의 결정을 따른다 (system 폰트 스택을 의도적으로 채택했으면 허용). Next.js 는 next/font 로딩 권장
 - shadcn/ui 컴포넌트 우선 활용 — **Vite + shadcn 이면 CLI 실행 전 루트 `tsconfig.json` 에 `baseUrl`+`paths`(`@/*`→`./src/*`) 확인**. 없으면 CLI 가 alias 를 못 풀어 literal `@` 폴더 생성(`paths` 가 `tsconfig.app.json` 에만 있는 게 흔한 원인)

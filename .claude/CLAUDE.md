@@ -34,9 +34,9 @@ fe-rail/
 │   ├── fe-test-runner.md  ← review: 테스트 실행·분류
 │   ├── fe-refactor-advisor.md ← review: 리팩토링 분석
 │   ├── fe-git-operator.md ← PR: 커밋 분리·스테이징·커밋 본문 작성 (fix=증상·원인·해결 / feat=추가·핵심·영향)
-│   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트) + `gh pr create`
+│   └── fe-pr-author.md    ← PR: PR 본문 작성 (성격별 🐛/✨ 블록 + 리뷰 포인트) + 호스트 감지 PR 생성 (GitHub `gh` / CodeCommit `aws codecommit`)
 ├── hooks/                 ← SessionStart·Pre/PostToolUse·Stop·Notification 훅 (hooks.json 배선)
-│   ├── session-init.sh    ← SessionStart: 원격 버전 체크(하루 1회, GitHub raw) + 권장 권한 미설정 안내
+│   ├── session-init.sh    ← SessionStart: 원격 버전 체크(하루 1회, GitHub raw · 끄기 FE_RAIL_NO_UPDATE_CHECK=1) + 훅 프로파일 + 권장 권한 미설정 안내
 │   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
 │   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)
 │   ├── notify.sh          ← Notification(옵션): terminal-notifier 배너 (setup-notifier.sh 로 활성화, hooks.json 미배선)
@@ -45,7 +45,7 @@ fe-rail/
 │   ├── fe-spec/           ← 기획 → 스펙 변환
 │   ├── fe-build/          ← 스펙 → 코드 구현
 │   ├── fe-review/         ← 4축 코드 리뷰
-│   ├── fe-start/          ← 원스톱 자동화 (spec→PR)
+│   ├── fe-start/          ← 원스톱 자동화 (spec→PR) · scripts/gate-commands.mjs = 6-0 기본 build·E2E 명령 선택기(고르기만)
 │   └── fe-doc-sync/       ← 설치된 사용자 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
 ├── eval/
 │   └── run.sh             ← 회귀 eval (훅 동작·프로파일·self-lint, 결정적·CI용)
@@ -154,6 +154,9 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 
 **무거운 게이트 시점 (v1.19.0)**: build·E2E 는 "커밋할까요?"(Phase 5 · STOP 2) 앞이 아니라 승인 뒤 커밋 직전(Phase 6-0)에 1회 돈다. STOP 2 는 사용자가 로컬에서 보고 수정을 요청하는 지점이라, 그 앞에서 돈 무거운 게이트는 수정·상류 전진(FF/rebase) 한 번에 무효가 된다(실측: 전체 E2E 3회 ≈40분이 상류 1커밋으로 무효 → 4회째). STOP 2 앞(Phase 4.5)은 가벼운 묶음(타입·린트·단위 전체 + 고증 화면의 시각 충실도)만, 6-0 은 fe-git-operator 동기화 모드(fetch → `rebase --autostash`, 충돌이면 STOP) → 소비자 CLAUDE.md·AGENTS.md 가 선언한 푸시 전 게이트(없으면 전체 build + 전체 E2E) 1회 → 빨강이면 fe-build-fixer(3회 상한) 후 같은 지점에서 재실행. 플러그인은 변경→spec 매핑을 모르므로 기본을 휴리스틱으로 좁히지 않고, 단위 테스트도 경로로 좁히지 않는다(전 앱을 glob 으로 읽는 대장 테스트를 못 본다). 6-0 결과는 **커밋 트리(`HEAD^{tree}`)가 검증 트리 id 와 같을 때만** 6-1 커밋 SHA 로 이어 붙여 PR `## 테스트` 근거가 된다(v1.19.1 — 범위 밖 변경이 섞이면 6-0 이 먼저 멈춰 묻는다 · 지문은 `git diff HEAD` 가 아니라 untracked 까지 담는 임시 index 트리 id).
 
+**기본 게이트 명령 선택 (v1.20.0)**: 선언이 없을 때의 build·E2E 명령은 `skills/fe-start/scripts/gate-commands.mjs` 가 고르기만 하고, 실행·기록은 fe-start 가 한다. `package.json` 을 파싱해 `scripts` 키로 판정한다 — 루트 스크립트(`build` / `e2e` → `test:e2e`) → 워크스페이스 패키지 전부 → (E2E) 루트 `playwright.config.*` + 의존성 → 미실행(하위 설정 경로를 사유에). 이전의 `grep '"e2e"'` 판정은 `test:e2e` 를 놓쳐 설정 없는 `playwright test` 로 떨어졌고, 루트 설정이 없는 단일 앱에서는 단위 테스트 파일까지 읽어 E2E 가 실패로 끝나 수정 루프에 들어갔다. 선택 결과는 eval 이 실제 구성 꼴의 fixture 로 고정한다.
+**시각 판정의 미검증 (v1.20.0)**: fe-vision 은 입력이 부족하면 `verdict: "unverified"`(점수 없음)를 내고, fe-start 는 `revise` 만 수정 루프에 넣는다(`unverified` = 미검증 기록 · `fail` = 힌트 재검토로 STOP).
+
 fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "풀 자동"을 고르면 fe-start 로 이어진다. 이때 "구현할까요?"는 fe-spec 게이트가 대신하므로 fe-start 는 "커밋할까요?"만 묻는다(전체 승인 2회 유지).
 
 ---
@@ -222,10 +225,10 @@ fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "
 | 항목 | 기준 |
 |------|------|
 | TypeScript | `any` 타입 0개, strict mode |
-| 린트 | 린터(ESLint 또는 Biome) 경고 0개 |
+| 린트 | 프로젝트 lint 명령 통과(종료 코드 기준 — 경고 상한은 프로젝트가 정한다) |
 | 테스트 | Vitest + Testing Library, 주요 인터랙션 커버 |
 | 접근성 | WCAG AA — `aria-label`, 키보드 네비게이션 |
-| 반응형 | 375px / 768px / 1280px 기준 |
+| 반응형 | 화면이 지원하는 뷰포트(지정이 없으면 375px / 768px / 1280px 예시) |
 | 성능 | 이미지 최적화, 불필요한 리렌더링 없음 |
 
 ### 검증 명령어

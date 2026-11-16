@@ -1,44 +1,19 @@
 #!/bin/bash
 # [fe-rail] session-init.sh — SessionStart
-# 원격 버전 체크 (하루 1회). 무소음 원칙: 정상 상태는 무출력.
+#   ① 원격 버전 체크(새 버전 안내) · ② 훅 프로파일 안내 · ③ 권장 권한 미설정 안내
+# 무소음 원칙: 알릴 게 없으면 아무것도 출력하지 않는다.
 
-[ -z "$CLAUDE_PLUGIN_ROOT" ] && exit 0
-
-PLUGIN_JSON="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
-[ ! -f "$PLUGIN_JSON" ] && exit 0
-
-PLUGIN_VERSION=$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$PLUGIN_JSON" | head -1 \
-                 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
-
-[ -z "$PLUGIN_VERSION" ] && exit 0
-
-# 원격 버전 체크 (GitHub, 하루 1회)
-REMOTE_CHECK_CACHE="$HOME/.claude/fe-rail-version-check.cache"
-mkdir -p "$(dirname "$REMOTE_CHECK_CACHE")"
-REMOTE_URL="https://raw.githubusercontent.com/sh5623/fe-rail/main/.claude-plugin/plugin.json"
-
-_is_stale() {
-  [ ! -f "$1" ] && return 0
-  local last now
-  last=$(stat -f "%m" "$1" 2>/dev/null || stat -c "%Y" "$1" 2>/dev/null)
-  now=$(date +%s)
-  [ $((now - last)) -gt 86400 ] && return 0
-  return 1
+# ── ① 원격 버전 체크 (GitHub raw · 하루 1회 · 무소음) ─────────────────────────
+# 새 버전이 있을 때만 안내하고, 그 외(이미 최신·조회 실패·curl 없음·타임아웃)는 무소음.
+# 끄기: FE_RAIL_NO_UPDATE_CHECK=1 (사내망·오프라인처럼 외부 조회를 막아야 하는 환경)
+# 함수로 감싼다 — 조건이 안 맞을 때 exit 하면 아래 ②·③ 안내까지 건너뛴다.
+_fe_semver() {  # stdin(plugin.json 텍스트)에서 "version" 값 추출
+  grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
+    | sed 's/.*"version"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//'
 }
-
-if _is_stale "$REMOTE_CHECK_CACHE"; then
-  REMOTE_RAW=$(curl -sf --max-time 5 "$REMOTE_URL" 2>/dev/null)
-  if [ -n "$REMOTE_RAW" ]; then
-    REMOTE_VER=$(printf '%s' "$REMOTE_RAW" \
-      | grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 \
-      | sed 's/.*"version"[[:space:]]*:[[:space:]]*"//' | sed 's/"$//')
-    [ -n "$REMOTE_VER" ] && printf '%s' "$REMOTE_VER" > "$REMOTE_CHECK_CACHE"
-  fi
-fi
-
 # semver 세 자리(x.y.z)를 순수 bash 산술로 비교 — 외부 프로세스 없이 이식성 확보.
 # (sort -V 는 GNU 확장이라 구버전 macOS BSD sort 등에서 미지원일 수 있음)
-_fe_is_newer() {
+_fe_is_newer() {  # $2(원격)가 $1(로컬)보다 최신이면 0
   local IFS=.
   local -a lp=($1) rp=($2)
   local i l r
@@ -49,16 +24,46 @@ _fe_is_newer() {
   done
   return 1
 }
+_fe_update_check() {
+  [ -n "${FE_RAIL_NO_UPDATE_CHECK:-}" ] && return 0
+  [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] || return 0
+  command -v curl >/dev/null 2>&1 || return 0
+  local pj="${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+  [ -f "$pj" ] || return 0
+  local local_ver; local_ver=$(_fe_semver < "$pj")
+  [ -n "$local_ver" ] || return 0
 
-REMOTE_VER=$(cat "$REMOTE_CHECK_CACHE" 2>/dev/null)
-if [ -n "$REMOTE_VER" ] && [ -n "$PLUGIN_VERSION" ] && [ "$REMOTE_VER" != "$PLUGIN_VERSION" ]; then
+  local cache="$HOME/.claude/fe-rail-version-check.cache"
+  mkdir -p "$(dirname "$cache")" 2>/dev/null || return 0
+  local url="https://raw.githubusercontent.com/sh5623/fe-rail/main/.claude-plugin/plugin.json"
+
+  # 하루 1회만 원격 조회
+  local stale=1 last now
+  if [ -f "$cache" ]; then
+    last=$(stat -f "%m" "$cache" 2>/dev/null || stat -c "%Y" "$cache" 2>/dev/null)
+    now=$(date +%s 2>/dev/null)
+    [ -n "$last" ] && [ -n "$now" ] && [ $((now - last)) -le 86400 ] && stale=0
+  fi
+  if [ "$stale" = 1 ]; then
+    local raw ver
+    raw=$(curl -sf --max-time 5 "$url" 2>/dev/null)
+    ver=$(printf '%s' "$raw" | _fe_semver)
+    [ -n "$ver" ] && printf '%s' "$ver" > "$cache"
+  fi
+
+  local remote_ver; remote_ver=$(cat "$cache" 2>/dev/null)
+  case "$remote_ver" in
+    [0-9]*.[0-9]*.[0-9]*) ;;   # x.y.z 형태일 때만 비교
+    *) return 0 ;;
+  esac
   # 원격이 로컬보다 "더 최신일 때만" 안내한다. 단순 != 비교는 로컬이 앞선 개발 체크아웃에서
   # 다운그레이드를 새 버전으로 오인해 매 세션 오보를 낸다.
-  if _fe_is_newer "$PLUGIN_VERSION" "$REMOTE_VER"; then
-    echo "[fe-rail] 새 버전 v${REMOTE_VER} 이 있습니다 (현재 v${PLUGIN_VERSION})"
+  if [ "$remote_ver" != "$local_ver" ] && _fe_is_newer "$local_ver" "$remote_ver"; then
+    echo "[fe-rail] 새 버전 v${remote_ver} 이 있습니다 (현재 v${local_ver})"
     echo "[fe-rail] 업데이트: /plugin update fe-rail@fe-rail-market"
   fi
-fi
+}
+_fe_update_check
 
 # [fe-rail] 훅 프로파일 안내 — 기본(standard)이 아니거나 비활성 훅이 설정돼 있으면 알린다.
 #   제어: FE_RAIL_HOOK_PROFILE(minimal|standard|strict) · FE_RAIL_DISABLED_HOOKS="a,b"

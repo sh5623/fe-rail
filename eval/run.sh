@@ -16,6 +16,9 @@
 #   D. 차단기 4개의 차단 사유가 stdout 아닌 stderr 로 전달되는지
 #   E. 비차단 훅 5개(doc-sync-check·design-nudge·nextjs-guard·quality-gate·read-guard)의
 #      안내도 동일하게 stderr 로 나가는지 (exit 0 이면 stdout 은 transcript 모드에서만 보임)
+#   G. 원격 버전 체크(session-init) — curl 을 PATH 목으로 대체·HOME 캐시 격리해
+#      새 버전 안내 / 옵트아웃(FE_RAIL_NO_UPDATE_CHECK) 무소음 / 동일 버전 무소음 / 플러그인 경로 없음에도 ②·③ 안내 유지
+#   (C 말미) fe-start 6-0 기본 게이트 명령 선택 — 실제 소비 구성 꼴의 fixture 로 gate-commands.mjs 출력을 고정(node 필요)
 #
 # 주의: fixture 는 반드시 printf '%s' 로 주입한다(echo 는 zsh 등에서 \n 을 실제 개행으로 바꿔 JSON 을 깨뜨림).
 #
@@ -23,7 +26,7 @@
 
 set -u
 # 러너 셸에 fe-rail 토글이 export 돼 있어도 결정적으로 돌도록 정규화(테스트가 env 를 명시 주입).
-unset FE_RAIL_ALLOW_NPX FE_RAIL_HOOK_PROFILE FE_RAIL_DISABLED_HOOKS 2>/dev/null || true
+unset FE_RAIL_ALLOW_NPX FE_RAIL_HOOK_PROFILE FE_RAIL_DISABLED_HOOKS FE_RAIL_ALLOW_PW_INSTALL FE_RAIL_NO_UPDATE_CHECK 2>/dev/null || true
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 HOOKS="$ROOT/hooks"
 PASS=0; FAIL=0
@@ -560,12 +563,76 @@ done
 SK="$ROOT/skills/fe-start/SKILL.md"
 p45=$(awk '/^### Phase 4\.5/{s=1;next} /^### Phase 5/{s=0} s' "$SK")
 p60=$(awk '/^#### 6-0/{s=1;next} /^#### 6-1/{s=0} s' "$SK")
-if [ -n "$p45" ] && [ -n "$p60" ] && ! printf '%s' "$p45" | grep -qE 'run build|playwright test|run e2e' \
-   && printf '%s' "$p60" | grep -q 'run build' && printf '%s' "$p60" | grep -q 'playwright test'; then
+if [ -n "$p45" ] && [ -n "$p60" ] && ! printf '%s' "$p45" | grep -qE 'gate-commands|run build|playwright test|run e2e' \
+   && printf '%s' "$p60" | grep -q 'scripts/gate-commands.mjs' && [ -f "$ROOT/skills/fe-start/scripts/gate-commands.mjs" ]; then
   ok "fe-start: build·E2E 실행 블록은 Phase 6-0 에만 있고 Phase 4.5(STOP 2 앞)에는 없다"
 else ng "fe-start: build·E2E 실행 블록이 Phase 4.5 에 있거나 6-0 에 없다(STOP 2 뒤 수정·상류 전진에 결과가 버려지는 회귀)"; fi
 awk '/^#### 6-0/{a=NR} /^#### 6-1/{b=NR} END{exit !(a && b && a<b)}' "$SK" \
   && ok "fe-start: 6-0(커밋 직전 게이트)이 6-1(커밋·푸시)보다 앞" || ng "fe-start: 6-0 이 없거나 6-1 뒤에 있다"
+# ── v1.20.0 — 기본 게이트 명령 선택(gate-commands.mjs) · 실제 소비 구성 꼴의 fixture 로 출력을 고정 ──
+# 계기: 6-0 기본 블록이 grep '"e2e"' 로 판정해 `test:e2e` 를 놓치고 설정 없는 `playwright test` 로 떨어졌다.
+# 루트 설정이 없는 단일 앱(설정이 e2e/·.test/ 아래)에서는 Vitest 파일까지 읽어 E2E 가 «실패» → 수정 루프로 들어갔다.
+GC="$ROOT/skills/fe-start/scripts/gate-commands.mjs"
+TAB=$(printf '\t')
+_gc_fx(){ # _gc_fx <이름> <루트 package.json> [경로 | 경로=내용 …]
+  local d="$TMP/gc/$1" f; mkdir -p "$d"; printf '%s' "$2" > "$d/package.json"; shift 2
+  for f in "$@"; do
+    case "$f" in
+      *=*) mkdir -p "$d/$(dirname "${f%%=*}")"; printf '%s' "${f#*=}" > "$d/${f%%=*}" ;;
+      *)   mkdir -p "$d/$(dirname "$f")"; : > "$d/$f" ;;
+    esac
+  done
+}
+_gc_is(){ # _gc_is <fixture> <kind> <기대(줄바꿈=\n · 탭=<TAB>)> <label> [env]
+  local exp out; exp=$(printf '%b' "$3" | sed "s/<TAB>/$TAB/g")
+  out=$( cd "$TMP/gc/$1" && env ${5:-} node "$GC" "$2" 2>&1 )
+  [ "$out" = "$exp" ] && ok "gate-commands: $4" || ng "gate-commands: $4 (기대='$exp' 실제='$out')"
+}
+if ! command -v node >/dev/null 2>&1; then ng "gate-commands: node 가 없어 선택기를 검사하지 못함"; else
+PW='"devDependencies":{"@playwright/test":"1"}'
+_gc_fx single "{\"scripts\":{\"build\":\"vite build\",\"e2e\":\"playwright test\"},$PW}" playwright.config.ts
+_gc_is single e2e 'e2e<TAB>.<TAB>npm run e2e' '단일 앱 · 루트 설정 · scripts.e2e → 그 스크립트(railhead 꼴)'
+_gc_is single e2e 'e2e-setup<TAB>.<TAB>npx playwright install --with-deps chromium\ne2e<TAB>.<TAB>npm run e2e' '브라우저 설치 줄은 옵트인일 때만 E2E 앞에' FE_RAIL_ALLOW_PW_INSTALL=1
+_gc_fx nested "{\"scripts\":{\"build\":\"tsc -b && vite build\",\"test\":\"vitest\",\"test:e2e\":\"playwright test --config .test/scripts/playwright.config.ts\"},$PW}" \
+  pnpm-lock.yaml e2e/playwright.config.ts .test/scripts/playwright.config.ts 'pnpm-workspace.yaml=minimumReleaseAgeExclude:
+  - foo@1.0.0
+'
+_gc_is nested e2e 'e2e<TAB>.<TAB>pnpm run test:e2e' '설정이 하위 폴더 · 스크립트 이름 test:e2e → 그 스크립트(설정만 있는 pnpm-workspace.yaml 은 워크스페이스 아님)'
+_gc_fx settings-only '{"scripts":{"build":"vite build"}}' 'pnpm-workspace.yaml=onlyBuiltDependencies:
+  - tools
+' 'tools/package.json={"scripts":{"e2e":"node run.js"}}'
+_gc_is settings-only e2e 'e2e<TAB>-<TAB>미실행: scripts 에 e2e·test:e2e 없음 · Playwright 설정 없음' 'pnpm-workspace.yaml 은 packages: 목록만 워크스페이스로 읽는다(다른 설정 목록 무시)'
+_gc_fx nested-noscript "{\"scripts\":{\"build\":\"vite build\"},$PW}" e2e/playwright.config.ts .test/scripts/playwright.config.ts
+_gc_is nested-noscript e2e 'e2e<TAB>-<TAB>미실행: scripts 에 e2e·test:e2e 없음 · 루트 설정 없음 — 하위 설정 .test/scripts/playwright.config.ts, e2e/playwright.config.ts 의 실행 명령을 정할 수 없음(프로젝트가 게이트를 선언하거나 scripts.e2e 를 둔다)' '하위 설정만 있고 스크립트 없음 → 설정 없는 playwright test 대신 경로를 담은 미실행'
+_gc_fx agg "{\"scripts\":{\"build\":\"pnpm -F web build\",\"e2e\":\"pnpm -r --workspace-concurrency=1 e2e\"},$PW}" \
+  pnpm-lock.yaml 'pnpm-workspace.yaml=packages:
+  - "apps/*"
+' "apps/web/package.json={\"scripts\":{\"e2e\":\"playwright test\"}}" apps/web/playwright.config.ts
+_gc_is agg e2e 'e2e<TAB>.<TAB>pnpm run e2e' '워크스페이스 · 루트 합본 스크립트 → 루트(앱 단위로 좁히지 않음)'
+_gc_fx ws '{"private":true}' pnpm-lock.yaml 'pnpm-workspace.yaml=packages:
+  - apps/*
+  - packages/*
+' "apps/web/package.json={\"scripts\":{\"e2e\":\"playwright test\"},$PW}" "apps/admin/package.json={\"scripts\":{\"test:e2e\":\"playwright test\"}}" "packages/ui/package.json={\"scripts\":{\"build\":\"tsc\"}}"
+_gc_is ws e2e 'e2e<TAB>apps/admin<TAB>pnpm run test:e2e\ne2e<TAB>apps/web<TAB>pnpm run e2e' '루트 스크립트 없음 → 스크립트가 있는 워크스페이스 패키지 전부'
+_gc_is ws build 'build<TAB>packages/ui<TAB>pnpm run build' 'build 도 같은 순서(루트 → 워크스페이스)'
+_gc_fx decoy "{\"workspaces\":[\"e2e\"],\"files\":[\"build\"],$PW}" playwright.config.ts
+_gc_is decoy e2e 'e2e<TAB>.<TAB>npx playwright test' 'workspaces 의 "e2e" 문자열은 스크립트가 아니다 → 루트 설정의 playwright test'
+_gc_is decoy build 'build<TAB>-<TAB>미실행: package.json scripts 에 build 없음(루트·워크스페이스)' 'files 의 "build" 문자열은 스크립트가 아니다'
+_gc_fx cypress '{"scripts":{"e2e":"cypress run"},"devDependencies":{"cypress":"13"}}' cypress.config.ts
+_gc_is cypress e2e 'e2e<TAB>.<TAB>npm run e2e' '선언된 scripts.e2e 는 러너와 무관하게 실행(Cypress)'
+_gc_fx none '{"scripts":{"build":"vite build"}}'
+_gc_is none e2e 'e2e<TAB>-<TAB>미실행: scripts 에 e2e·test:e2e 없음 · Playwright 설정 없음' 'E2E 가 정말 없을 때만 «없음» 사유'
+_gc_fx nodep '{"scripts":{"build":"vite build"}}' playwright.config.ts
+_gc_is nodep e2e 'e2e<TAB>-<TAB>미실행: playwright.config.ts 는 있으나 @playwright/test 의존성이 없음' '루트 설정만 있고 의존성 없음 → 미실행'
+_gc_fx bun "{$PW}" bun.lock playwright.config.ts
+_gc_is bun e2e 'e2e<TAB>.<TAB>bun playwright test' 'bun 실행기는 bun(bunx 아님)'
+fi
+# ── v1.20.0 — 시각 판정의 미검증: 입력 부족은 0점이 아니라 unverified · fe-start 는 revise 만 수정 루프 ──
+VI="$ROOT/agents/fe-vision.md"
+if grep -q '"verdict": "unverified"' "$VI" && ! grep -q '"score": 0, "verdict": "fail"' "$VI" \
+   && printf '%s' "$p45" | grep -q 'unverified' && printf '%s' "$p45" | grep -q '`revise` 면'; then
+  ok "fe-vision ↔ fe-start: 입력 부족 = unverified(점수 없음) · 수정 루프는 revise 만"
+else ng "fe-vision ↔ fe-start: 입력 부족을 score 0 으로 내거나 fe-start 가 점수만으로 루프에 넣는다"; fi
 # git 계약: `rebase --autostash` 는 미커밋 변경 재적용 충돌에도 rc=0 → 동기화 충돌은 --diff-filter=U 로 판정해야 한다
 AS="$TMP/autostash"; mkdir -p "$AS"; _git_fixture "$AS"
 ( cd "$AS" && printf 'a\nb\nc\n' > f.txt && git add f.txt && git commit -qm base && git branch -q up \
@@ -632,6 +699,29 @@ if [ "$(git -C "$SN/loc" rev-parse HEAD)" = "$(git -C "$SN/loc" rev-parse origin
    && [ -z "$(git -C "$SN/loc" diff --cached --name-only)" ]; then
   ok "동기화 모드: 정상 경로 — 상류를 받아오고 미커밋 변경을 그대로 다시 얹는다"
 else ng "동기화 모드 정상 경로 실패(HEAD=$(git -C "$SN/loc" rev-parse --short HEAD) a.txt=$(cat "$SN/loc/a.txt"))"; fi
+
+echo "━━━ G. 원격 버전 체크 (session-init · curl mock) ━━━"
+# curl 을 PATH 목으로 대체하고 HOME 캐시를 격리해 결정적으로 검증(네트워크 불필요).
+UC_ROOT="$TMP/uc-plugin"; UC_HOME="$TMP/uc-home"; UC_BIN="$TMP/uc-bin"
+mkdir -p "$UC_ROOT/.claude-plugin" "$UC_HOME/.claude" "$UC_BIN"
+printf '%s\n' '{ "name": "fe-rail", "version": "1.16.0" }' > "$UC_ROOT/.claude-plugin/plugin.json"
+_uc_curl(){ printf '#!/bin/sh\nprintf %%s %s\n' "'{\"version\":\"$1\"}'" > "$UC_BIN/curl"; chmod +x "$UC_BIN/curl"; }
+_uc_run(){ env HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT="$UC_ROOT" FE_RAIL_SKIP_SETUP_NUDGE=1 PATH="$UC_BIN:$PATH" "$@" bash "$HOOKS/session-init.sh" 2>&1; }
+_uc_curl 9.9.9; rm -f "$UC_HOME/.claude/fe-rail-version-check.cache"
+uc=$(_uc_run)
+printf '%s' "$uc" | grep -q '9.9.9' && ok "update-check: 원격 최신 → 안내" || ng "update-check: 원격 최신 안내 실패 (out='$uc')"
+rm -f "$UC_HOME/.claude/fe-rail-version-check.cache"
+uc=$(_uc_run FE_RAIL_NO_UPDATE_CHECK=1)
+if ! printf '%s' "$uc" | grep -q '9.9.9' && [ ! -s "$UC_HOME/.claude/fe-rail-version-check.cache" ]; then
+  ok "update-check: FE_RAIL_NO_UPDATE_CHECK 면 조회도 안내도 하지 않는다"
+else ng "update-check: 옵트아웃인데 안내했거나 원격을 조회했다 (out='$uc')"; fi
+_uc_curl 1.16.0; rm -f "$UC_HOME/.claude/fe-rail-version-check.cache"
+uc=$(_uc_run)
+printf '%s' "$uc" | grep -q '새 버전' && ng "update-check: 동일 버전인데 안내됨" || ok "update-check: 동일 버전 무소음"
+# 플러그인 경로가 비어도 버전 체크만 건너뛰고 ② 프로파일 안내는 나와야 한다(예전엔 맨 위 exit 0 으로 파일 전체가 끝났다)
+uc=$(env HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_HOOK_PROFILE=minimal PATH="$UC_BIN:$PATH" bash "$HOOKS/session-init.sh" 2>&1)
+printf '%s' "$uc" | grep -q '훅 프로파일: minimal' && ok "session-init: 플러그인 경로 없음 → 버전 체크만 건너뛰고 프로파일 안내는 유지" \
+  || ng "session-init: 플러그인 경로가 없으면 뒤 안내까지 사라진다 (out='$uc')"
 
 echo
 echo "════════════════════════════════════════"
