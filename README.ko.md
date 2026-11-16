@@ -62,7 +62,7 @@ $ claude
 | 스킬 | 명령어 | 설명 |
 |------|--------|------|
 | fe-spec | `/fe-rail:fe-spec` | 기능 요구사항 → 구조화된 스펙 문서 생성. Phase 3 에서 다음 단계(풀 자동·구현만·스펙 수정)를 라디오 UI로 선택하고, "풀 자동"을 고르면 fe-start 파이프라인으로 자동 연결 |
-| fe-build | `/fe-rail:fe-build` | 프론트엔드 코드 구현 (타입→로직 분리→컴포넌트→테스트) |
+| fe-build | `/fe-rail:fe-build` | 프론트엔드 코드 구현 (기본 순서 타입→로직 분리→컴포넌트→테스트 · 레포의 기존 순서나 TDD 가 있으면 그것을 따름) |
 | fe-review | `/fe-rail:fe-review` | 타입·성능·a11y·품질 4축 리뷰 |
 | fe-start | `/fe-rail:fe-start feature.md` | 위 3개를 하나로 묶어 PR까지 자동화. Phase 1과 5가 라디오 UI로 진행 여부·커밋 방식 확인 |
 | fe-doc-sync | `/fe-rail:fe-doc-sync` | **설치된 사용자 프로젝트** 스캔 (라우트·의존성·구조·ENV) → 그 프로젝트의 CLAUDE.md·README.md 수정안 제안 |
@@ -98,6 +98,8 @@ $ claude
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | 특정 훅만 콕 집어 비활성 (예: `"doc-sync-check,design-nudge"`) |
 | `FE_RAIL_ALLOW_NPX` | `1` | 로컬 린터·`tsc` 바이너리가 없을 때 npx 폴백 허용. 기본은 로컬 전용이라 자동 훅이 네트워크 다운로드나 미고정 최신버전 실행을 하지 않는다. 프로젝트 자체 `typecheck` 스크립트는 패키지 매니저로 실행되므로 이 옵트인과 무관하게 항상 허용 |
 | `FE_RAIL_ALLOW_PW_INSTALL` | `1` | fe-start Phase 6-0(커밋 직전) 게이트가 Playwright 브라우저를 자동 설치(`playwright install --with-deps chromium`)하도록 허용. 기본은 꺼짐이다. 수백 MB 다운로드에 `--with-deps` 는 root 권한을 요구하므로 무인 파이프라인이 무통보로 유발하지 않게 한다. 꺼진 상태에서 브라우저가 없으면 E2E 는 통과가 아니라 "미실행(브라우저 미설치)" 로 정직하게 보고한다 |
+| `FE_RAIL_NO_UPDATE_CHECK` | `1` | 세션 시작의 원격 버전 확인을 끈다(조회도 안내도 하지 않음). 외부 조회를 막아야 하는 사내망·오프라인 환경용 |
+| `FE_RAIL_SKIP_SETUP_NUDGE` | `1` | 권장 Bash 권한이 없을 때 세션 시작에 나오는 1회 안내를 끈다 |
 
 > 프로파일을 `minimal`로 낮춰도 안전 차단기는 꺼지지 않습니다. 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다(타협 없는 차단에 명시적 탈출구를 더한 구조). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
 
@@ -112,6 +114,8 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 - 훅 동작: fixture 를 주입해 exit code 와 경고를 단언한다. 차단 사유가 stdout 이 아닌 stderr 로 전달되는지, 비차단 훅 5개의 안내도 stderr 로 나가는지 포함
 - 프로파일 토글
 - 플러그인 self-lint: agent `model` 값이 유효 범위(별칭 `opus`/`sonnet`/`haiku`/`fable`/`inherit` 또는 전체 모델 ID) 안인지, agent `effort` 값이 설정된 경우 `low`/`medium`/`high`/`xhigh`/`max` 안이고 `haiku`(미지원)에는 설정돼 있지 않은지, skill frontmatter, frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭된다), `hooks.json` 무결성과 프로파일 배선, 위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부, bun `PX` 감지 일관성, `typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부, 바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지
+- fe-start 기본 게이트 명령 선택기(`gate-commands.mjs`): 실제 소비 프로젝트 꼴(단일 앱·하위 폴더 설정·워크스페이스 합본·`"workspaces": ["e2e"]` 같은 함정 값·bun 등)의 fixture 14개로 고른 명령을 고정한다(node 필요)
+- session-init 버전 확인: `curl` 를 목으로 바꿔 새 버전 안내 · `FE_RAIL_NO_UPDATE_CHECK` 무소음 · 같은 버전 무소음 · 플러그인 경로가 없어도 뒤 안내 유지를 단언한다
 
 별칭 티어가 모델 업데이트로 바뀌거나 훅과 설정을 고칠 때 회귀를 잡는 용도입니다.
 
@@ -139,7 +143,7 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 |-------|----------|------|------|
 | `fe-analyst` | 요구사항 갭 분석 (6갭 / 7섹션); CLAUDE.md·DESIGN.md·PRODUCT.md·AGENTS.md 병렬 탐색 | opus | 책임 (read-only) |
 | `fe-deck-reader` | PPT/기획서 분해: 다중 슬라이드를 정책·화면·흐름으로 (PDF/PNG 변환 경유) | sonnet | 책임 (read-only) |
-| `fe-vision` | (추출) Figma·UI 스크린샷·PDF·PPT(변환) 개별 화면 분석 (Figma URL → `get_metadata`·`get_design_context`·`get_variable_defs`·`get_screenshot`; DESIGN.md Bans anti-slop 점검) · (대조) 구현 스크린샷 ↔ 레퍼런스 시각 충실도 판정 (visual-verdict; Figma=픽셀/PPT=구조, fe-start Phase 4.5) | sonnet | 책임 (read-only) |
+| `fe-vision` | (추출) Figma·UI 스크린샷·PDF·PPT(변환) 개별 화면 분석 (Figma URL → `get_metadata`·`get_design_context`·`get_variable_defs`·`get_screenshot`; DESIGN.md Bans anti-slop 점검) · (대조) 구현 스크린샷 ↔ 레퍼런스 시각 충실도 판정 (visual-verdict; Figma=픽셀/PPT=구조 · 입력이 없으면 0점이 아니라 `unverified`, fe-start Phase 4.5) | sonnet | 책임 (read-only) |
 | `fe-researcher` | 외부 문서·라이브러리 조사 (Context7 MCP 우선, WebSearch/WebFetch fallback) | sonnet | 도구 (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS 아키텍처 자문: Next.js(RSC 경계) / Vite SPA(TanStack Router·React Router 7·8·Zustand) + Tailwind v3/v4·shadcn·openapi-fetch (직교 감지) | opus | 책임 (read-only) |
 
@@ -174,7 +178,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 
 > 재위임이 같은 항목을 3회 반복해도 안 풀리면 자동 진행을 멈추고 진단을 보고하는 예외 STOP 이 한 번 더 걸릴 수 있습니다. 커밋 직전 base 동기화에서 충돌이 나도 같은 예외 STOP 으로 멈춥니다.
 
-빌드·E2E 같은 무거운 게이트는 "커밋할까요?" 앞이 아니라 승인 뒤, 커밋 직전에 돕니다(v1.19.0). "커밋할까요?" 는 사용자가 로컬에서 보고 수정을 요청하는 지점이라, 그 앞에서 돈 빌드·E2E 는 수정이나 상류 전진 한 번에 버려지기 때문입니다. 그래서 "커밋할까요?" 앞에서는 타입·린트·단위 전체(와 고증 화면의 시각 충실도)만 돌고, 승인 뒤 작업 트리를 착지할 브랜치에 맞춘(fetch → FF/rebase) 다음 그 트리에서 빌드·E2E 를 한 번 돕니다. 수정 요청을 몇 번 반복해도 무거운 게이트는 한 번입니다. 프로젝트에 전용 푸시 전 게이트(변경 범위 E2E 러너 등)가 있으면 CLAUDE.md·AGENTS.md 에 명령을 적어 두세요. 없으면 전체 빌드와 전체 E2E 를 돕니다.
+빌드·E2E 같은 무거운 게이트는 "커밋할까요?" 앞이 아니라 승인 뒤, 커밋 직전에 돕니다(v1.19.0). "커밋할까요?" 는 사용자가 로컬에서 보고 수정을 요청하는 지점이라, 그 앞에서 돈 빌드·E2E 는 수정이나 상류 전진 한 번에 버려지기 때문입니다. 그래서 "커밋할까요?" 앞에서는 타입·린트·단위 전체(와 고증 화면의 시각 충실도)만 돌고, 승인 뒤 작업 트리를 착지할 브랜치에 맞춘(fetch → FF/rebase) 다음 그 트리에서 빌드·E2E 를 한 번 돕니다. 수정 요청을 몇 번 반복해도 무거운 게이트는 한 번입니다. 프로젝트에 전용 푸시 전 게이트(변경 범위 E2E 러너 등)가 있으면 CLAUDE.md·AGENTS.md 에 명령을 적어 두세요. 없으면 전체 빌드와 전체 E2E 를 돕니다. 그 명령은 `package.json` 의 `scripts` 에서 고릅니다(루트 스크립트 → 그 스크립트가 있는 워크스페이스 패키지 전부 → 루트 Playwright 설정). "커밋할까요?" 보고는 스펙의 인터랙션 항목마다 그 동작을 확인한 테스트나 관찰을 붙입니다.
 
 **fe-spec 에서 이어가기 (핸드오프)**
 ```

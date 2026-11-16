@@ -62,7 +62,7 @@ You are asked two things, "Implement?" and "Commit?". Everything else runs unatt
 | Skill | Command | Description |
 |-------|---------|-------------|
 | fe-spec | `/fe-rail:fe-spec` | Requirements → structured spec document. Phase 3 presents a radio UI to choose the next step (full auto · build only · revise spec); "full auto" hands off directly to the fe-start pipeline |
-| fe-build | `/fe-rail:fe-build` | Frontend implementation (types → logic → components → tests) |
+| fe-build | `/fe-rail:fe-build` | Frontend implementation (types → logic → components → tests by default; follows the repo's existing order or TDD) |
 | fe-review | `/fe-rail:fe-review` | 4-axis code review: types · performance · a11y · quality |
 | fe-start | `/fe-rail:fe-start feature.md` | All-in-one: automates through PR creation. Phases 1 and 5 use a radio UI to confirm implementation and commit intent |
 | fe-doc-sync | `/fe-rail:fe-doc-sync` | Scans the **consumer project** (routes · deps · structure · ENV) → proposes updates to that project's CLAUDE.md · README.md |
@@ -98,6 +98,8 @@ Hook intensity can be tuned via environment variables (no plugin file edits need
 | `FE_RAIL_DISABLED_HOOKS` | `"a,b"` | Disable specific hooks by name (e.g. `"doc-sync-check,design-nudge"`) |
 | `FE_RAIL_ALLOW_NPX` | `1` | Allow npx fallback when no local linter or `tsc` binary is present (default is local only, which keeps auto-hooks from downloading or running unpinned latest versions). Doesn't affect a project's own `typecheck` script, which always runs via the package manager |
 | `FE_RAIL_ALLOW_PW_INSTALL` | `1` | Lets fe-start's Phase 6-0 (pre-commit) gate install Playwright browsers automatically (`playwright install --with-deps chromium`). Off by default: it is a several-hundred-MB download and `--with-deps` needs root, so an unattended pipeline shouldn't trigger it silently. While off, E2E is honestly reported as "not run (browsers missing)" rather than passed |
+| `FE_RAIL_NO_UPDATE_CHECK` | `1` | Turns off the remote version check at session start (no lookup, no notice), for offline or locked-down networks |
+| `FE_RAIL_SKIP_SETUP_NUDGE` | `1` | Turns off the one-time session notice shown when the recommended Bash permissions are missing |
 
 > Downgrading the profile to `minimal` does not disable the safety blockers. To turn them off, name them explicitly in `FE_RAIL_DISABLED_HOOKS` (no-compromise blocking plus an explicit escape hatch). A non-default profile or a disabled-hooks list is announced at session start.
 
@@ -112,6 +114,8 @@ It runs without a live model and verifies, deterministically:
 - hook behavior, by injecting fixtures and asserting exit codes and warnings, including that block reasons go to stderr rather than stdout and that the 5 non-blocking hooks send their notices to stderr as well
 - profile toggles
 - plugin self-lint: agent `model` values within the valid set (the aliases `opus`/`sonnet`/`haiku`/`fable`/`inherit` or a full model ID); agent `effort` values within `low`/`medium`/`high`/`xhigh`/`max` where set, and never set on `haiku` agents, which do not support it; skill frontmatter; frontmatter plain scalars that stay YAML-safe (a value containing `: `, colon plus space, breaks parsing and silently drops the whole frontmatter, including `tools`, `disallowedTools`, and `model`); `hooks.json` integrity and profile wiring; delegating skills listing Task/Agent in allowed-tools; bun `PX` detection consistency; typecheck branches always pairing a `references` (`tsc -b`) fallback; and binary+flag invocations using `$PX` rather than `$PM exec`
+- fe-start's default gate picker (`gate-commands.mjs`), pinned on 14 fixtures shaped like real consumer projects (single app, configs in subfolders, a workspace with an aggregate root script, decoy values such as `"workspaces": ["e2e"]`, bun, and more); needs node
+- the session-init version check with a mocked `curl`: a notice for a newer version, silence with `FE_RAIL_NO_UPDATE_CHECK` or the same version, and the later notices still shown when the plugin path is missing
 
 It exists to catch regressions when alias tiers shift with model updates, or when hooks and config change.
 
@@ -139,7 +143,7 @@ Structure: frontmatter (`tools`/`disallowedTools`/`model`/`maxTurns`) + XML tags
 |-------|-----------------|-------|-----------|
 | `fe-analyst` | Requirements gap analysis (6 gaps / 7 sections); parallel scan of CLAUDE.md · DESIGN.md · PRODUCT.md · AGENTS.md | opus | Scoped (read-only) |
 | `fe-deck-reader` | PPT/deck decomposition: breaks multi-slide specs into policies · screens · flows (via PDF/PNG conversion) | sonnet | Scoped (read-only) |
-| `fe-vision` | (Extract) Figma · UI screenshots · PDF · PPT (via conversion) per-screen analysis (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) · (Contrast) implementation screenshot ↔ reference visual fidelity judgment (visual-verdict; Figma=pixel/PPT=layout, fe-start Phase 4.5) | sonnet | Scoped (read-only) |
+| `fe-vision` | (Extract) Figma · UI screenshots · PDF · PPT (via conversion) per-screen analysis (Figma URL → `get_metadata` · `get_design_context` · `get_variable_defs` · `get_screenshot`; DESIGN.md Bans anti-slop check) · (Contrast) implementation screenshot ↔ reference visual fidelity judgment (visual-verdict; Figma=pixel/PPT=layout; missing input → `unverified`, never a score of 0; fe-start Phase 4.5) | sonnet | Scoped (read-only) |
 | `fe-researcher` | External docs · library research (Context7 MCP preferred, WebSearch/WebFetch fallback) | sonnet | Tool (Context7/WebSearch/WebFetch) |
 | `fe-architect` | React/TS architecture: Next.js (RSC boundaries) / Vite SPA (TanStack Router · React Router 7·8 · Zustand) + Tailwind v3/v4 · shadcn · openapi-fetch (orthogonal detection) | opus | Scoped (read-only) |
 
@@ -174,7 +178,7 @@ Write feature.md → /fe-rail:fe-start feature.md → [radio] "Implement?" → [
 
 > If the same item still isn't resolved after 3 re-delegation attempts, an extra STOP can trigger: automation pauses and reports a diagnosis instead of looping indefinitely. A conflict during the pre-commit base sync stops the same way.
 
-Heavy gates such as build and E2E run after you approve "Commit?", right before the commit, not before the question (v1.19.0). "Commit?" is where you look at the change locally and ask for fixes, so a build or E2E run made before it is thrown away by the next fix or by one new upstream commit. Before "Commit?" fe-start runs only the full type check, lint and unit tests (plus visual fidelity for reference-matched screens). After you approve, it brings the working tree up to date with the branch it will land on (fetch, then fast-forward or rebase) and runs build and E2E once on that tree. Asking for fixes any number of times still means one heavy run. If your project has its own pre-push gate (a change-aware E2E runner, say), declare the command in your CLAUDE.md or AGENTS.md; otherwise fe-start runs the full build and the full E2E suite.
+Heavy gates such as build and E2E run after you approve "Commit?", right before the commit, not before the question (v1.19.0). "Commit?" is where you look at the change locally and ask for fixes, so a build or E2E run made before it is thrown away by the next fix or by one new upstream commit. Before "Commit?" fe-start runs only the full type check, lint and unit tests (plus visual fidelity for reference-matched screens). After you approve, it brings the working tree up to date with the branch it will land on (fetch, then fast-forward or rebase) and runs build and E2E once on that tree. Asking for fixes any number of times still means one heavy run. If your project has its own pre-push gate (a change-aware E2E runner, say), declare the command in your CLAUDE.md or AGENTS.md; otherwise fe-start runs the full build and the full E2E suite, picking the commands from `package.json` scripts (the root script, then every workspace package that has one, then a root Playwright config). The "Commit?" report also attaches, to each interaction the spec changes, the test or observation that confirms it.
 
 **fe-spec → full-auto handoff**
 ```

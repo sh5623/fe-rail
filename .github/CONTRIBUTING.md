@@ -43,8 +43,8 @@ one copy is active (`/plugin` lists both) so you do not test against a cached in
 ## Testing your change
 
 Run the deterministic regression suite before opening a PR — it checks hook behavior,
-profile toggles, and self-lint (agent model aliases, skill frontmatter, `hooks.json`
-integrity). When `ruby` and the `claude` CLI are installed it also parses every
+profile toggles, self-lint (agent model aliases, skill frontmatter, `hooks.json`
+integrity), and the commands fe-start's gate picker chooses on fixture projects (needs `node`). When `ruby` and the `claude` CLI are installed it also parses every
 frontmatter with a real YAML parser and runs `claude plugin validate --strict`, which must
 pass with zero warnings:
 
@@ -55,8 +55,8 @@ bash eval/run.sh
 A failing run blocks the PR — the `eval` workflow (`.github/workflows/eval.yml`) runs the
 same command on every pull request and on pushes to `main`, alongside `bash -n` on the
 shell scripts and a JSON/manifest check. Run it locally first anyway; CI is the backstop,
-not the first signal. If you added a new hook or agent, extend `eval/run.sh` with coverage
-for it.
+not the first signal. If you added a new hook, agent, or skill script, extend `eval/run.sh` with
+coverage for it.
 
 ## Making changes
 

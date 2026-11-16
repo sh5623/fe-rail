@@ -21,6 +21,7 @@ my-monorepo/
 2. **공유 패키지 우선 탐색** — `packages/ui`, `packages/utils` 등 이미 존재하는 공통 모듈을 확인한 후 새 코드를 작성한다.
 3. **패키지 경계 존중** — 앱 간 직접 import 금지. 공유 로직은 반드시 `packages/`로 분리한다.
 4. **각 앱의 package.json 기준** — 기술 스택 확인 시 루트가 아닌 해당 앱의 `package.json`을 참조한다.
+5. **커밋 직전 기본 게이트는 루트 합본을 먼저** — 프로젝트가 푸시 전 게이트를 선언하지 않았으면 fe-start 6-0 은 `skills/fe-start/scripts/gate-commands.mjs` 가 고른 명령을 쓴다: 루트 `package.json` 의 `scripts`(`build` · `e2e` → `test:e2e`)가 있으면 그것(합본을 루트가 소유하는 구성 보존), 없으면 그 스크립트가 있는 워크스페이스 패키지 전부. 변경한 앱으로 좁히지 않는다 — 공용 패키지 변경은 여러 앱에 닿는다. 앱 단위로 좁히려면 프로젝트가 게이트를 선언한다.
 
 ## feature.md 위치
 
