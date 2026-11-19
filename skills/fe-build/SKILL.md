@@ -39,6 +39,7 @@ allowed-tools:
 |------|-------------|
 | 3쿼리 이상의 파일·심볼 탐색 필요 | `fe-explorer` — 요약만 반환, 컨텍스트 보호 |
 | 테스트 코드 생성 (BDD/TDD) | `fe-test-author` — 시나리오 도출 + 파일 작성 |
+| 기존 결함을 고치며 회귀 테스트 작성 | `fe-test-author` `regression` 모드 — 수정 전 코드에서 실제로 실패하는지 실행기(`fe-rail verify-test`)로 확인. 위임 시 이 스킬의 base directory 기준 `../../docs/test-verify.md` 절대경로를 넘긴다 |
 | tsc·린터(ESLint/Biome) 오류 수정 | `fe-build-fixer` — 최소 diff 오류 제거 |
 
 ### Phase 2 — 구현 순서

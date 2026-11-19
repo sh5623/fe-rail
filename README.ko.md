@@ -84,6 +84,8 @@ $ claude
 | `design-nudge.sh` | PostToolUse:Edit\|Write\|MultiEdit | 프론트 편집에 제네릭/템플릿틱(AI slop) 신호(무거운·임의 그림자, 기본 보라/인디고 그라디언트) 감지 시 경고. DESIGN.md 가 있으면 침묵한다(fe-reviewer 의 DESIGN Bans 가 정본) | — |
 | `quality-gate.sh` | Stop | 변경 파일에 린터(Biome **또는** ESLint) + 타입체크를 실행하고 경고를 출력한다. 타입체크는 프로젝트 `typecheck` 스크립트를 우선하고(루트 `tsconfig.json` 이 없어도 실행), 솔루션 tsconfig면 `tsc -b`로 폴백한다. 변경 파일을 가장 가까운 `package.json` 별로 묶어 패키지마다 그 설정으로 검사(모노레포), 바이너리는 앱 로컬 → root-hoisted 순. 타입체크는 종료코드로 판정(성공 배너 오탐 없음). `tsconfig*.json`/`package.json` 변경과 소스 삭제도 트리거이며, 검사 범위를 조용히 자르지 않는다(상한 200, 초과분은 미검사로 명시) | — |
 | `doc-sync-check.sh` | Stop | 사용자 프로젝트의 코드(src/app/pages/components 등)·package.json·설정 파일 변경 감지 시 `/fe-rail:fe-doc-sync` 실행 안내 (최근 커밋 5개 포함) | — |
+| `test-verify-turn.sh` | UserPromptSubmit | 턴 시작 상태(HEAD + 미커밋 파일별 내용 해시)를 세션별로 `.git` 안에 기록한다(추적 안 됨). 출력 없음 | — |
+| `test-verify-stop.sh` | Stop | 이번 턴에 단위 테스트를 바꾸고 관련 제품 소스도 바뀌었는데, 그 테스트가 **수정 전 코드에서 실제로 실패하는지** 확인한 기록이 없으면 종료를 한 번 막고 `fe-rail verify-test` 명령을 지시한다. 판단할 수 없거나(러너 · 적용 관계를 모름) 검증되지 않은 조합이면 막지 않는다. 아래 «회귀 테스트 확인» 참조 | 한 번 |
 | `notify.sh` | (옵션) Notification | macOS terminal-notifier 배너 알림. `bash hooks/scripts/setup-notifier.sh` 로 활성화 | — |
 
 ### 훅 프로파일 · 토글 (강도 조절)
@@ -102,6 +104,27 @@ $ claude
 | `FE_RAIL_SKIP_SETUP_NUDGE` | `1` | 권장 Bash 권한이 없을 때 세션 시작에 나오는 1회 안내를 끈다 |
 
 > 프로파일을 `minimal`로 낮춰도 안전 차단기는 꺼지지 않습니다. 차단기를 끄려면 `FE_RAIL_DISABLED_HOOKS` 에 이름을 명시해야 합니다(타협 없는 차단에 명시적 탈출구를 더한 구조). 세션 시작 시 기본이 아닌 프로파일/비활성 목록이 있으면 안내됩니다.
+> 회귀 테스트 확인 훅 두 개는 같은 이름 `test-verify` 로 끕니다(`FE_RAIL_DISABLED_HOOKS="test-verify"`). 상한 · 시간 조정 변수(`FE_RAIL_VERIFY_*`)는 [`docs/test-verify.md`](docs/test-verify.md) §7 에 있습니다.
+
+## 회귀 테스트 확인 (test-verify)
+
+새로 쓴 회귀 테스트가 **수정 전 코드에서 실제로 실패하는가**를 잽니다. 통과하는 테스트가 그 결함을 정말 잡는지는 다시 돌려서는 알 수 없습니다. 고친 줄을 되돌렸을 때 빨개져야 합니다. 이 플러그인은 그 «되돌리기» 를 사람이나 모델이 손으로 하지 않게 합니다.
+
+```bash
+fe-rail verify-test base -- src/price.test.ts                                   # 수정 전 대조(기준 = 이 세션의 턴 시작 HEAD)
+fe-rail verify-test base --test "price > 부가세를 더한다" -- src/price.test.ts     # 대상 케이스 지정
+fe-rail verify-test mutate --file src/price.ts --find "* 1.1" --replace "* 1.2" -- src/price.test.ts   # 지정 변이(새 기능)
+fe-rail verify-test status -- src/price.test.ts                                 # 현재 상태를 덮는 기록이 있는가
+```
+
+- **격리본에서만 바꿉니다.** 현재 작업 내용(추적 + 무시되지 않은 미추적 파일)을 임시 폴더에 복사하고 `node_modules` 는 링크로 이어 붙인 뒤, 그 격리본을 그대로 복제해 둘을 만듭니다. 하나는 현재 소스, 하나는 제품 소스만 수정 전 내용(또는 변이)으로 바꿔 같은 테스트를 돌립니다. 사용자 작업 트리와 스테이징은 읽기만 합니다.
+- **케이스마다 판정합니다.** 검출(현재 통과 · 대조에서 그 케이스의 본문 단언이 뒤집힘) · 미검출 · 원인 미확인(준비 단계 실패 · 단언이 아닌 오류 · 실패 위치를 가를 수 없음) · 측정 불가(격리 실패 · 현재 소스에서 실패 · 파일 로딩 실패 · 기준 스냅샷 없음 등). 확인하지 못한 결과는 검출로 세지 않습니다.
+- **자동으로 돕니다.** 종료 훅이 이번 턴에 바뀐 단위 테스트를 확인한 기록이 없으면 한 번 막고 명령을 지시합니다. `fe-start` 는 Phase 4.5 에서 같은 판정으로 기록을 보고 결과를 PR `## 테스트` 에 싣습니다. `fe-test-author` 의 `regression` 모드, `fe-reviewer` 의 «테스트 판별력» 축도 이 기록을 씁니다.
+- **자동 차단은 검증된 조합에서만** 켭니다. 고정 버전 fixture 로 실제 러너를 돌리는 eval(`node eval/runner.mjs`)을 통과한 조합입니다: npm · pnpm + Vitest 4 · 5, npm + Jest 30. 그 밖의 조합에서도 실행기는 직접 부를 수 있고 훅은 알림만 냅니다. Yarn PnP 는 첫 릴리스에서 지원하지 않습니다.
+- **프로젝트 조정**: `package.json` 의 `"fe-rail": { "testVerify": { … } }` 로 테스트 명령(`command`) · 준비 명령(`prepare` — 빌드 결과물을 소비하는 워크스페이스용) · 격리본에 더 넣을 무시 파일(`copy`) · 분류 경로를 선언합니다.
+
+판정 기준, 격리 자기 점검, 기록 재사용 조건, 지원 상태, 미검출 · 원인 미확인을 읽는 법은 [`docs/test-verify.md`](docs/test-verify.md) 에 있습니다. `fe-rail` 명령은 Claude Code 의 Bash 도구 PATH 에 오릅니다. 일반 셸 · CI 에서는 `node <설치 경로>/bin/fe-rail.mjs …` 로 부릅니다.
+
 
 ### 회귀 eval
 
@@ -116,8 +139,16 @@ bash eval/run.sh   # 실패 시 exit 1 (CI 용)
 - 플러그인 self-lint: agent `model` 값이 유효 범위(별칭 `opus`/`sonnet`/`haiku`/`fable`/`inherit` 또는 전체 모델 ID) 안인지, agent `effort` 값이 설정된 경우 `low`/`medium`/`high`/`xhigh`/`max` 안이고 `haiku`(미지원)에는 설정돼 있지 않은지, skill frontmatter, frontmatter 평문 스칼라의 YAML 안전성(값에 `: `(콜론+공백) 등이 들어가면 파싱이 실패해 `tools`·`disallowedTools`·`model` 이 전부 조용히 드롭된다), `hooks.json` 무결성과 프로파일 배선, 위임을 지시하는 스킬의 `allowed-tools`에 Task/Agent 포함 여부, bun `PX` 감지 일관성, `typecheck` 분기의 `references`(tsc -b) 폴백 동반 여부, 바이너리+플래그 실행이 `$PM exec` 아닌 `$PX`인지
 - fe-start 기본 게이트 명령 선택기(`gate-commands.mjs`): 실제 소비 프로젝트 꼴(단일 앱·하위 폴더 설정·워크스페이스 합본·`"workspaces": ["e2e"]` 같은 함정 값·bun 등)의 fixture 14개로 고른 명령을 고정한다(node 필요)
 - session-init 버전 확인: `curl` 를 목으로 바꿔 새 버전 안내 · `FE_RAIL_NO_UPDATE_CHECK` 무소음 · 같은 버전 무소음 · 플러그인 경로가 없어도 뒤 안내 유지를 단언한다
+- 회귀 테스트 확인(H 절 · `eval/test-verify.mjs`): 가짜 러너 fixture 로 분류 · 격리 실행(작업 트리 · 스테이징 보존, 실행 도중의 동시 스테이징) · 판정 · 기록 재사용 · 훅의 막기/침묵을, 실제 Vitest 4.1.9 · Jest 30.2.0 보고서 견본으로 판정 경계를 고정한다(의존성 설치 없음)
 
 별칭 티어가 모델 업데이트로 바뀌거나 훅과 설정을 고칠 때 회귀를 잡는 용도입니다.
+
+실제 러너 eval 은 따로 돕니다. 검증된 조합마다 고정 버전을 설치해 실제로 돌리므로 네트워크가 필요하고 2~3분 걸립니다. CI 가 푸시마다 돌립니다.
+
+```bash
+node eval/runner.mjs                      # 검증된 조합 전부(npm·pnpm × Vitest 4.1.9·5.1.0, npm × Jest 30.2.0) — 도구가 없으면 실패
+node eval/runner.mjs --only npm-vitest-4  # 한 조합만
+```
 
 v1.17.0 에 F 절이 추가됐습니다. v1.16.2 에 대한 교차 레포 리뷰가 임시 저장소에서 지적 12개를 재현했고, 그 각각이 이제 회귀로 고정돼 있습니다: git 전역 옵션·셸 래핑이 차단기에 닿는지, 설정 보호가 실파일 전 ↔ 후로 판정하는지, `hooks.json` 의 모든 command 를 공백 포함 설치 경로에서 실제 실행, 모노레포 앱 로컬·root-hoisted 도구가 실제 호출되는지, 루트 `tsconfig.json` 없이 `typecheck` 실행, 소스 삭제의 타입체크 트리거, 변경 파일 21개 중 21개가 린터에 전달되는지, `git commit --only` 격리 계약, 그리고 에이전트 범위(tracked ∪ untracked)·exit code 보존·`$PM run test`·검증 결과 객체 계약·푸시 담당의 self-lint. `ruby` 나 `claude` CLI 가 있으면 실제 YAML 파서로 frontmatter 를 파싱하고 `claude plugin validate --strict` 도 돌립니다.
 
@@ -128,6 +159,8 @@ v1.19.0 은 fe-start 의 빌드·E2E 를 "커밋할까요?" 앞(Phase 4.5)에서
 v1.19.1 은 교차 검증이 재현한 세 가지를 고칩니다. 커밋 직전 게이트 결과는 이제 **커밋 트리가 검사한 트리와 같을 때만** 커밋에 이어 붙습니다. 작업 범위 밖 변경이 섞인 트리에서 통과한 검사가 범위 파일만 담은 커밋에서는 실패할 수 있었기 때문입니다. 그래서 6-0 은 범위 밖 변경이 있으면 먼저 멈춰 묻습니다. 검증 지문은 `git diff HEAD` 해시에서 임시 index 로 만든 «검증 트리 id» 로 바뀌어, untracked 파일 수정도 잡습니다. 동기화 모드는 staged 변경이 있으면 rebase 하지 않습니다(autostash 가 staged 를 풀어 버린다). eval 은 문서의 스니펫을 그대로 꺼내 임시 저장소에서 이 동작들을 돌립니다.
 
 v1.20.0 은 게이트를 선언하지 않은 프로젝트에서 fe-start 가 커밋 직전 기본 명령을 고르는 방식을 바꿉니다. 선택은 스킬 본문의 셸에서 `skills/fe-start/scripts/gate-commands.mjs` 로 옮겼고, 이 스크립트는 고르기만 하고 실행하지 않습니다. 파일 전체를 grep 하지 않고 `package.json` 을 읽어 `scripts` 키를 봅니다. 순서는 루트 스크립트(`build` · `e2e` 다음 `test:e2e`) → 그 스크립트가 있는 워크스페이스 패키지 전부 → 루트 `playwright.config.*` 와 `@playwright/test` 가 함께 있을 때의 `playwright test` 입니다. 그 밖은 미실행으로 적고, 하위 폴더의 Playwright 설정이 있으면 사유에 경로를 남깁니다. 예전 grep 은 `test:e2e` 를 놓쳐 설정 없는 `playwright test` 로 떨어졌습니다. 설정이 하위 폴더에 있는 단일 앱에서는 그 실행이 단위 테스트 파일까지 읽어 실패했고, 게이트는 수정 루프로 들어갔습니다. `"workspaces": ["e2e"]` 같은 값 때문에 없는 스크립트를 부를 수도 있었습니다. eval 은 실제 소비 프로젝트 꼴의 fixture 로 선택 결과를 고정합니다. 작은 수정도 함께 들어갑니다. fe-vision 은 입력이 없으면 점수 없이 `verdict: "unverified"` 를 내고, fe-start 는 `revise` 만 수정 루프에 넣습니다. 판정하지 못한 화면을 0점으로 다루지 않습니다. fe-pr-author 는 리모트 호스트를 감지해 GitHub 는 `gh pr create`, CodeCommit 은 `aws codecommit create-pull-request` 로 PR 을 만들고, 그 밖의 호스트에서는 멈추고 보고합니다. 세션 시작의 버전 확인은 `FE_RAIL_NO_UPDATE_CHECK=1` 로 끌 수 있고, 플러그인 경로가 없을 때 뒤 안내까지 건너뛰지 않습니다. 완료 기준의 린트는 프로젝트 명령의 통과 여부로, 뷰포트는 화면이 지원하는 범위로 바꿨고, fe-build 의 구현 순서와 «변형 2개 제안» 은 레포의 기존 패턴이 있으면 그것을 따릅니다.
+
+v1.21.0 은 회귀 테스트 확인(위 절)을 더합니다. 실행기 `fe-rail verify-test`, 턴 시작 · 종료 훅, `fe-test-author` `regression` 모드, `fe-reviewer` 의 «테스트 판별력» 축, `fe-start` Phase 4.5 와 PR `## 테스트` 연결입니다. 설계는 외부 검증을 네 번 거쳤고, 그때 재현된 함정이 전부 회귀로 고정돼 있습니다. 작업 트리에서 파일을 바꿨다 되돌리는 방식은 그 사이 다른 프로세스가 스테이징하면 index 를 바꿀 수 있어 쓰지 않습니다. 한 격리본을 다시 쓰면 첫 실행이 남긴 상태 파일 때문에 소스가 같아도 결과가 뒤집혀서 깨끗한 격리본 둘을 씁니다. `@scope` 폴더를 통째로 링크하면 워크스페이스 패키지가 원본으로 풀려서, 최종 해석 경로를 확인합니다. 빌드 결과물을 내보내는 패키지는 대조 소스를 바꿔도 기존 결과물을 읽습니다. 스냅샷은 기본 설정이면 격리본마다 새로 써져 둘 다 통과합니다. 정리 단계(`afterAll`) 실패는 케이스 표에 «통과» 로 남습니다. 판정은 파일이 아니라 지정한 케이스 단위이고, 단언 오류여도 준비 단계에서 났으면 검출이 아닙니다. 실제 러너 eval 을 만들다가 pnpm 11 이 격리본에서 스스로 `install` 을 시도하는 것을 찾았고, 실행기는 격리본 안의 명령에서 실행 전 의존성 확인을 끕니다.
 
 ## 포함된 Agents
 
@@ -151,13 +184,13 @@ frontmatter(`tools`/`disallowedTools`/`model`/`maxTurns`) + XML 태그 구조(`<
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
 | `fe-explorer` | 코드베이스 탐색 3쿼리 이상 | haiku | 컨텍스트 |
-| `fe-test-author` | BDD 시나리오 도출 + TDD Red-Green-Refactor | sonnet | 책임 (구현) |
+| `fe-test-author` | BDD 시나리오 도출 + TDD Red-Green-Refactor · `regression` 모드(결함을 고치며 쓴 회귀 테스트가 수정 전 코드에서 실패하는지 `fe-rail verify-test` 로 확인 — 손으로 되돌리지 않는다) | sonnet | 책임 (구현) |
 | `fe-build-fixer` | tsc·린터(ESLint/Biome) 오류 최소 diff 수정 | sonnet | 도구 (Edit+Grep, Write/MultiEdit 금지) |
 
 ### review 단계
 | Agent | 위임 시점 | 모델 | 격리 |
 |-------|----------|------|------|
-| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질). 성능 축은 React 훅 런타임 버그(cleanup 누락·async 경쟁조건·무한루프)까지 보고, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시)도 점검한다 | opus | 책임 (read-only) |
+| `fe-reviewer` | 4축 리뷰 (타입·성능·a11y·품질). 성능 축은 React 훅 런타임 버그(cleanup 누락·async 경쟁조건·무한루프)까지 보고, Tailwind 안티패턴·openapi-fetch 패턴·DESIGN.md 디자인 계약(존재 시)도 점검한다. 테스트 파일이 바뀌면 «테스트 판별력»(제목과 반대인 단언 · 실패할 수 없는 단언 · 다중 인자 부정 단언 · `[0]` 미끄러짐 · 미검출 기록)도 본다 — BLOCK 으로 올리지 않는다 | opus | 책임 (read-only) |
 | `fe-a11y-auditor` | a11y 8축 감사 (Color Contrast 포함, Tailwind 팔레트 기준). `--live` 시 Chrome DevTools MCP로 실제 Lighthouse a11y 감사·접근성 트리 스냅샷 병행, 미설치면 정적 분석만 | sonnet | 책임 (read-only) |
 | `fe-perf-auditor` | 성능 정밀 감사: Next.js(RSC·next/image·next/font) / Vite SPA(TanStack loader·RR7·8 TQ prefetch·fetchpriority·번들) / Tailwind v3/v4(purge·@source·@apply). `--live` 시 Chrome DevTools MCP로 dev 서버 실측(LCP 분해·콘솔·네트워크) 병행, 미설치면 정적 분석만 | sonnet | 책임 (read-only) |
 | `fe-test-runner` | 테스트 실행 + 실패 분류 | sonnet | 컨텍스트 |
@@ -195,6 +228,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 ## 전제 조건
 
 - Claude Code
+- Node.js 20 이상 (회귀 테스트 확인 실행기 · 훅 · fe-start 기본 게이트 선택기)
 - 패키지 매니저 (pnpm / npm / yarn / bun, lock 파일로 자동 감지)
 - gh CLI (PR 자동 생성 시)
 - TypeScript strict mode (Next.js / Vite SPA)
@@ -209,6 +243,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | 자동: 프로젝트 루트에서 `bash <설치경로>/hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json` 병합, 확인 1회) · 수동: `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
 | **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
 | **검증 스크립트** | Phase 3·4.5 가 `typecheck`/`lint`/`test` 를, Phase 6-0 커밋 직전 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장. 프로젝트 전용 푸시 전 게이트가 있으면 CLAUDE.md·AGENTS.md 에 명령을 선언 |
+| **회귀 테스트 확인 선언 (선택)** | 테스트에 환경변수가 필요하거나, 워크스페이스 패키지를 빌드 결과물로 소비하거나, git 이 무시하는 파일이 테스트에 필요하면 자동 감지만으로는 측정 불가가 된다 | `package.json` 에 `"fe-rail": { "testVerify": { "command" · "prepare" · "copy" } }` — [`docs/test-verify.md`](docs/test-verify.md) §7 |
 
 ## 라이선스
 

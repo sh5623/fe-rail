@@ -112,6 +112,8 @@ BASE=${BASE:-$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | s
 - [ ] 타입 체크 통과 (typecheck / tsc --noEmit) — exit 0 @ <SHA>
 - [ ] 린트 통과 (eslint/biome) — exit 0 @ <SHA>
 - [ ] 단위 테스트 통과 (vitest/jest) — exit 0 @ <SHA>
+- 테스트 확인(test-verify · 수정 전 대조 · 기준 <sha> · 전체|부분 / 지정 변이 <파일>): 검출 N · 미검출 N · 원인 미확인 N · 측정 불가 N
+  - <파일> › <케이스 전체 이름> — <판정> — <실패 메시지 · 위치 또는 사유>   <!-- 검증 결과 객체에 kind: test-verify 가 있을 때만. 체크박스로 쓰지 않는다(판정은 통과/실패가 아니다) -->
 - [ ] 빌드 통과 (build) — 또는 "CI 대기: --ci-live (push 후 CI 에서 검증, 아직 통과 아님)"
 - [ ] E2E 통과 (playwright) — 또는 "미실행: <사유>" / "미검증: --skip-e2e" / "CI 대기: --ci-live"
 - [ ] 반응형·접근성·다크모드 (사람 확인)
@@ -181,6 +183,7 @@ BASE=${BASE:-$(git symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null | s
 | 완료 기준 반영 | feature.md '완료 기준'을 체크리스트에 매핑, 자동 실행 결과를 [x]/[ ]·미실행으로 정직 표기 |
 | 검증 결과 객체 소비 | [x] 는 호출자가 넘긴 검증 결과 객체에서 `status=통과`·`exit_code=0`·대상 리비전 = PR HEAD 인 항목에만(fe-start 6-0 이 «검증 트리 id = 커밋 트리(`HEAD^{tree}`)» 를 확인하고 push SHA 로 이어 붙인 리비전 포함. 호출자가 «미검증 — 커밋 트리 ≠ 검사 트리» 로 넘긴 항목은 [x] 금지). 객체가 없거나 리비전이 다르면 "미검증" — 이전 코드의 결과를 최종 코드의 결과로 쓰지 않는다 |
 | CI 대기 ≠ 통과 | `--ci-live` 로 위임된 build·e2e 는 "CI 대기" 로 적는다 — push 후 CI 가 통과해야 [x] 다 |
+| 테스트 확인은 판정 그대로 | `kind: test-verify` 는 체크박스가 아니라 «검출 · 미검출 · 원인 미확인 · 측정 불가» 집계와 케이스별 줄로 적는다. 미검출 · 원인 미확인 · 측정 불가를 «통과» 로 바꾸지 않고, 부분 대조면 «부분» 을 적는다. 객체가 없으면 그 줄을 쓰지 않는다 |
 | 리뷰 포인트 | fe-reviewer 요약의 판단필요·WARN + diff 고위험 지점을 위험 순으로 `## 리뷰 포인트`에 배치 (없으면 섹션 생략 — 노이즈 금지). 리뷰어가 diff 를 열 첫 지점을 정해 주는 게 목적 |
 
 </required>

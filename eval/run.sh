@@ -19,6 +19,9 @@
 #   G. 원격 버전 체크(session-init) — curl 을 PATH 목으로 대체·HOME 캐시 격리해
 #      새 버전 안내 / 옵트아웃(FE_RAIL_NO_UPDATE_CHECK) 무소음 / 동일 버전 무소음 / 플러그인 경로 없음에도 ②·③ 안내 유지
 #   (C 말미) fe-start 6-0 기본 게이트 명령 선택 — 실제 소비 구성 꼴의 fixture 로 gate-commands.mjs 출력을 고정(node 필요)
+#   H. 회귀 테스트 확인(test-verify) — eval/test-verify.mjs(모델 없음 · 의존성 설치 없음): 분류 · 실제 러너 보고서 견본 해석 ·
+#      격리 실행(작업 트리 · 스테이징 보존 · 동시 스테이징) · 판정 · 기록 재사용 · 훅의 막기/침묵 · 자체 점검.
+#      실제 러너(고정 버전 설치)는 별도: node eval/runner.mjs — 검증된 조합(VERIFIED) 전부 · 네트워크 필요
 #
 # 주의: fixture 는 반드시 printf '%s' 로 주입한다(echo 는 zsh 등에서 \n 을 실제 개행으로 바꿔 JSON 을 깨뜨림).
 #
@@ -722,6 +725,17 @@ printf '%s' "$uc" | grep -q '새 버전' && ng "update-check: 동일 버전인�
 uc=$(env HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_HOOK_PROFILE=minimal PATH="$UC_BIN:$PATH" bash "$HOOKS/session-init.sh" 2>&1)
 printf '%s' "$uc" | grep -q '훅 프로파일: minimal' && ok "session-init: 플러그인 경로 없음 → 버전 체크만 건너뛰고 프로파일 안내는 유지" \
   || ng "session-init: 플러그인 경로가 없으면 뒤 안내까지 사라진다 (out='$uc')"
+
+# ── v1.24.0 — 회귀 테스트 확인(test-verify) · 모델 없는 eval ──────────────────────
+# 실행기는 node 단독 스크립트라 eval 도 node 로 짠다(임시 저장소 · 가짜 러너 fixture). 결과 줄을 이 eval 의 집계에 더한다.
+if command -v node >/dev/null 2>&1; then
+  TVOUT=$(node "$ROOT/eval/test-verify.mjs" 2>&1); TVRC=$?
+  printf '%s\n' "$TVOUT" | grep -v '^TV_RESULT'
+  tvline=$(printf '%s\n' "$TVOUT" | grep '^TV_RESULT' | tail -1)
+  if [ -n "$tvline" ]; then
+    set -- $tvline; PASS=$((PASS+$2)); FAIL=$((FAIL+$3))
+  else ng "test-verify eval 이 결과 줄 없이 끝남(rc=$TVRC): $(printf '%s' "$TVOUT" | tail -3)"; fi
+else echo "━━━ H. 회귀 테스트 확인(test-verify) ━━━"; ng "test-verify: node 가 없어 검사하지 못함"; fi
 
 echo
 echo "════════════════════════════════════════"

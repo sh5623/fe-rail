@@ -1,0 +1,263 @@
+{
+ "numTotalTestSuites": 8,
+ "numPassedTestSuites": 1,
+ "numFailedTestSuites": 7,
+ "numPendingTestSuites": 0,
+ "numTotalTests": 12,
+ "numPassedTests": 4,
+ "numFailedTests": 8,
+ "numPendingTests": 0,
+ "numTodoTests": 0,
+ "snapshot": {
+  "added": 0,
+  "failure": false,
+  "filesAdded": 0,
+  "filesRemoved": 0,
+  "filesRemovedList": [],
+  "filesUnmatched": 0,
+  "filesUpdated": 0,
+  "matched": 0,
+  "total": 0,
+  "unchecked": 0,
+  "uncheckedKeysByFile": [],
+  "unmatched": 0,
+  "updated": 0,
+  "didUpdate": false
+ },
+ "startTime": 0,
+ "success": false,
+ "testResults": [
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [],
+     "fullName": "대상 통과",
+     "status": "passed",
+     "title": "대상 통과",
+     "duration": 0,
+     "failureMessages": [],
+     "location": {
+      "line": 3,
+      "column": 1
+     },
+     "meta": {},
+     "tags": []
+    }
+   ],
+   "startTime": 0,
+   "endTime": 0,
+   "status": "failed",
+   "message": "teardown boom",
+   "name": "/tmp/fx/after.test.js"
+  },
+  {
+   "assertionResults": [],
+   "startTime": 0,
+   "endTime": 0,
+   "status": "failed",
+   "message": "Cannot find module './missing.js' imported from /tmp/fx/load.test.js",
+   "name": "/tmp/fx/load.test.js"
+  },
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 본문 단언 실패",
+     "status": "failed",
+     "title": "본문 단언 실패",
+     "duration": 0,
+     "failureMessages": [
+      "AssertionError: expected 1 to be 2 // Object.is equality\n    at /tmp/fx/probe.test.js:5:36\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64"
+     ],
+     "location": {
+      "line": 5,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 헬퍼 단언 실패",
+     "status": "failed",
+     "title": "헬퍼 단언 실패",
+     "duration": 0,
+     "failureMessages": [
+      "AssertionError: expected 2 to be 1 // Object.is equality\n    at helperCheck (/tmp/fx/probe.test.js:3:37)\n    at /tmp/fx/probe.test.js:6:26\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)"
+     ],
+     "location": {
+      "line": 6,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 확장 단언 실패",
+     "status": "failed",
+     "title": "확장 단언 실패",
+     "duration": 0,
+     "failureMessages": [
+      "Error: expected bar to be foo\n    at Proxy.__VITEST_EXTEND_ASSERTION__ (file:///tmp/fx-deps/node_modules/@vitest/expect/dist/index.js:1888:12)\n    at Proxy.<anonymous> (file:///tmp/fx-deps/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///tmp/fx-deps/node_modules/chai/index.js:1737:25)\n    at /tmp/fx/probe.test.js:7:40\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20"
+     ],
+     "location": {
+      "line": 7,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 본문 TypeError",
+     "status": "failed",
+     "title": "본문 TypeError",
+     "duration": 0,
+     "failureMessages": [
+      "TypeError: Cannot read properties of undefined (reading 'x')\n    at /tmp/fx/probe.test.js:8:60\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2955:64"
+     ],
+     "location": {
+      "line": 8,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 비동기 단언 실패",
+     "status": "failed",
+     "title": "비동기 단언 실패",
+     "duration": 0,
+     "failureMessages": [
+      "AssertionError: expected 3 to be 4 // Object.is equality\n    at /tmp/fx/probe.test.js:9:68\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+     ],
+     "location": {
+      "line": 9,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "fullName": "본문 통과",
+     "status": "passed",
+     "title": "통과",
+     "duration": 0,
+     "failureMessages": [],
+     "location": {
+      "line": 10,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "준비 단계 예외"
+     ],
+     "fullName": "준비 단계 예외 대상",
+     "status": "failed",
+     "title": "대상",
+     "duration": 0,
+     "failureMessages": [
+      "Error: setup boom\n    at /tmp/fx/probe.test.js:13:28\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at wrapper (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:722:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2621:52\n    at run (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1150:20)\n    at limiterFn (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1162:59)\n    at runHook (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2620:10)"
+     ],
+     "location": {
+      "line": 14,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "준비 단계 단언"
+     ],
+     "fullName": "준비 단계 단언 대상",
+     "status": "failed",
+     "title": "대상",
+     "duration": 0,
+     "failureMessages": [
+      "AssertionError: expected 1 to be 2 // Object.is equality\n    at /tmp/fx/probe.test.js:17:32\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at wrapper (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:722:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2621:52\n    at run (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1150:20)\n    at limiterFn (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1162:59)\n    at runHook (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2620:10)"
+     ],
+     "location": {
+      "line": 18,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "시간 초과"
+     ],
+     "fullName": "시간 초과 느림",
+     "status": "failed",
+     "title": "느림",
+     "duration": 0,
+     "failureMessages": [
+      "Error: STACK_TRACE_ERROR\n    at task (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1784:27)\n    at Object.<anonymous> (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1817:16)\n    at Object.<anonymous> (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1563:28)\n    at chain (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:599:14)\n    at /tmp/fx/probe.test.js:21:3\n    at file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:40\n    at runWithSuite (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:2258:8)\n    at Object.collect (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1889:10)\n    at Object.collect (file:///tmp/fx-deps/node_modules/@vitest/runner/dist/chunk-artifact.js:1893:54)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)"
+     ],
+     "location": {
+      "line": 21,
+      "column": 3
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "동적"
+     ],
+     "fullName": "동적 같은 이름 1",
+     "status": "passed",
+     "title": "같은 이름 1",
+     "duration": 0,
+     "failureMessages": [],
+     "location": {
+      "line": 24,
+      "column": 27
+     },
+     "meta": {},
+     "tags": []
+    },
+    {
+     "ancestorTitles": [
+      "동적"
+     ],
+     "fullName": "동적 같은 이름 1",
+     "status": "passed",
+     "title": "같은 이름 1",
+     "duration": 0,
+     "failureMessages": [],
+     "location": {
+      "line": 24,
+      "column": 27
+     },
+     "meta": {},
+     "tags": []
+    }
+   ],
+   "startTime": 0,
+   "endTime": 0,
+   "status": "failed",
+   "message": "",
+   "name": "/tmp/fx/probe.test.js"
+  }
+ ]
+}

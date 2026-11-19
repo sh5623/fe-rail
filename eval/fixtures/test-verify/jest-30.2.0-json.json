@@ -1,0 +1,371 @@
+{
+ "numFailedTestSuites": 3,
+ "numFailedTests": 8,
+ "numPassedTestSuites": 0,
+ "numPassedTests": 4,
+ "numPendingTestSuites": 0,
+ "numPendingTests": 0,
+ "numRuntimeErrorTestSuites": 2,
+ "numTodoTests": 0,
+ "numTotalTestSuites": 3,
+ "numTotalTests": 12,
+ "openHandles": [],
+ "snapshot": {
+  "added": 0,
+  "didUpdate": false,
+  "failure": false,
+  "filesAdded": 0,
+  "filesRemoved": 0,
+  "filesRemovedList": [],
+  "filesUnmatched": 0,
+  "filesUpdated": 0,
+  "matched": 0,
+  "total": 0,
+  "unchecked": 0,
+  "uncheckedKeysByFile": [],
+  "unmatched": 0,
+  "updated": 0
+ },
+ "startTime": 0,
+ "success": false,
+ "testResults": [
+  {
+   "assertionResults": [],
+   "coverage": {},
+   "endTime": 0,
+   "message": "  ● Test suite failed to run\n\n    Cannot find module './missing' from 'load.test.js'\n\n    > 1 | const x = require('./missing')\n        |           ^\n      2 | it('x', () => {})\n      3 |\n\n      at Resolver._throwModNotFoundError (../node_modules/jest-resolve/build/index.js:863:11)\n      at Object.require (load.test.js:1:11)\n",
+   "name": "/tmp/fx/load.test.js",
+   "startTime": 0,
+   "status": "failed",
+   "summary": ""
+  },
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "대상 통과",
+     "invocations": 1,
+     "location": {
+      "column": 1,
+      "line": 2
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "startAt": 1795073346749,
+     "status": "passed",
+     "title": "대상 통과"
+    }
+   ],
+   "coverage": {},
+   "endTime": 0,
+   "message": "\n\n  ● Test suite failed to run\n\n    teardown boom\n\n    > 1 | afterAll(() => { throw new Error('teardown boom') })\n        |                        ^\n      2 | it('대상 통과', () => { expect(1).toBe(1) })\n      3 |\n\n      at Object.<anonymous> (after.test.js:1:24)\n",
+   "name": "/tmp/fx/after.test.js",
+   "startTime": 0,
+   "status": "failed",
+   "summary": ""
+  },
+  {
+   "assertionResults": [
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "actual": 1,
+        "expected": 2,
+        "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 2\nReceived: 1",
+        "name": "toBe",
+        "pass": false
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 2\nReceived: 1\n    at Object.toBe (/tmp/fx/probe.test.js:4:36)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "본문 본문 단언 실패",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 4
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346798,
+     "status": "failed",
+     "title": "본문 단언 실패"
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "actual": 2,
+        "expected": 1,
+        "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 1\nReceived: 2",
+        "name": "toBe",
+        "pass": false
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 1\nReceived: 2\n    at toBe (/tmp/fx/probe.test.js:2:37)\n    at Object.helperCheck (/tmp/fx/probe.test.js:5:26)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "본문 헬퍼 단언 실패",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 5
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346867,
+     "status": "failed",
+     "title": "헬퍼 단언 실패"
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "pass": false,
+        "message": "expected bar to be foo"
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expected bar to be foo\n    at Object.toBeFoo (/tmp/fx/probe.test.js:6:40)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "본문 확장 단언 실패",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 6
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346870,
+     "status": "failed",
+     "title": "확장 단언 실패"
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {}
+     ],
+     "failureMessages": [
+      "TypeError: Cannot read properties of undefined (reading 'x')\n    at Object.x (/tmp/fx/probe.test.js:7:60)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:947:3)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "본문 본문 TypeError",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 7
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346871,
+     "status": "failed",
+     "title": "본문 TypeError"
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "actual": 3,
+        "expected": 4,
+        "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 4\nReceived: 3",
+        "name": "toBe",
+        "pass": false
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 4\nReceived: 3\n    at Object.toBe (/tmp/fx/probe.test.js:8:68)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+     ],
+     "fullName": "본문 비동기 단언 실패",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 8
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346873,
+     "status": "failed",
+     "title": "비동기 단언 실패"
+    },
+    {
+     "ancestorTitles": [
+      "본문"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "본문 통과",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 9
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "startAt": 1795073346877,
+     "status": "passed",
+     "title": "통과"
+    },
+    {
+     "ancestorTitles": [
+      "준비 단계 예외"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {}
+     ],
+     "failureMessages": [
+      "Error: setup boom\n    at Object.<anonymous> (/tmp/fx/probe.test.js:12:28)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusHook (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:976:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:941:5)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "준비 단계 예외 대상",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 13
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346878,
+     "status": "failed",
+     "title": "대상"
+    },
+    {
+     "ancestorTitles": [
+      "준비 단계 단언"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "matcherResult": {
+        "actual": 1,
+        "expected": 2,
+        "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 2\nReceived: 1",
+        "name": "toBe",
+        "pass": false
+       }
+      }
+     ],
+     "failureMessages": [
+      "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 2\nReceived: 1\n    at Object.toBe (/tmp/fx/probe.test.js:16:32)\n    at Promise.finally.completed (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)\n    at _callCircusHook (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:976:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:941:5)\n    at /tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:849:7\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:862:11)\n    at _runTestsForDescribeBlock (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:857:11)\n    at run (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:761:3)\n    at runAndTransformResultsToJestFormat (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:101:19)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "준비 단계 단언 대상",
+     "invocations": 1,
+     "location": {
+      "column": 3,
+      "line": 17
+     },
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346880,
+     "status": "failed",
+     "title": "대상"
+    },
+    {
+     "ancestorTitles": [
+      "시간 초과"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [
+      {
+       "message": "thrown: \"Exceeded timeout of 50 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\""
+      }
+     ],
+     "failureMessages": [
+      "Error: thrown: \"Exceeded timeout of 50 ms for a test.\nAdd a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n    at it (/tmp/fx/probe.test.js:20:3)\n    at _dispatchDescribe (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:604:26)\n    at describe (/tmp/fx-deps/node_modules/jest-circus/build/jestAdapterInit.js:572:44)\n    at Object.describe (/tmp/fx/probe.test.js:19:1)\n    at Runtime._execModule (/tmp/fx-deps/node_modules/jest-runtime/build/index.js:1268:24)\n    at Runtime._loadModule (/tmp/fx-deps/node_modules/jest-runtime/build/index.js:944:12)\n    at Runtime.requireModule (/tmp/fx-deps/node_modules/jest-runtime/build/index.js:832:12)\n    at jestAdapter (/tmp/fx-deps/node_modules/jest-circus/build/runner.js:95:13)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runTestInternal (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:275:16)\n    at runTest (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:343:7)\n    at Object.worker (/tmp/fx-deps/node_modules/jest-runner/build/testWorker.js:497:12)"
+     ],
+     "fullName": "시간 초과 느림",
+     "invocations": 1,
+     "location": null,
+     "numPassingAsserts": 0,
+     "retryReasons": [],
+     "startAt": 1795073346882,
+     "status": "failed",
+     "title": "느림"
+    },
+    {
+     "ancestorTitles": [
+      "동적"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "동적 같은 이름 1",
+     "invocations": 1,
+     "location": {
+      "column": 27,
+      "line": 23
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "startAt": 1795073346940,
+     "status": "passed",
+     "title": "같은 이름 1"
+    },
+    {
+     "ancestorTitles": [
+      "동적"
+     ],
+     "duration": 0,
+     "failing": false,
+     "failureDetails": [],
+     "failureMessages": [],
+     "fullName": "동적 같은 이름 1",
+     "invocations": 1,
+     "location": {
+      "column": 27,
+      "line": 23
+     },
+     "numPassingAsserts": 1,
+     "retryReasons": [],
+     "startAt": 1795073346941,
+     "status": "passed",
+     "title": "같은 이름 1"
+    }
+   ],
+   "endTime": 0,
+   "message": "  ● 본문 › 본문 단언 실패\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 2\n    Received: 1\n\n      2 | function helperCheck(v) { expect(v).toBe(1) }\n      3 | describe('본문', () => {\n    > 4 |   it('본문 단언 실패', () => { expect(1).toBe(2) })\n        |                                    ^\n      5 |   it('헬퍼 단언 실패', () => { helperCheck(2) })\n      6 |   it('확장 단언 실패', () => { expect('bar').toBeFoo() })\n      7 |   it('본문 TypeError', () => { const o = undefined; expect(o.x).toBe(1) })\n\n      at Object.toBe (probe.test.js:4:36)\n\n  ● 본문 › 헬퍼 단언 실패\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 1\n    Received: 2\n\n      1 | expect.extend({ toBeFoo(r) { return { pass: r === 'foo', message: () => `expected ${r} to be foo` } } })\n    > 2 | function helperCheck(v) { expect(v).toBe(1) }\n        |                                     ^\n      3 | describe('본문', () => {\n      4 |   it('본문 단언 실패', () => { expect(1).toBe(2) })\n      5 |   it('헬퍼 단언 실패', () => { helperCheck(2) })\n\n      at toBe (probe.test.js:2:37)\n      at Object.helperCheck (probe.test.js:5:26)\n\n  ● 본문 › 확장 단언 실패\n\n    expected bar to be foo\n\n      4 |   it('본문 단언 실패', () => { expect(1).toBe(2) })\n      5 |   it('헬퍼 단언 실패', () => { helperCheck(2) })\n    > 6 |   it('확장 단언 실패', () => { expect('bar').toBeFoo() })\n        |                                        ^\n      7 |   it('본문 TypeError', () => { const o = undefined; expect(o.x).toBe(1) })\n      8 |   it('비동기 단언 실패', async () => { await Promise.resolve(); expect(3).toBe(4) })\n      9 |   it('통과', () => { expect(1).toBe(1) })\n\n      at Object.toBeFoo (probe.test.js:6:40)\n\n  ● 본문 › 본문 TypeError\n\n    TypeError: Cannot read properties of undefined (reading 'x')\n\n       5 |   it('헬퍼 단언 실패', () => { helperCheck(2) })\n       6 |   it('확장 단언 실패', () => { expect('bar').toBeFoo() })\n    >  7 |   it('본문 TypeError', () => { const o = undefined; expect(o.x).toBe(1) })\n         |                                                            ^\n       8 |   it('비동기 단언 실패', async () => { await Promise.resolve(); expect(3).toBe(4) })\n       9 |   it('통과', () => { expect(1).toBe(1) })\n      10 | })\n\n      at Object.x (probe.test.js:7:60)\n\n  ● 본문 › 비동기 단언 실패\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 4\n    Received: 3\n\n       6 |   it('확장 단언 실패', () => { expect('bar').toBeFoo() })\n       7 |   it('본문 TypeError', () => { const o = undefined; expect(o.x).toBe(1) })\n    >  8 |   it('비동기 단언 실패', async () => { await Promise.resolve(); expect(3).toBe(4) })\n         |                                                                    ^\n       9 |   it('통과', () => { expect(1).toBe(1) })\n      10 | })\n      11 | describe('준비 단계 예외', () => {\n\n      at Object.toBe (probe.test.js:8:68)\n\n  ● 준비 단계 예외 › 대상\n\n    setup boom\n\n      10 | })\n      11 | describe('준비 단계 예외', () => {\n    > 12 |   beforeEach(() => { throw new Error('setup boom') })\n         |                            ^\n      13 |   it('대상', () => { expect(1).toBe(1) })\n      14 | })\n      15 | describe('준비 단계 단언', () => {\n\n      at Object.<anonymous> (probe.test.js:12:28)\n\n  ● 준비 단계 단언 › 대상\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 2\n    Received: 1\n\n      14 | })\n      15 | describe('준비 단계 단언', () => {\n    > 16 |   beforeEach(() => { expect(1).toBe(2) })\n         |                                ^\n      17 |   it('대상', () => { expect(1).toBe(1) })\n      18 | })\n      19 | describe('시간 초과', () => {\n\n      at Object.toBe (probe.test.js:16:32)\n\n  ● 시간 초과 › 느림\n\n    thrown: \"Exceeded timeout of 50 ms for a test.\n    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.\"\n\n      18 | })\n      19 | describe('시간 초과', () => {\n    > 20 |   it('느림', async () => { await new Promise((r) => setTimeout(r, 300)) }, 50)\n         |   ^\n      21 | })\n      22 | describe('동적', () => {\n      23 |   for (const n of [1, 1]) it(`같은 이름 ${n}`, () => { expect(n).toBe(1) })\n\n      at it (probe.test.js:20:3)\n      at Object.describe (probe.test.js:19:1)\n",
+   "name": "/tmp/fx/probe.test.js",
+   "startTime": 0,
+   "status": "failed",
+   "summary": ""
+  }
+ ],
+ "wasInterrupted": false
+}

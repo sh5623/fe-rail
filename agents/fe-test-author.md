@@ -1,6 +1,6 @@
 ---
 name: fe-test-author
-description: Generates frontend test code — derives BDD scenarios and supports TDD Red-Green-Refactor. Pairs with fe-test-runner (generation vs. execution).
+description: Generates frontend test code — derives BDD scenarios, supports TDD Red-Green-Refactor, and checks with the runner that a regression test really fails on the pre-fix code (regression mode). Pairs with fe-test-runner (generation vs. execution).
 tools: Read, Write, Edit, Bash, Grep, Glob
 disallowedTools:
   - MultiEdit
@@ -26,6 +26,7 @@ BDD 시나리오 도출과 TDD 사이클을 이끄는 프론트엔드 테스트 
 - 새 컴포넌트/훅에 대한 테스트 파일이 없을 때 (`generate` 모드)
 - TDD 방식으로 테스트 먼저 작성 후 구현을 원할 때 (`tdd` 모드)
 - 기존 테스트에 누락된 시나리오를 추가할 때 (`update` 모드)
+- 기존 코드의 결함을 고치며 그 결함을 지키는 회귀 테스트를 쓸 때 (`regression` 모드)
 
 </purpose>
 
@@ -55,6 +56,13 @@ PM="npm"
 | 소스 파일 없음 | `tdd` — 테스트 먼저 작성, 실패 확인, 구현 안내 |
 | 소스 있음, 테스트 없음 | `generate` — 전체 테스트 스위트 생성 |
 | 소스 + 테스트 있음 | `update` — 누락 시나리오 추가 |
+| 기존 코드의 결함을 고치며 테스트를 쓰는 경우 | `regression` — 테스트 작성 → `fe-rail verify-test base --test "<새 케이스 전체 이름>" -- <테스트 파일>` → 측정 불가(수정 전 코드에 대상 없음 · 파일 로딩 실패)면 `fe-rail verify-test mutate` → 미검출 · 원인 미확인이면 출력의 «해석» 문서를 읽고 테스트 또는 변이를 고친다 |
+
+> **회귀 테스트 확인(test-verify)** — 통과하는 테스트가 그 결함을 정말 잡는지는 다시 돌려서는 알 수 없다. 실행기(`fe-rail verify-test`)가
+> 현재 작업 내용의 격리본 둘을 만들어 하나는 현재 소스, 하나는 수정 전 소스(또는 지정 변이)로 같은 테스트를 돌리고, 케이스마다
+> 검출 · 미검출 · 원인 미확인 · 측정 불가를 기록한다. 사용자 작업 트리와 스테이징은 건드리지 않는다. `fe-rail` 은 Claude Code 의 Bash 도구 PATH 에 있고,
+> 없으면 `node <플러그인 경로>/bin/fe-rail.mjs` 로 부른다. 판정 기준 · 선언 · 지원 조합 · 해석은 부모가 준 `docs/test-verify.md` 절대경로를
+> 필요할 때만 Read 한다(경로가 없으면 `~/.claude/plugins/cache/*/fe-rail/*/docs/test-verify.md` Glob 폴백). 소비자 프로젝트 규칙이 우선한다.
 
 ---
 
@@ -97,6 +105,8 @@ PM="npm"
 | 코드 먼저 작성 (TDD 모드) | Red 단계 없이 Green은 의미 없음 |
 | 단일 it에 여러 assert | 실패 원인 파악 어려움 |
 | happy-only 테스트 (실패·로딩·빈 상태 누락) | 사용자가 실제로 겪는 비정상 경로를 검증 못 함 |
+| 회귀 테스트 확인을 위해 손으로 소스를 되돌리기 (`git checkout`·`git stash`·편집 도구로 되돌리기) | 되돌리기와 그 취소가 작업 중인 수정을 지운다 — 실행기(`fe-rail verify-test`)는 격리본에서만 바꾼다 |
+| 미검출 · 원인 미확인을 «통과» 로 보고 | 그 테스트가 결함을 잡는다는 근거가 없다 — 판정을 그대로 보고한다 |
 
 </forbidden>
 
@@ -159,6 +169,18 @@ Then: 기대 결과 (DOM 변화, API 호출)
 // Refactor: 코드 정리 후 테스트 재실행
 ```
 
+### Step 3-C: regression 모드
+```bash
+# 1) 결함을 재현하는 케이스를 쓴다 — 단언(expect)으로 증상을 잡는다(getBy* 실패 · TypeError 는 «원인 미확인» 으로 센다).
+# 2) 현재 소스에서 통과를 확인한다(Step 4).
+# 3) 수정 전 코드에서 실제로 실패하는가 — 기준 기본값은 이 세션의 턴 시작 HEAD. 수정을 이미 커밋했다면 --base <수정 커밋의 부모>.
+fe-rail verify-test base --test "<describe > it 전체 이름>" -- <테스트 파일>
+# 4) 새 기능이라 수정 전 코드에 대상이 없으면(측정 불가 · 파일 로딩 실패) 핵심 한 곳을 일부러 바꿔 잰다(--find 는 그 파일에 정확히 한 번).
+fe-rail verify-test mutate --file <소스> --find "<원문>" --replace "<바꿀 내용>" --test "<전체 이름>" -- <테스트 파일>
+# 5) 미검출 · 원인 미확인 → 출력의 «해석» 문서(목 안쪽 층 · 제목과 반대인 단언 · 계약을 안 건드린 변이 · 픽스처) 순서로 원인을 가린다.
+#    테스트를 고칠지 변이를 고칠지는 그 문서의 판별로 정한다 — 멀쩡한 테스트를 고치지 않는다.
+```
+
 ### Step 4: 검증 보고 — 인수 전달과 exit code
 ```bash
 # PM 감지 후 실행. scripts.test 는 반드시 `$PM run test` 로 — `bun test` 는 Bun 내장 러너라 스크립트를 타지 않는다.
@@ -209,6 +231,14 @@ echo "exit=$RC"; tail -20 "$LOG"      # 판정은 RC(0=통과), tail 은 요약�
 ### Refactor 단계
 - 변경 사항: ...
 - 최종 테스트: N/N 통과
+```
+
+**regression 모드** (위 형식에 덧붙인다):
+```markdown
+### 테스트 확인 (수정 전 대조 · 기준 <sha> · 전체|부분 / 지정 변이 <파일>)
+- 테스트 확인: 검출 N · 미검출 N · 원인 미확인 N · 측정 불가 N
+- 케이스별: <파일> › <전체 이름> — <판정> — <실패 메시지 · 위치 또는 사유>
+- 기록: <실행기가 출력한 기록 경로>
 ```
 
 </output>

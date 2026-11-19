@@ -1,0 +1,6 @@
+#!/bin/sh
+# [fe-rail] `fe-rail` 명령 — Claude Code 는 활성 플러그인의 bin/ 을 Bash 도구의 PATH 에 올린다.
+# 일반 셸 · CI 에는 올라가지 않으므로 그곳에서는 `node <플러그인 경로>/bin/fe-rail.mjs …` 로 부른다.
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+command -v node >/dev/null 2>&1 || { echo "fe-rail: node 가 필요합니다" >&2; exit 127; }
+exec node "$here/fe-rail.mjs" "$@"

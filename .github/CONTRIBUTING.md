@@ -58,6 +58,22 @@ shell scripts and a JSON/manifest check. Run it locally first anyway; CI is the 
 not the first signal. If you added a new hook, agent, or skill script, extend `eval/run.sh` with
 coverage for it.
 
+The regression-test check (`fe-rail verify-test`, `lib/test-verify/`) has two more suites. Section H of
+`eval/run.sh` (`eval/test-verify.mjs`) needs only `node` and `git`: it drives the runner and hooks against a
+fake-runner fixture and pins verdicts on real Vitest/Jest report samples. The real-runner suite installs
+pinned versions from the npm registry and runs every verified combination, so it needs the network and
+`pnpm`, and it fails rather than skips when a tool is missing (a combination is "verified" only because
+this suite passes on it). CI runs it on every push:
+
+```bash
+node eval/runner.mjs                      # every combination in VERIFIED (lib/test-verify/project.mjs)
+node eval/runner.mjs --only npm-vitest-4  # one combination
+```
+
+If you change how the runner judges a case, isolates a copy, or reuses a record, add a case to both
+suites. Adding a combination to `VERIFIED` means adding its fixture to `eval/runner.mjs` and its row to the
+support table in `docs/test-verify.md` (section H self-checks that the table lists every pinned version).
+
 ## Making changes
 
 - **Agents** (`agents/*.md`): keep `model` as an alias (`opus`/`sonnet`/`haiku`), never

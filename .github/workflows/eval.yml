@@ -24,13 +24,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # eval 은 bash·grep·sed·awk·jq 와 node(게이트 명령 선택기 검사) 만 쓴다(네트워크·npm·python 불필요 · node 는 러너 기본 포함).
-      # 로컬은 BSD 계열, CI 는 GNU/mawk 라 버전을 남겨 재현에 쓴다.
+      # 회귀 테스트 확인(test-verify)의 실행기·eval 은 node 단독 스크립트라 버전을 고정한다(Node 20 이상 필요).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # 실제 러너 eval 이 «검증된 조합» 의 pnpm 쪽을 돌리려면 pnpm 이 있어야 한다(없으면 그 eval 은 실패한다).
+      - name: pnpm 설치 (실제 러너 eval 용)
+        run: npm install -g pnpm@11.7.0
+
+      # eval/run.sh 는 bash·grep·sed·awk·jq·node·git 만 쓴다(네트워크 불필요). 실제 러너 eval(eval/runner.mjs)만 npm 레지스트리에서
+      # 고정 버전을 설치한다. 로컬은 BSD 계열, CI 는 GNU/mawk 라 버전을 남겨 재현에 쓴다.
       - name: 도구 버전
         run: |
           bash --version | head -1
           jq --version
           awk -W version 2>&1 | head -2 || true
+          node --version
+          pnpm --version
 
       - name: 셸 문법 검사 (bash -n)
         run: |
@@ -62,3 +73,7 @@ jobs:
 
       - name: 회귀 eval
         run: bash eval/run.sh
+
+      # 종료 훅의 자동 차단은 이 eval 을 통과한 조합(lib/test-verify/project.mjs 의 VERIFIED)에서만 켠다 — 그 근거를 매번 다시 잰다.
+      - name: 실제 러너 eval (test-verify · 고정 버전 설치)
+        run: node eval/runner.mjs

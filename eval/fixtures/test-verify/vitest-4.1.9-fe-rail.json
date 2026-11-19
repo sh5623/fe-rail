@@ -1,0 +1,282 @@
+{
+ "format": "fe-rail-vitest/1",
+ "reason": "failed",
+ "unhandled": [],
+ "files": [
+  {
+   "file": "/tmp/fx/after.test.js",
+   "state": "failed",
+   "errors": [
+    {
+     "name": "Error",
+     "message": "teardown boom",
+     "isAssertion": false,
+     "frames": [
+      {
+       "file": "/tmp/fx/after.test.js",
+       "line": 2,
+       "column": 24
+      }
+     ]
+    }
+   ],
+   "cases": [
+    {
+     "fullName": "대상 통과",
+     "name": "대상 통과",
+     "location": {
+      "line": 3,
+      "column": 1
+     },
+     "state": "passed",
+     "errors": []
+    }
+   ]
+  },
+  {
+   "file": "/tmp/fx/load.test.js",
+   "state": "failed",
+   "errors": [
+    {
+     "name": "Error",
+     "message": "Cannot find module './missing.js' imported from /tmp/fx/load.test.js",
+     "isAssertion": false,
+     "frames": [
+      {
+       "file": "/tmp/fx/load.test.js",
+       "line": 1,
+       "column": 1
+      }
+     ]
+    }
+   ],
+   "cases": []
+  },
+  {
+   "file": "/tmp/fx/probe.test.js",
+   "state": "failed",
+   "errors": [],
+   "cases": [
+    {
+     "fullName": "본문 > 본문 단언 실패",
+     "name": "본문 단언 실패",
+     "location": {
+      "line": 5,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "AssertionError",
+       "message": "expected 1 to be 2 // Object.is equality",
+       "isAssertion": true,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 5,
+         "column": 36
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "본문 > 헬퍼 단언 실패",
+     "name": "헬퍼 단언 실패",
+     "location": {
+      "line": 6,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "AssertionError",
+       "message": "expected 2 to be 1 // Object.is equality",
+       "isAssertion": true,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 3,
+         "column": 37
+        },
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 6,
+         "column": 26
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "본문 > 확장 단언 실패",
+     "name": "확장 단언 실패",
+     "location": {
+      "line": 7,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "Error",
+       "message": "expected bar to be foo",
+       "isAssertion": true,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 7,
+         "column": 40
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "본문 > 본문 TypeError",
+     "name": "본문 TypeError",
+     "location": {
+      "line": 8,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "TypeError",
+       "message": "Cannot read properties of undefined (reading 'x')",
+       "isAssertion": false,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 8,
+         "column": 60
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "본문 > 비동기 단언 실패",
+     "name": "비동기 단언 실패",
+     "location": {
+      "line": 9,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "AssertionError",
+       "message": "expected 3 to be 4 // Object.is equality",
+       "isAssertion": true,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 9,
+         "column": 68
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "본문 > 통과",
+     "name": "통과",
+     "location": {
+      "line": 10,
+      "column": 3
+     },
+     "state": "passed",
+     "errors": []
+    },
+    {
+     "fullName": "준비 단계 예외 > 대상",
+     "name": "대상",
+     "location": {
+      "line": 14,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "Error",
+       "message": "setup boom",
+       "isAssertion": false,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 13,
+         "column": 28
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "준비 단계 단언 > 대상",
+     "name": "대상",
+     "location": {
+      "line": 18,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "AssertionError",
+       "message": "expected 1 to be 2 // Object.is equality",
+       "isAssertion": true,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 17,
+         "column": 32
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "시간 초과 > 느림",
+     "name": "느림",
+     "location": {
+      "line": 21,
+      "column": 3
+     },
+     "state": "failed",
+     "errors": [
+      {
+       "name": "Error",
+       "message": "Test timed out in 50ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".",
+       "isAssertion": false,
+       "frames": [
+        {
+         "file": "/tmp/fx/probe.test.js",
+         "line": 21,
+         "column": 3
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "fullName": "동적 > 같은 이름 1",
+     "name": "같은 이름 1",
+     "location": {
+      "line": 24,
+      "column": 27
+     },
+     "state": "passed",
+     "errors": []
+    },
+    {
+     "fullName": "동적 > 같은 이름 1",
+     "name": "같은 이름 1",
+     "location": {
+      "line": 24,
+      "column": 27
+     },
+     "state": "passed",
+     "errors": []
+    }
+   ]
+  }
+ ]
+}

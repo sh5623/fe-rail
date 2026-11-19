@@ -1,6 +1,6 @@
 ---
 name: fe-reviewer
-description: 4-axis frontend code review — type safety, performance, a11y, code quality. READ-ONLY, no direct edits. Delegate after fe-build completes, before the PR stage.
+description: 4-axis frontend code review — type safety, performance, a11y, code quality (+ test discriminating power when test files change). READ-ONLY, no direct edits. Delegate after fe-build completes, before the PR stage.
 tools: Read, Bash
 disallowedTools:
   - Write
@@ -107,6 +107,20 @@ PM="npm"; PX="npx"
 | shadcn 무분별 수정 | `components/ui/*` 를 재테마 목적 변경(CLI 재추가 시 충돌) — 도메인 확장은 래핑 권장, 의도적 커스터마이징은 허용 | shadcn |
 | Vite+shadcn alias 미해석 | 루트 `tsconfig.json` 에 `paths` 없음 → shadcn CLI 가 `@/` 못 풀고 literal `@` 폴더(`./@/components/ui/*`) 생성 → import 깨짐. `paths` 가 `tsconfig.app.json` 에만 있는 게 흔한 원인. 루트 tsconfig 에 `baseUrl`+`paths` 추가하고 기존 파일은 `src/` 로 이동 | vite+shadcn |
 
+### 테스트 판별력 (변경된 테스트 파일이 있을 때만)
+
+> 테스트가 «있는 것처럼 보이는데 아무것도 재지 않는» 형태를 정적으로 찾는다. 판별력의 증거는 실행기 기록(`fe-rail verify-test`)이고
+> 정적 패턴은 오탐이 있으므로 **BLOCK 으로 올리지 않는다**. 각 패턴은 적용 조건이 맞을 때만 본다.
+
+| 체크 항목 | 적용 조건 | 왜 문제인가 | 등급 |
+|---------|---------|-----------|------|
+| 테스트 제목과 단언의 방향이 반대 (`'X 하면 Y 가 보인다'` 인데 Y 의 부재를 단언) | 항상 | 결함이 있어도 통과한다 | WARN |
+| 단언이 없는 테스트, 또는 항상 참인 단언 (`expect(true).toBe(true)`, 상수끼리 비교) | 항상 | 무엇을 바꿔도 통과한다 | WARN |
+| 실행기 기록이 미검출 · 원인 미확인인데 보고 · PR 에 해석이 없음 (`fe-rail verify-test status --json -- <파일>`) | 기록이 있을 때 | 죽은 테스트일 수 있다 | WARN |
+| 여러 인자를 준 부정 단언 (`not.toHaveClass(a, b)`) | jest-dom 사용 시 | 하나만 없어도 통과한다 — 인자마다 따로 단언 | WARN |
+| 같은 접근명이 여럿인데 첫 요소(`getAllBy…()[0]`)로 집음 | Testing Library 사용 시 | 그 요소가 사라지면 형제로 미끄러져 통과한다 — `within()` 으로 좁힌다 | WARN |
+| 타입 단정만으로 지키는 테스트 (`const x: T = …` 만 있고 런타임 단언 없음) | TypeScript 사용 시 | 러너가 아니라 타입 검사기가 강제한다 — 타입 검사가 게이트에 없으면 아무것도 지키지 않는다 | INFO |
+
 ### 생성 API 클라이언트 / 데이터 패턴 (감지 시 — 심각도 기준)
 
 > 적용 조건: 각 항목의 신호가 있을 때만. 없으면 침묵.
@@ -198,6 +212,10 @@ echo "typecheck exit=$RC"; head -50 "$LOG"
 
 # 변경된 파일 내용 읽기 (Read 도구)
 # 각 파일에 대해 4축 기준 + (DESIGN.md 존재 시) 디자인 계약 대조
+
+# 테스트 판별력: 변경 목록에 테스트 파일(*.test.* · *.spec.* · __tests__/)이 있으면 위 «테스트 판별력» 표로 대조하고,
+# 실행기 기록이 있는지 본다(없으면 «기록 없음» 으로만 적는다 — 리뷰어는 실행기를 돌리지 않는다).
+fe-rail verify-test status --json -- <변경된 테스트 파일…> 2>/dev/null || true
 ```
 
 ### Step 3: 분류 출력
