@@ -122,6 +122,9 @@ fe-rail verify-test status [--base <rev>] [--expect <문자열>] [--json] -- <�
 { "fe-rail": { "testVerify": { "prepare": "npm run build -w @acme/ui", "copy": [".env.test"] } } }
 ```
 
+> **신뢰 수준** — `command` · `prepare` 는 저장소가 정한 셸 명령이고 실행기가 격리본 안에서 그대로 실행한다. 저장소의 테스트 설정(`vitest.config.*` 등)과 테스트 파일을 실행하는 것, 곧 `npm run test` 와 같은 수준이다. 신뢰하지 않는 저장소에서는 실행기도 테스트도 돌리지 않는다.
+> 종료 훅은 선언 `command` 를 쓰는 구성(검증된 조합이 아님)에서는 실행을 지시하지 않고 알림만 낸다.
+
 **환경변수**: `FE_RAIL_VERIFY_TIMEOUT`(초 · 120) · `FE_RAIL_VERIFY_MAX_SOURCES`(50) · `FE_RAIL_VERIFY_MAX_TESTS`(훅이 막는 상한 · 10) ·
 `FE_RAIL_VERIFY_MAX_FILES`(격리본 파일 수 · 100000) · `FE_RAIL_VERIFY_MAX_MB`(4096) · `FE_RAIL_VERIFY_MAX_DIRTY`(턴 기록 · 2000).
 끄기: `FE_RAIL_DISABLED_HOOKS="test-verify"` 또는 `FE_RAIL_HOOK_PROFILE=minimal`.
