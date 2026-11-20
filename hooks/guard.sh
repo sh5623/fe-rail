@@ -81,22 +81,102 @@ fi
 #    커밋 메시지 인수(`-m`/`--message` 의 값)만 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용
 #    오탐 방지. 종전처럼 «따옴표 안 전부» 를 지우면 `bash -c "git commit --no-verify -m fix"` 같은
 #    셸 래핑의 실제 명령까지 사라져 우회됐다(2026-09 교차 리뷰 재현: exit 0).
-#    sed 는 줄 단위로 동작해 여러 줄 커밋 본문(HEREDOC)에 걸친 따옴표는 못 지운다 — 줄 끝을 ` ;` 로 바꿔
-#    한 줄로 접은 뒤 제거한다(따옴표 안의 줄바꿈은 메시지와 함께 지워지고, 밖의 줄바꿈은 명령 경계로 남는다).
-#    v1.24.1 — 판정을 «명령 조각» 단위로 바꿨다. 메시지 값을 지운 뒤 `;` `&&` `||` `|` `&` 로 나누고, `git commit` 이
-#    든 조각에서 그 뒤의 인수만 본다. 종전의 `git commit (.*[[:space:]]+)?-n` 은 `.*` 가 명령 경계를 넘어
-#    `git commit -m x && sed -n 1p f` · `…; head -n 5 log` · `… | cat -n` 의 `-n` 까지 커밋 플래그로 읽었다(오탐).
-#    짧은 플래그 묶음은 `n` 이 어디에 있어도 잡는다 — 종전 정규식은 묶음 «끝» 의 n 만 봐서 `git commit -nm "wip"` ·
-#    `-anm wip` 를 통과시켰다(우회). 메시지 값은 `-m`·`--message` 와 묶음 끝의 m(`-qm` · `-am` · `-nm`)에서 지우되 묶음의
-#    나머지 글자는 남긴다(`-nm "x"` → `-n` · `-qm "drop the -n flag"` → `-q`). 따옴표 없는 값은 `;` `&` `|` 앞에서 끊는다.
+#    v1.24.2 — 정규식 대신 셸처럼 읽는 작은 파서(awk)로 판정한다. 정규식으로는 두 방향 다 막을 수 없었다:
+#    · 오탐(v1.24.0 까지): `git commit (.*)?-n` 의 `.*` 가 명령 경계를 넘어 `git commit -m x && sed -n 1p f` 처럼 뒤 명령의
+#      `-n` 을 커밋 플래그로 읽었다. 메시지는 맨 `-m` 뒤만 지워 `-qm "drop the -n flag"` 도 막혔다.
+#    · 우회: 묶음 가운데 n(`-nm "wip"` · `-anm`) · 따옴표로 감싼 플래그(`"-n"` · `-n""` · `-nm"wip"`) · 축약(`--no-veri`).
+#      v1.24.1 의 조각 정규식은 따옴표 · 리다이렉션 안의 `;` `&` 로 나누고(`--author="a;b" -n` · `2>&1 -n`) 마지막
+#      `git commit` 뒤만 봐서(`-n -m x # git commit`) 새 우회를 만들었다(보안 검토 지적).
+#    파서가 하는 일: ① 따옴표 밖의 `;` `|` `&`(리다이렉션 `2>&1` · `>&2` · `&>` 은 제외) · 줄바꿈 · 주석(`#`)으로 명령 조각을
+#    나누고 줄 끝 `\` 이어 쓰기는 합친다 ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다 ③ `git`(경로 · `$(` · `(` 접두 포함)
+#    다음 `commit` 이 오는 «첫» 자리부터 인수를 git 처럼 읽는다 — 짧은 묶음에서 n 이 나오면 우회, 값을 받는 c C F m t 가
+#    나오면 묶음의 나머지가 값(묶음 끝이면 다음 낱말이 값), u S 는 붙은 선택 값, `--` 뒤는 경로, 값을 받는 긴 옵션은 다음
+#    낱말을 건너뛴다 ④ 값으로 쓰이지 않은 낱말에 공백이 있고 git · commit 이 들어 있으면(`bash -c "…"` · `sh -c '…'`) 그 안을
+#    다시 읽는다 ⑤ 명령 어디든 커밋이 있고 값이 아닌 낱말이 `--no-veri`·`--no-verif`·`--no-verify` 면 막는다(종전처럼).
 _FE_SQ="'"
-_FE_VAL="(\"[^\"]*\"|${_FE_SQ}[^${_FE_SQ}]*${_FE_SQ}|[^[:space:];&|]+)"
-#    줄 끝 `\` 로 이어 쓴 줄은 먼저 합친다 — 안 합치면 `git commit \⏎ -n` 의 `-n` 이 다른 조각으로 떨어져 빠져나간다.
-_FE_SEGS=$(printf '%s\n' "$CMD" | awk '{ if (sub(/\\$/, "")) printf "%s ", $0; else printf "%s ; ", $0 }' \
-  | sed -E "s/(^|[[:space:]])(-[a-zA-Z]*)m([[:space:]]*=|[[:space:]]+)${_FE_VAL}/\1\2/g; s/--message([[:space:]]*=|[[:space:]]+)${_FE_VAL}//g" \
-  | sed -E 's/&&|\|\|/;/g' | tr ';|&' '\n\n\n')
-if printf '%s\n' "$_FE_SEGS" | grep -E 'git[[:space:]]+commit([[:space:]]|$)' | sed -E 's/.*git[[:space:]]+commit//' \
-   | grep -qE -- '--no-verify|(^|[[:space:]])-[a-zA-Z]*n[a-zA-Z]*([[:space:]]|$)'; then
+if printf '%s\n' "$CMD" | awk -v SQ="$_FE_SQ" -v DQ='"' '
+function flush() { if (seg ~ /[^ \t]/) segs[++ns] = seg; seg = "" }
+function split_segments(s,    n, i, c, q, nx, p) {
+  ns = 0; seg = ""; q = ""; n = length(s)
+  for (i = 1; i <= n; i++) {
+    c = substr(s, i, 1)
+    if (q == "") {
+      if (c == "\\") { nx = substr(s, i + 1, 1); i++; if (nx != "\n") seg = seg c nx; continue }
+      if (c == SQ || c == DQ) { q = c; seg = seg c; continue }
+      if (c == "#" && (seg == "" || substr(seg, length(seg), 1) ~ /[ \t]/)) { while (i < n && substr(s, i + 1, 1) != "\n") i++; continue }
+      if (c == "\n" || c == ";" || c == "|") { flush(); continue }
+      if (c == "&") {
+        p = (i > 1) ? substr(s, i - 1, 1) : ""; nx = substr(s, i + 1, 1)
+        if (p == ">" || p == "<" || nx == ">") { seg = seg c; continue }
+        flush(); continue
+      }
+      seg = seg c
+    } else {
+      if (q == DQ && c == "\\") { seg = seg c substr(s, i + 1, 1); i++; continue }
+      if (c == q) q = ""
+      seg = seg c
+    }
+  }
+  flush()
+}
+function tokenize(s,    n, i, c, q, tok, has, nx) {
+  nt = 0; tok = ""; q = ""; has = 0; n = length(s)
+  for (i = 1; i <= n; i++) {
+    c = substr(s, i, 1)
+    if (q == "") {
+      if (c == "\\") { tok = tok substr(s, i + 1, 1); i++; has = 1; continue }
+      if (c == SQ || c == DQ) { q = c; has = 1; continue }
+      if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; tok = ""; has = 0 } continue }
+      tok = tok c; has = 1
+    } else if (q == SQ) {
+      if (c == SQ) { q = ""; continue }
+      tok = tok c
+    } else {
+      if (c == "\\") { nx = substr(s, i + 1, 1); if (nx == DQ || nx == "\\" || nx == "$" || nx == "`") { tok = tok nx; i++; continue } }
+      if (c == DQ) { q = ""; continue }
+      tok = tok c
+    }
+  }
+  if (has) toks[++nt] = tok
+}
+function scan(    i, j, k, L, t, ch, skip, start) {
+  for (j = 1; j <= nt; j++) used[j] = 0
+  start = 0
+  for (i = 1; i < nt; i++) if (toks[i] ~ /(^|[^A-Za-z0-9_.-])git$/ && toks[i + 1] == "commit") { start = i + 2; break }
+  if (start) {
+    hascommit = 1; skip = 0
+    for (j = start; j <= nt; j++) {
+      t = toks[j]
+      if (skip) { skip = 0; used[j] = 1; continue }
+      if (t == "--") break
+      if (t ~ /^--no-veri(f|fy)?$/) { found = 1; break }
+      if (t ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) { skip = 1; continue }
+      if (length(t) > 1 && substr(t, 1, 1) == "-" && substr(t, 2, 1) != "-") {
+        L = length(t)
+        for (k = 2; k <= L; k++) {
+          ch = substr(t, k, 1)
+          if (ch == "n") { found = 1; break }
+          if (ch ~ /[cCFmt]/) { if (k == L) skip = 1; break }
+          if (ch ~ /[uS]/) break
+        }
+      }
+    }
+  }
+  for (j = 1; j <= nt; j++) {
+    if (used[j]) continue
+    if (toks[j] ~ /^--no-veri(f|fy)?$/) noverify = 1
+    if (toks[j] ~ /[ \t\n]/ && toks[j] ~ /git/ && toks[j] ~ /commit/) queue[++qt] = toks[j]
+  }
+}
+{ input = input (NR > 1 ? "\n" : "") $0 }
+END {
+  qt = 1; queue[1] = input; found = 0; noverify = 0; hascommit = 0
+  for (qh = 1; qh <= qt && qh <= 16; qh++) {
+    split_segments(queue[qh])
+    for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }
+  }
+  exit ((found || (hascommit && noverify)) ? 0 : 1)
+}'; then
   block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
 fi
 

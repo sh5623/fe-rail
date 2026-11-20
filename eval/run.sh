@@ -115,7 +115,29 @@ second -n line"'                                                         '따옴
   assert_guard BLOCK 'git commit -n|cat'                              '| 바로 앞 -n 차단'
   assert_guard BLOCK 'git commit --message="ok" --no-verify'          '--message= 뒤 --no-verify 차단'
   assert_guard BLOCK 'bash -c "git commit -nm wip"'                   '셸 래핑 안의 -nm 차단'
-else ok "jq 없음 → guard v1.24.1 조각 판정 사례 스킵"; fi
+  # v1.21.3 — 보안 검토가 지적한 v1.21.2 의 회귀(마지막 git commit 기준 · 따옴표 · 리다이렉션 안 분할)와 원래 구멍(따옴표로 감싼 플래그 · 축약)
+  assert_guard BLOCK 'git commit -n -m x # git commit'                '주석 속 git commit 이 앞의 -n 을 가리지 못한다(첫 자리부터 읽기)'
+  assert_guard BLOCK "git commit -n --author='git commit <a@b>' -m x" '값 속 git commit 이 앞의 -n 을 가리지 못한다'
+  assert_guard BLOCK 'git commit --author="a;b" -n -m x'              '따옴표 안의 ; 로 조각을 나누지 않는다'
+  assert_guard BLOCK 'git commit 2>&1 -n -m x'                        '리다이렉션 2>&1 의 & 로 조각을 나누지 않는다'
+  assert_guard BLOCK 'git commit "-n" -m x'                           '따옴표로 감싼 -n 차단(따옴표를 걷고 읽기)'
+  assert_guard BLOCK 'git commit -n"" -m x'                           '빈 따옴표를 붙인 -n 차단'
+  assert_guard BLOCK 'git commit -nm"wip"'                            '값이 붙은 묶음 -nm"wip" 차단'
+  assert_guard BLOCK 'git commit --no-veri -m x'                      '긴 옵션 축약 --no-veri 차단'
+  assert_guard BLOCK '(git commit -n -m x)'                           '서브셸 (git 차단'
+  assert_guard BLOCK '/usr/bin/git commit -n -m x'                    '경로로 부른 git 차단'
+  assert_guard BLOCK 'git commit -m x && git push --no-verify'        '커밋이 있는 명령의 --no-verify 는 어디서든 차단(종전과 같음)'
+  assert_guard BLOCK "sh -c 'git commit -qn -m x'"                    'sh -c 홑따옴표 래핑 안의 -qn 차단'
+  assert_guard ALLOW 'git commit -mn'                                 '-mn 은 메시지 n(값을 받는 m 뒤는 값)'
+  assert_guard ALLOW 'git commit -m "docs: explain why git commit -n is blocked"' '메시지 속 git commit -n 은 다시 읽지 않는다'
+  assert_guard ALLOW 'git commit -m "forbid --no-verify"'             '메시지 속 --no-verify'
+  assert_guard ALLOW 'bash -c "git commit -m x; sed -n 1p f"'         '래핑 안에서도 조각을 나눈다'
+  assert_guard ALLOW 'git commit -unormal -m x'                       '-u 의 붙은 값 normal 의 n'
+  assert_guard ALLOW 'git commit -F - <<'"'"'EOF'"'"'
+body -n
+EOF'                                                                     'HEREDOC 본문 줄의 -n'
+  assert_guard ALLOW 'git commit -m x # -n 은 주석'                    '주석 속 -n'
+else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
 assert_hook ALLOW write-guard.sh '{"tool_input":{"file_path":"/p/.env.example"}}'             "write-guard: .env.example 허용"
