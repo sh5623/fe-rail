@@ -137,6 +137,38 @@ second -n line"'                                                         '따옴
 body -n
 EOF'                                                                     'HEREDOC 본문 줄의 -n'
   assert_guard ALLOW 'git commit -m x # -n 은 주석'                    '주석 속 -n'
+  # v1.21.4 — 보안 검토 2차: 파서가 풀 수 없는 확장은 막고(모르면 막는다) · 전역 옵션 건너뛰기 · 괄호 · 백틱 안 분할 금지 · 대기열 상한 넘으면 막기
+  assert_guard BLOCK "git commit \$'-n' -m x"                         'ANSI-C 따옴표 $'"'"'-n'"'"' 차단'
+  assert_guard BLOCK "git commit \$'\\x2dn' -m x"                     'ANSI-C 이스케이프 $'"'"'\x2dn'"'"' 차단'
+  assert_guard BLOCK 'git commit $FLAG -m x'                          '변수로 넣은 인수 차단(풀 수 없음)'
+  assert_guard BLOCK 'git commit "$FLAG" -m x'                        '큰따옴표 안 변수 인수 차단'
+  assert_guard BLOCK 'git commit {-n,} -m x'                          '중괄호 확장 차단'
+  assert_guard BLOCK 'git commit `echo -n` -m x'                      '백틱 치환 인수 차단'
+  assert_guard BLOCK 'git commit $(echo x;) -n -m y'                  '$( 안의 ; 로 나누지 않는다'
+  assert_guard BLOCK 'git commit -$X -m y'                            '플래그 자리의 변수 차단'
+  assert_guard BLOCK 'git -Crepo commit -n -m x'                      '값을 붙인 전역 옵션 -Crepo 를 건너뛴다'
+  assert_guard BLOCK 'git -c"core.x=y" commit -n -m x'                '따옴표를 붙인 전역 옵션 -c"k=v" 를 건너뛴다'
+  assert_guard BLOCK 'git --super-prefix=a/ commit -n -m x'           '= 붙은 전역 긴 옵션을 건너뛴다'
+  assert_guard BLOCK "$(printf 'bash -c "x git commit" %.0s' $(seq 1 17)); bash -c \"git commit -n -m x\"" '다시 읽을 낱말이 16개를 넘으면 막는다'
+  assert_guard BLOCK 'git commit -F <(echo x;) -n'                    '프로세스 치환 <( 안의 ; 로 나누지 않는다'
+  assert_guard BLOCK 'git commit -m x &>/dev/null -n'                 '&> 리다이렉션 뒤 -n 차단'
+  assert_guard BLOCK 'git commit -m x {,-n}'                          '값 뒤 중괄호 확장 차단'
+  assert_guard BLOCK "bash -c \$'git commit -n -m x'"                 'bash -c $'"'"'…'"'"' 안을 다시 읽는다'
+  assert_guard BLOCK "eval 'git commit -n -m x'"                      'eval 안을 다시 읽는다'
+  assert_guard BLOCK '(cd repo; git commit -n -m x)'                  '서브셸 괄호 안의 커밋 차단'
+  assert_guard BLOCK 'git commit -m x `true; true` -n'                '백틱 안의 ; 로 나누지 않는다'
+  assert_guard ALLOW '(cd repo; git commit -m x) && sed -n 1p f'      '괄호 밖 뒤 명령의 -n'
+  assert_guard ALLOW 'git commit -m "$(printf "a;b")" && head -n 1 f' '메시지 속 치환 · 뒤 명령의 -n'
+  assert_guard ALLOW 'echo $(git log -n 1) && git commit -m x'        '앞 명령 치환 속 git log -n'
+  assert_guard ALLOW 'git commit -m "$MSG"'                           '메시지 값의 변수'
+  assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: thing
+EOF
+)"'                                                                       'HEREDOC 치환 메시지'
+  assert_guard ALLOW 'git commit --author="$AUTHOR" -m x'             '긴 옵션 값의 변수'
+  assert_guard ALLOW 'git commit -F "$FILE"'                          '-F 값의 변수'
+  assert_guard ALLOW 'git commit -m x -- "$path"'                     '-- 뒤 경로의 변수'
+  assert_guard ALLOW 'git -C "$REPO" commit -m x'                     '전역 옵션 값의 변수'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"

@@ -74,7 +74,7 @@ $ claude
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회 · `FE_RAIL_NO_UPDATE_CHECK=1` 로 끔) | — |
-| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다. 커밋 검사는 셸처럼 읽는 작은 파서로 한다 — 따옴표 밖의 `;`·`|`·`&`·줄바꿈으로 명령을 나누고(리다이렉션 `2>&1` 은 제외) 따옴표를 걷은 낱말을 git 처럼 읽어, 짧은 플래그 묶음에 `n` 이 있거나(`-nm`·`"-n"`) `--no-verify`(축약 포함)면 막는다. 메시지 같은 옵션 값은 보지 않는다. 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
+| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다. 커밋 검사는 셸처럼 읽는 작은 파서로 한다 — 따옴표 밖의 `;`·`|`·`&`·줄바꿈으로 명령을 나누고(리다이렉션 `2>&1` 은 제외) 따옴표를 걷은 낱말을 git 처럼 읽어, 짧은 플래그 묶음에 `n` 이 있거나(`-nm`·`"-n"`) `--no-verify`(축약 포함)면 막는다. 메시지 같은 옵션 값은 보지 않고, 인수 자리에 파서가 풀 수 없는 확장(`$X`·`$'…'`·백틱·`{…}`)이 오면 막는다(모르면 막는다). 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단: `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 편집 조각이 아니라 실파일의 편집 전 ↔ 후 전체(디스크 내용 + Edit/MultiEdit/Write 페이로드로 재구성)를 비교하므로, 값만 바꾸는 `true → false` Edit 과 `strict` 키를 뺀 Write 도 잡는다. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env*`·`.envrc`, `*.pem`/`*.key`/`id_rsa` 등 키, `.npmrc`·`*credential*`. 목록은 write-guard 차단 목록과 대칭) | — |
@@ -167,6 +167,8 @@ v1.21.1 은 v1.21.0 직후 보안 검토가 찾은 격리 구멍을 막습니다
 v1.21.2 는 `guard.sh` 의 커밋 훅 우회 규칙을 고칩니다. 종전 정규식은 `git commit` 뒤의 `.*` 가 명령 경계를 넘어, `git commit -m x && sed -n 1p f` · `…; head -n 5 log` · `… | cat -n` 처럼 뒤 명령의 `-n` 을 커밋 플래그로 읽고 막았습니다. 반대로 `n` 이 붙인 플래그의 가운데에 오는 `git commit -nm "wip"` · `-anm` 은 통과시켰습니다. 이제 명령을 조각으로 나눠 `git commit` 이 든 조각에서 그 뒤 인수만 보고, 짧은 플래그 묶음의 `n` 은 어디에 있어도 잡습니다. 메시지 값은 `-qm` · `-am` 같은 묶음에서도 지웁니다. 줄 끝 `\` 로 이어 쓴 명령은 먼저 합쳐 다음 줄의 `-n` 이 빠져나가지 않게 했습니다. eval 에 사례 20개(통과해야 할 것 11 · 막아야 할 것 9)를 넣었고, 고치기 전 규칙은 같은 사례에서 11개가 틀립니다.
 
 v1.21.3 은 v1.21.2 의 guard 수정을 다시 고칩니다. 보안 검토가 v1.21.2 의 조각 정규식에서 새 우회를 찾았습니다. 따옴표나 리다이렉션 안의 `;` `&` 로도 조각을 나눠 `git commit --author="a;b" -n` · `git commit 2>&1 -n` 의 `-n` 이 다른 조각으로 떨어졌고, 조각 안에서 마지막 `git commit` 뒤만 봐서 `git commit -n -m x # git commit` 이 통과했습니다. 따옴표로 감싼 플래그(`"-n"` · `-nm"wip"`)와 축약 `--no-veri` 는 원래부터 통과했습니다. 이제 정규식 대신 셸처럼 읽는 작은 awk 파서가 따옴표 밖에서만 조각을 나누고, 따옴표를 걷은 낱말을 git 이 옵션을 읽는 방식대로 읽습니다(값을 받는 옵션 뒤는 값으로 건너뛰므로 `-mn` 은 메시지 «n» 입니다). `bash -c "…"` 처럼 공백이 든 낱말에 git · commit 이 있으면 그 안을 다시 읽습니다. eval 에 지적 사례 19개를 더했습니다.
+
+v1.21.4 는 v1.21.3 의 파서를 보안 검토 2차 지적대로 «모르면 막는다» 로 굳힙니다. 셸은 `$'-n'` · `"$FLAG"` · `{-n,}` · `` `…` `` 를 `-n` 으로 풀 수 있는데 파서는 그 값을 알 수 없어 통과시켰습니다. 이제 값이 아닌 인수 자리(낱말 첫 글자 · 짧은 묶음의 플래그 자리 · 긴 옵션 이름)에 풀 수 없는 확장이 오면 막습니다 — `-m "$MSG"` · `--author="$A"` 같은 값과 `--` 뒤 경로는 보지 않습니다. 값을 붙인 git 전역 옵션(`git -Crepo commit -n`)을 건너뛰고 `commit` 을 찾고, 괄호(`(` · `$(` · `<(`)와 백틱 안의 `;` 로는 조각을 나누지 않으며, 다시 읽을 낱말이 16개를 넘으면 막습니다(상한을 넘긴 나머지를 건너뛰면 우회가 됩니다). eval 에 사례 28개를 더했고, 처음 판(1.21.1)은 이번까지의 사례 74개 중 32개가 틀립니다.
 
 ## 포함된 Agents
 

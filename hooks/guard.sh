@@ -93,16 +93,25 @@ fi
 #    나오면 묶음의 나머지가 값(묶음 끝이면 다음 낱말이 값), u S 는 붙은 선택 값, `--` 뒤는 경로, 값을 받는 긴 옵션은 다음
 #    낱말을 건너뛴다 ④ 값으로 쓰이지 않은 낱말에 공백이 있고 git · commit 이 들어 있으면(`bash -c "…"` · `sh -c '…'`) 그 안을
 #    다시 읽는다 ⑤ 명령 어디든 커밋이 있고 값이 아닌 낱말이 `--no-veri`·`--no-verif`·`--no-verify` 면 막는다(종전처럼).
+#    v1.24.3 — 모르면 막는다(보안 검토 2차 지적): ⑥ 커밋 인수 중 값이 아닌 자리에 파서가 풀 수 없는 확장(따옴표 밖이나
+#    큰따옴표 안의 `$` · 백틱, 따옴표 밖의 `{`, `$'…'` · `$"…"`)이 낱말 첫 글자 · 짧은 묶음의 플래그 자리 · 긴 옵션 이름에
+#    오면 막는다(`$'-n'` · `"$FLAG"` · `{-n,}` · `-$X` · `$(echo x;) -n`). 값(`-m "$MSG"` · `--author="$A"`)과 `--` 뒤 경로는
+#    보지 않는다 ⑦ `git` 뒤 전역 옵션(`-Crepo` · `-c"k=v"` · `--git-dir x` …)을 건너뛰고 `commit` 을 찾는다
+#    ⑧ 다시 읽을 낱말이 16개를 넘으면 막는다(상한을 넘긴 나머지를 건너뛰면 우회가 된다).
 _FE_SQ="'"
 if printf '%s\n' "$CMD" | awk -v SQ="$_FE_SQ" -v DQ='"' '
 function flush() { if (seg ~ /[^ \t]/) segs[++ns] = seg; seg = "" }
-function split_segments(s,    n, i, c, q, nx, p) {
-  ns = 0; seg = ""; q = ""; n = length(s)
+function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
+  ns = 0; seg = ""; q = ""; depth = 0; bq = 0; n = length(s)
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
     if (q == "") {
       if (c == "\\") { nx = substr(s, i + 1, 1); i++; if (nx != "\n") seg = seg c nx; continue }
       if (c == SQ || c == DQ) { q = c; seg = seg c; continue }
+      if (c == "`") { bq = !bq; seg = seg c; continue }
+      if (c == "(") { depth++; seg = seg c; continue }
+      if (c == ")") { if (depth > 0) depth--; seg = seg c; continue }
+      if (depth > 0 || bq) { seg = seg c; continue }
       if (c == "#" && (seg == "" || substr(seg, length(seg), 1) ~ /[ \t]/)) { while (i < n && substr(s, i + 1, 1) != "\n") i++; continue }
       if (c == "\n" || c == ";" || c == "|") { flush(); continue }
       if (c == "&") {
@@ -119,14 +128,16 @@ function split_segments(s,    n, i, c, q, nx, p) {
   }
   flush()
 }
-function tokenize(s,    n, i, c, q, tok, has, nx) {
-  nt = 0; tok = ""; q = ""; has = 0; n = length(s)
+function tokenize(s,    n, i, c, q, tok, has, nx, d) {
+  nt = 0; tok = ""; q = ""; has = 0; d = 0; n = length(s)
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
     if (q == "") {
       if (c == "\\") { tok = tok substr(s, i + 1, 1); i++; has = 1; continue }
+      if (c == "$" && (substr(s, i + 1, 1) == SQ || substr(s, i + 1, 1) == DQ)) { if (!d) d = length(tok) + 1; tok = tok c; has = 1; continue }
       if (c == SQ || c == DQ) { q = c; has = 1; continue }
-      if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; tok = ""; has = 0 } continue }
+      if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; dyn[nt] = d; tok = ""; has = 0; d = 0 } continue }
+      if ((c == "$" || c == "`" || c == "{") && !d) d = length(tok) + 1
       tok = tok c; has = 1
     } else if (q == SQ) {
       if (c == SQ) { q = ""; continue }
@@ -134,32 +145,51 @@ function tokenize(s,    n, i, c, q, tok, has, nx) {
     } else {
       if (c == "\\") { nx = substr(s, i + 1, 1); if (nx == DQ || nx == "\\" || nx == "$" || nx == "`") { tok = tok nx; i++; continue } }
       if (c == DQ) { q = ""; continue }
+      if ((c == "$" || c == "`") && !d) d = length(tok) + 1
       tok = tok c
     }
   }
-  if (has) toks[++nt] = tok
+  if (has) { toks[++nt] = tok; dyn[nt] = d }
 }
-function scan(    i, j, k, L, t, ch, skip, start) {
+function scan(    i, j, k, L, t, ch, skip, start, g, eq, name) {
   for (j = 1; j <= nt; j++) used[j] = 0
   start = 0
-  for (i = 1; i < nt; i++) if (toks[i] ~ /(^|[^A-Za-z0-9_.-])git$/ && toks[i + 1] == "commit") { start = i + 2; break }
+  for (i = 1; i <= nt && !start; i++) {
+    if (toks[i] !~ /(^|[^A-Za-z0-9_.-])git$/) continue
+    for (g = i + 1; g <= nt; g++) {
+      t = toks[g]
+      if (t ~ /^(-C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--attr-source)$/) { g++; continue }
+      if (t ~ /^-/) continue
+      break
+    }
+    if (g <= nt && toks[g] == "commit") start = g + 1
+  }
   if (start) {
     hascommit = 1; skip = 0
     for (j = start; j <= nt; j++) {
       t = toks[j]
       if (skip) { skip = 0; used[j] = 1; continue }
       if (t == "--") break
-      if (t ~ /^--no-veri(f|fy)?$/) { found = 1; break }
-      if (t ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) { skip = 1; continue }
-      if (length(t) > 1 && substr(t, 1, 1) == "-" && substr(t, 2, 1) != "-") {
+      if (t ~ /^--/) {
+        eq = index(t, "="); name = eq ? substr(t, 1, eq - 1) : t
+        if (dyn[j] && dyn[j] <= length(name)) { found = 1; break }
+        if (name ~ /^--no-veri(f|fy)?$/) { found = 1; break }
+        if (!eq && name ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) skip = 1
+        continue
+      }
+      if (length(t) > 1 && substr(t, 1, 1) == "-") {
         L = length(t)
         for (k = 2; k <= L; k++) {
+          if (dyn[j] == k) { found = 1; break }
           ch = substr(t, k, 1)
           if (ch == "n") { found = 1; break }
           if (ch ~ /[cCFmt]/) { if (k == L) skip = 1; break }
           if (ch ~ /[uS]/) break
         }
+        if (found) break
+        continue
       }
+      if (dyn[j] == 1) { found = 1; break }
     }
   }
   for (j = 1; j <= nt; j++) {
@@ -175,6 +205,7 @@ END {
     split_segments(queue[qh])
     for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }
   }
+  if (qt > 16) found = 1
   exit ((found || (hascommit && noverify)) ? 0 : 1)
 }'; then
   block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
