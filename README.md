@@ -175,6 +175,8 @@ v1.21.6 closes two findings from the fourth review round and documents the rest 
 
 v1.21.7 closes a gap the fifth review round found in v1.21.6's variable tracking. A git variable whose value carries a global option (`C="git -C repo"; $C commit -n`) was skipped; it is now blocked, since the value cannot be read as written. A variable copied from another git variable (`H=$G`) counts as git too. A variable set outside the command, or a word that is only partly a variable (`$G`, `${G}t`, `git$X`), is read the git way only when the subcommand position after it is `commit` or `config`, so it blocks only when the arguments bypass the hooks (`$GIT commit -m x` and `"$PM" run build` pass). The remaining known limit narrows to git run with its subcommand in a variable too (`$G $SUB`). The eval gains 12 cases; the first edition (1.21.1) gets 79 of the 146 cases so far wrong.
 
+v1.21.8 closes the gaps from the sixth review round. An unquoted `$(…)` or backtick span was split at its spaces, so shapes such as `$(printf %s g)it commit -n` slipped through; it is now one word, as the shell sees it. A value whose first word is a git variable (`C="$G commit"; $C -n`) is followed too, and a word that starts with a git variable and has more attached (`${G}${E}`), or a commit or config variable with words after the subcommand, is blocked since it cannot be read as written. A command substitution in a value position (`-m "$(git commit -n …)"`) runs, so it is read again (a heredoc message is treated as data). The eval gains 12 cases; the first edition (1.21.1) gets 86 of the 158 cases so far wrong.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.

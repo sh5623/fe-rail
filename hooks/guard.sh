@@ -76,10 +76,12 @@ fi
 #    셸처럼 읽는 작은 파서(awk)로 판정한다. 파서는 앞단 정규화 전 원문(`CMD_RAW`)을 읽는다. 하는 일:
 #    ① 따옴표 밖의 `;` `|` `&`(리다이렉션 `2>&1` · `>&2` · `&>` 은 제외) · 줄바꿈 · 주석(`#`)으로 명령 조각을 나눈다.
 #      `(`…`)` · `$(`…`)` · 백틱 안에서는 나누지 않고, 줄 끝 `\` 이어 쓰기는 합친다
-#    ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다. `$'…'` 은 `\` 가 이스케이프인 별도 따옴표로 읽는다
+#    ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다. `$'…'` 은 `\` 가 이스케이프인 별도 따옴표로 읽고, 따옴표 밖 `$(…)` ·
+#      백틱은 셸처럼 한 낱말로 둔다
 #    ③ 조각 안의 «모든» git 호출을 각각 읽는다 — `git` · 경로(`/usr/bin/git`) · `$(which git)` · 백틱, 그리고 같은 명령
 #      안에서 `NAME=git`(`/usr/bin/git` · `$(which git)` · `"git commit"` · 다른 git 변수)으로 정한 변수 `$NAME` — 값에
-#      전역 옵션 · 확장을 품은 git 변수(`C="git -C x"`)는 값째 읽지 못하니 막는다. 명령 밖에서 정한 변수 · 일부만 변수인
+#      전역 옵션 · 확장을 품은 git 변수(`C="git -C x"`), git 변수로 시작해 뒤에 무언가 붙은 낱말(`${G}${E}`)은 값째 읽지
+#      못하니 막는다. 명령 밖에서 정한 변수 · 일부만 변수인
 #      낱말(`$G` · `${G}t` · `git$X`)은 뒤 하위 명령 자리가 `commit` · `config` 일 때만 git 처럼 읽는다. 전역 옵션(`-C x` ·
 #      `-cK=V` · `--git-dir x` …)을 건너뛰고 하위 명령을 찾는다
 #    ④ `commit` 의 인수를 git 처럼 읽는다 — 짧은 묶음에서 n 이 나오면 우회, 값을 받는 c C F m t 가 나오면 묶음의 나머지가
@@ -92,8 +94,8 @@ fi
 #    ⑥ 훅을 끄는 설정 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*` · `include.path` · `includeIf.*.path`,
 #      환경변수 `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n`(그 키),
 #      `git config` 로 그 키에 값 쓰기(읽기 · `--unset` 은 통과)
-#    ⑦ 값으로 쓰이지 않은 낱말에 공백이 있고 git 과 커밋 · 설정 낱말이 들어 있으면(`bash -c "…"` · `sh -c '…'` · `eval '…'`)
-#      그 안을 다시 읽는다 — 다시 읽을 낱말이 16개를 넘으면 막는다. 명령 어디든 커밋이 있고 값이 아닌 낱말이
+#    ⑦ 값으로 쓰이지 않은 낱말에 공백이 있고 git 과 커밋 · 설정 낱말이 들어 있으면(`bash -c "…"` · `sh -c '…'` · `eval '…'` ·
+#      `$(…)`) 그 안을 다시 읽는다 — 값이라도 명령 치환(`-m "$(git commit -n …)"`)은 실행되므로 다시 읽고, heredoc 은 데이터로 본다 — 다시 읽을 낱말이 16개를 넘으면 막는다. 명령 어디든 커밋이 있고 값이 아닌 낱말이
 #      `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
 #    막을 때는 이유(우회 플래그 · 풀 수 없는 확장 · 쪼개지는 확장 · 훅을 끄는 설정)를 함께 알린다.
 #    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 하위 명령까지 변수로 부른 git(`$G $SUB` — 첫
@@ -143,14 +145,27 @@ function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
   }
   flush()
 }
-# 낱말로 나누며 따옴표를 걷는다. dyn = 파서가 풀 수 없는 확장의 첫 위치, uq = 따옴표 밖 변수 · 명령 치환(낱말로 쪼개진다)
-function tokenize(s,    n, i, c, q, tok, has, nx, d, u) {
-  nt = 0; tok = ""; q = ""; has = 0; d = 0; u = 0; n = length(s)
+# 낱말로 나누며 따옴표를 걷는다. dyn = 파서가 풀 수 없는 확장의 첫 위치, uq = 따옴표 밖 변수 · 명령 치환(낱말로 쪼개진다).
+# 따옴표 밖 `$(…)` · 백틱은 셸처럼 한 낱말로 둔다 — 안의 따옴표 · 괄호는 그대로 남겨 다시 읽을 때 푼다.
+function tokenize(s,    n, i, c, q, tok, has, nx, d, u, pd, bt, rq) {
+  nt = 0; tok = ""; q = ""; has = 0; d = 0; u = 0; pd = 0; bt = 0; rq = ""; n = length(s)
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
+    if (pd > 0 || bt) {
+      tok = tok c
+      if (rq != "") { if (c == "\\" && rq == DQ) { tok = tok substr(s, i + 1, 1); i++ } else if (c == rq) rq = ""; continue }
+      if (c == "\\") { tok = tok substr(s, i + 1, 1); i++; continue }
+      if (c == SQ || c == DQ) { rq = c; continue }
+      if (bt && c == "`") { bt = 0; continue }
+      if (pd > 0 && c == "(") pd++
+      else if (pd > 0 && c == ")") pd--
+      continue
+    }
     if (q == "") {
       nx = substr(s, i + 1, 1)
       if (c == "\\") { tok = tok nx; i++; has = 1; continue }
+      if (c == "$" && nx == "(") { if (!d) d = length(tok) + 1; u = 1; tok = tok "$("; i++; pd = 1; has = 1; continue }
+      if (c == "`") { if (!d) d = length(tok) + 1; u = 1; tok = tok c; bt = 1; has = 1; continue }
       if (c == "$" && nx == SQ) { if (!d) d = length(tok) + 1; tok = tok c; q = "A"; i++; has = 1; continue }
       if (c == "$" && nx == DQ) { if (!d) d = length(tok) + 1; tok = tok c; has = 1; continue }
       if (c == SQ || c == DQ) { q = c; has = 1; continue }
@@ -176,16 +191,33 @@ function tokenize(s,    n, i, c, q, tok, has, nx, d, u) {
 }
 # git 을 부르는 낱말인가 — git · /usr/bin/git · $(which git) 의 git) · 백틱 안 git
 function isgit(t) { return (t ~ /(^|[^A-Za-z0-9_.-])git[)`]*$/) }
-# 변수 값이 git 인가(git · /usr/bin/git · git commit · $(which git) · $(command -v git)). 하위 명령은 VSUB 에 둔다.
-# 치환 값은 git 경로를 얻는 꼴만 git 이다 — $(git rev-parse …) 는 git 의 «출력» 이다.
-function gitval(v,    w, n, sb) {
-  VSUB = ""; sb = 0
-  if (v ~ /^\$\(/) { v = substr(v, 3); sb = 1 } else if (v ~ /^`/) { v = substr(v, 2); sb = 1 }
-  if (sb) gsub(/[)`]+$/, "", v)
-  n = split(v, w, /[ \t\n]+/)
-  if (sb) return (n >= 2 && w[1] ~ /^(which|command|type)$/ && w[n] ~ /(^|\/)git$/)
-  if (n >= 1 && w[1] ~ /(^|\/)git$/) { if (n >= 2) VSUB = w[2]; return 1 }
-  return 0
+# 변수 값이 git 호출인가 — 첫 낱말이 git · /usr/bin/git · $(which git) · $(command -v git) · 다른 git 변수.
+# 하위 명령은 VSUB 에 두고, 값째 읽지 못하는 꼴(하위 명령 뒤에 낱말이 더 있는 commit · config, 하위 명령을 품은 git
+# 변수 뒤의 낱말)은 "-" 로 둔다. 치환 값은 git 경로를 얻는 꼴만 git 이다 — $(git rev-parse …) 는 git 의 «출력» 이다.
+function gitval(v,    f, r, k, dp, c, nm, w, n) {
+  VSUB = ""
+  if (v ~ /^\$\(/) {
+    dp = 0
+    for (k = 1; k <= length(v); k++) { c = substr(v, k, 1); if (c == "(") dp++; else if (c == ")") { dp--; if (dp == 0) break } }
+    f = substr(v, 1, k); r = substr(v, k + 1)
+  } else if (v ~ /^`/) {
+    k = index(substr(v, 2), "`"); k = k ? k + 1 : length(v); f = substr(v, 1, k); r = substr(v, k + 1)
+  } else {
+    k = match(v, /[ \t\n]/); f = k ? substr(v, 1, k - 1) : v; r = k ? substr(v, k + 1) : ""
+  }
+  sub(/^[ \t\n]+/, "", r)
+  n = (r == "") ? 0 : split(r, w, /[ \t\n]+/)
+  if (f ~ /^(\$\(|`)/) {
+    nm = f; gsub(/^(\$\(|`)|[)`]+$/, "", nm)
+    if (!(nm ~ /^(which|command|type)[ \t]/ && nm ~ /(^|[ \t\/])git$/)) return 0
+  } else if (f ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) {
+    nm = f; gsub(/[${}]/, "", nm)
+    if (!(nm in gitvar)) return 0
+    if (gitsub[nm] != "") { VSUB = n ? "-" : gitsub[nm]; return 1 }
+  } else if (f !~ /(^|\/)git$/) return 0
+  if (n >= 1) VSUB = w[1]
+  if (n >= 2 && (w[1] == "commit" || w[1] == "config")) VSUB = "-"
+  return 1
 }
 # 설정 키가 훅을 끄거나 별칭을 만들거나 다른 설정 파일을 끌어오는가(core.hooksPath · alias.* · include.path ·
 # includeIf.*.path). 키 자리가 확장이면 알 수 없으니 그렇다고 본다.
@@ -255,7 +287,6 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
       nm = substr(t, 1, index(t, "=") - 1); v = substr(t, index(t, "=") + 1)
       if (v ~ /^(\$\(|`)/ && v !~ /[)`]$/) { for (k = j + 1; k <= nt && k <= j + 6; k++) { v = v " " toks[k]; if (toks[k] ~ /[)`]$/) break } }
       if (gitval(v)) { gitvar[nm] = 1; gitsub[nm] = VSUB }
-      else if (v ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) { gsub(/[${}]/, "", v); if (v in gitvar) { gitvar[nm] = 1; gitsub[nm] = gitsub[v] } }
     }
   }
   for (i = 1; i <= nt; i++) {
@@ -267,8 +298,10 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
         # 값에 전역 옵션이나 확장을 품은 git 변수(C="git -C x")는 값째 읽지 못하니 막는다
         if (vs ~ /^-/ || vs ~ /[$`{}*?[]/) { hit(WE); continue }
       } else {
-        # 명령 밖에서 정한 변수 · 일부만 변수인 낱말($G · ${G}t · git$X)은 git 인지 알 수 없다 — 첫 낱말이 변수라는
-        # 이유만으로 막으면 "$PM" run build 도 막히므로, 뒤 하위 명령 자리가 commit · config 일 때만 git 처럼 읽는다
+        # git 변수로 시작해 뒤에 무언가 붙은 낱말(${G}${E} · $G"x")은 값째 읽지 못하니 막는다
+        if (dyn[i] == 1 && match(t, /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?/)) { nm = substr(t, 1, RLENGTH); gsub(/[${}]/, "", nm); if (nm in gitvar) { hit(WE); continue } }
+        # 명령 밖에서 정한 변수 · 일부만 변수인 낱말($G · ${G}t · git$X · $(…)it)은 git 인지 알 수 없다 — 첫 낱말이
+        # 변수라는 이유만으로 막으면 "$PM" run build 도 막히므로, 뒤 하위 명령 자리가 commit · config 일 때만 git 처럼 읽는다
         if (!dyn[i] || t ~ /^-/ || (index(t, "=") && index(t, "=") < dyn[i])) continue
         g = subat(i)
         if (!g || (toks[g] != "commit" && toks[g] != "config")) continue
@@ -306,9 +339,11 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
     else if (toks[g] == "config") scanconfig(g + 1)
   }
   for (j = 1; j <= nt; j++) {
-    if (used[j]) continue
-    if (toks[j] ~ /^--no-veri(f|fy)?$/) noverify = 1
-    if (toks[j] ~ /[ \t\n]/ && toks[j] ~ /git/ && tolower(toks[j]) ~ /commit|config|alias|hookspath|include/) queue[++qt] = toks[j]
+    t = toks[j]
+    # 값으로 쓰인 낱말은 보지 않는다 — 단 값 안의 명령 치환(`-m "$(git commit -n …)"`)은 실행되므로 다시 읽는다(heredoc 은 데이터)
+    if (used[j] && !((index(t, "$(") || index(t, "`")) && !index(t, "<<"))) continue
+    if (!used[j] && t ~ /^--no-veri(f|fy)?$/) noverify = 1
+    if (t ~ /[ \t\n]/ && t ~ /git/ && tolower(t) ~ /commit|config|alias|hookspath|include/) { gsub(/\$\(/, "(", t); gsub(/`/, " ", t); queue[++qt] = t }
   }
 }
 { input = input (NR > 1 ? "\n" : "") $0 }

@@ -244,6 +244,19 @@ EOF
   assert_guard ALLOW 'C="git log"; $C -n 3'                                  '커밋이 아닌 하위 명령을 담은 git 변수'
   assert_guard ALLOW '$EDITOR notes.txt'                                     '첫 낱말이 변수인 일반 명령'
   assert_guard ALLOW '"$PM" exec vitest run -t "commit -n"'                  '패키지 매니저 변수 · 값 안의 commit -n'
+  # v1.21.8(보안 검토 6차) — 따옴표 밖 $(…) · 백틱은 한 낱말 · git 변수를 첫 낱말로 쓴 값 · git 변수로 시작하는 낱말 · 값 안의 명령 치환
+  assert_guard BLOCK '$(printf %s g)it commit -n -m x'                       '$(…) 는 한 낱말 — 치환으로 만든 첫 낱말 뒤의 commit 우회'
+  assert_guard BLOCK '`printf %s g`it commit -n -m x'                        '백틱도 한 낱말'
+  assert_guard BLOCK 'G=git; C="$G commit"; $C -n -m x'                      'git 변수를 첫 낱말로 쓴 값'
+  assert_guard BLOCK 'C="$(which git) commit"; $C -n -m x'                   '$(which git) 를 첫 낱말로 쓴 값'
+  assert_guard BLOCK 'G="git commit"; C="$G -n"; $C -m x'                    '하위 명령을 품은 git 변수 뒤에 낱말을 붙인 값'
+  assert_guard BLOCK 'G="git commit"; ${G}${E} -n -m x'                      'git 변수로 시작해 뒤에 무언가 붙은 낱말'
+  assert_guard BLOCK 'git commit -m "$(git commit -n -m y)"'                 '값 안의 명령 치환은 실행된다'
+  assert_guard BLOCK 'X=$(git commit -n -m y)'                               '대입 값의 명령 치환'
+  assert_guard ALLOW 'C="git commit"; $C -m x'                               'git commit 변수 · 우회 아닌 인수'
+  assert_guard ALLOW 'X=$(git commit -m y); echo "$X"'                       '커밋 출력을 담은 변수'
+  assert_guard ALLOW 'git commit -m "$(git log -1 --format=%s)"'             '값 안의 git log 치환'
+  assert_guard ALLOW 'echo "$(git rev-parse HEAD)" && git commit -m x'       '다른 명령의 git 치환'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
