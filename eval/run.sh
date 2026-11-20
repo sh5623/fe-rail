@@ -199,6 +199,38 @@ EOF
   assert_guard ALLOW "git commit -m \$'line1\\nline2'"               '메시지 값의 $'"'"'…'"'"''
   assert_guard ALLOW 'echo "run git $X with care" && git status'      '커밋 · 설정과 무관한 문장은 다시 읽지 않는다'
   assert_guard ALLOW 'git -c color.ui=never log -n 3'                 '커밋이 아닌 하위 명령의 -n'
+  # 보안 검토 4차 — 따옴표 없는 변수 · 치환은 낱말로 쪼개진다 · git 호출이 확인되는 변수 · 치환 · 하위 명령 자리 확장
+  assert_guard BLOCK 'git commit -m $MSG'                                    '따옴표 없는 메시지 변수(쪼개져 -n 이 될 수 있다)'
+  assert_guard BLOCK 'git commit -m$MSG'                                     '붙인 값의 따옴표 없는 변수'
+  assert_guard BLOCK 'git commit --message=$MSG'                             '긴 옵션 값의 따옴표 없는 변수'
+  assert_guard BLOCK 'git commit -m `cat f`'                                 '따옴표 없는 백틱 치환 값'
+  assert_guard BLOCK 'git commit -m x src/$F'                                '경로 중간의 따옴표 없는 변수'
+  assert_guard BLOCK 'git -C $REPO commit -m x'                              '전역 옵션 값의 따옴표 없는 변수'
+  assert_guard BLOCK 'git -C$REPO commit -m x'                               '붙인 전역 옵션 값의 따옴표 없는 변수'
+  assert_guard BLOCK 'git -c user.name=$N commit -m x'                       '-c 값의 따옴표 없는 변수'
+  assert_guard BLOCK 'git -$X commit -m x'                                   '전역 옵션 이름 자리의 변수'
+  assert_guard BLOCK 'git "-$X" core.hooksPath=/dev/null commit -m x'        '큰따옴표 안이라도 전역 옵션 이름 자리의 변수'
+  assert_guard BLOCK 'git com$X -m x'                                        '하위 명령 중간의 변수'
+  assert_guard BLOCK 'git "com$X" -m x'                                      '하위 명령 중간의 큰따옴표 변수'
+  assert_guard BLOCK 'git comm*t -m x'                                       '하위 명령의 글롭'
+  assert_guard BLOCK '$(which git) commit -n -m x'                           '$(which git) 으로 부른 git'
+  assert_guard BLOCK '`which git` commit -n -m x'                            '백틱 which git 으로 부른 git'
+  assert_guard BLOCK '"$(command -v git)" commit -n -m x'                    '큰따옴표 $(command -v git)'
+  assert_guard BLOCK 'G=git; $G commit -n -m x'                              '같은 명령에서 G=git 으로 정한 변수'
+  assert_guard BLOCK 'G=/usr/bin/git; "$G" commit -n -m x'                   'git 경로를 담은 변수'
+  assert_guard BLOCK 'G=$(which git); $G commit -n -m x'                     '$(which git) 를 담은 변수'
+  assert_guard BLOCK 'C="git commit"; $C -n -m x'                            '"git commit" 을 담은 변수'
+  assert_guard BLOCK 'G=git; ${G} -c core.hooksPath=/dev/null commit -m x'   '${G} 로 부른 git 의 훅 끄기 설정'
+  assert_guard ALLOW '"$PM" run build'                                       '첫 낱말이 변수라는 이유만으로 막지 않는다(패키지 매니저 변수)'
+  assert_guard ALLOW 'PM=pnpm; $PM run lint'                                 'git 이 아닌 값을 담은 변수'
+  assert_guard ALLOW 'G=git; $G status'                                      'git 변수라도 커밋 · 설정이 아니면 통과'
+  assert_guard ALLOW 'X=$(git rev-parse HEAD); echo $X'                      'git 의 출력을 담은 변수는 git 이 아니다'
+  assert_guard ALLOW 'OUT=$(git commit -m x); echo "$OUT" | head -n 1'       '커밋 출력을 담은 변수 · 뒤 명령의 -n'
+  assert_guard ALLOW 'npm run build && git commit -m "$MSG"'                 '큰따옴표 메시지 변수'
+  assert_guard ALLOW 'git commit -m x -- $FILES'                             '-- 뒤 따옴표 없는 경로 변수'
+  assert_guard ALLOW 'for d in a b; do git -C "$d" log -n 1; done'           '큰따옴표 전역 옵션 값 · 커밋이 아닌 하위 명령의 -n'
+  assert_guard ALLOW 'git log -n 1 $REF'                                     '커밋이 아닌 하위 명령의 따옴표 없는 변수'
+  assert_guard ALLOW 'git commit -F "$(mktemp)"'                             '큰따옴표 명령 치환 값'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
@@ -842,7 +874,7 @@ uc=$(env HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_HOOK_PROFILE=minimal PATH="
 printf '%s' "$uc" | grep -q '훅 프로파일: minimal' && ok "session-init: 플러그인 경로 없음 → 버전 체크만 건너뛰고 프로파일 안내는 유지" \
   || ng "session-init: 플러그인 경로가 없으면 뒤 안내까지 사라진다 (out='$uc')"
 
-# ── v1.24.0 — 회귀 테스트 확인(test-verify) · 모델 없는 eval ──────────────────────
+# ── v1.21.0 — 회귀 테스트 확인(test-verify) · 모델 없는 eval ──────────────────────
 # 실행기는 node 단독 스크립트라 eval 도 node 로 짠다(임시 저장소 · 가짜 러너 fixture). 결과 줄을 이 eval 의 집계에 더한다.
 if command -v node >/dev/null 2>&1; then
   TVOUT=$(node "$ROOT/eval/test-verify.mjs" 2>&1); TVRC=$?

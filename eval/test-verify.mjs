@@ -202,7 +202,10 @@ const S = repo('single', {
   });
   git(S, 'add', 'src/price.js'); // 스테이징된 수정 + 미스테이징 수정 + 미추적 파일이 함께 있는 상태
   const before = snapshotState(S);
-  const r = verify(S, ['base', '--', 'src/price.test.js', 'src/fmt.test.js']);
+  // 이 실행 전용 임시 폴더 — 시스템 임시 폴더를 훑으면 동시에 도는 다른 실행의 격리본이 섞인다
+  const VT = path.join(T, 'verify-tmp');
+  fs.mkdirSync(VT, { recursive: true });
+  const r = verify(S, ['base', '--', 'src/price.test.js', 'src/fmt.test.js'], { TMPDIR: VT });
   const v = verdicts(r.json);
   check(r.code === 0 && v['price > 부가세'] === 'detected', 'test-verify 실행기: 수정 전 소스에서 본문 단언이 뒤집힌 새 케이스 = 검출', r.err || JSON.stringify(v));
   check(v['price > 항상'] === 'undetected', 'test-verify 실행기: 수정 전에도 통과하는 새 케이스 = 미검출');
@@ -215,7 +218,7 @@ const S = repo('single', {
   const after = snapshotState(S);
   check(before.work === after.work && before.index === after.index && before.cached === after.cached,
     'test-verify 실행기: 실행 전후 작업 트리 바이트 · 스테이징(index) 동일 — 스테이징된 수정 · 미추적 파일 포함');
-  const left = fs.readdirSync(fs.realpathSync(os.tmpdir())).filter((n) => n.startsWith('fe-rail-verify-'));
+  const left = fs.readdirSync(VT).filter((n) => n.startsWith('fe-rail-'));
   const st = run(S, process.execPath, [BIN, 'verify-test', 'status', '--', 'src/price.test.js']);
   check(st.code === 0 && /충족/.test(st.out), 'test-verify status: 방금 실행한 기록이 현재 상태의 요청을 충족(종료 코드 0)', st.out + st.err);
   const st2 = run(S, process.execPath, [BIN, 'verify-test', 'status', '--expect', 'nothing-like-this', '--json', '--', 'src/price.test.js']);
@@ -229,7 +232,7 @@ const S = repo('single', {
   write(S, { 'src/__fixtures__/a.json': '{"x":1}\n' });
   const st3 = run(S, process.execPath, [BIN, 'verify-test', 'status', '--', 'src/price.test.js']);
   check(st3.code === 3, 'test-verify status: 지원 파일만 바뀌어도 기록 무효(검증 트리 id) → 미충족(종료 코드 3)', st3.out);
-  check(!left.some((n) => fs.statSync(path.join(fs.realpathSync(os.tmpdir()), n)).mtimeMs > Date.now() - 5000), 'test-verify 실행기: 끝나면 격리본을 지운다');
+  check(left.length === 0, 'test-verify 실행기: 끝나면 격리본 · 임시 index 를 지운다', left.join(','));
 }
 {
   // 원본 node_modules 의 캐시 폴더는 격리본에 잇지 않는다 — 링크하면 격리본의 러너가 원본 캐시에 쓴다(Vitest 5 의 .vitest-cache 등)
@@ -416,7 +419,11 @@ const Hk = repo('hook', {
 // ── 정리 · 자체 점검 ──────────────────────────────────────────────────────────
 {
   const { cleanupStale, PREFIX } = await import(path.join(ROOT, 'lib/test-verify/isolate.mjs'));
-  const base = fs.realpathSync(os.tmpdir());
+  // 이 실행 전용 임시 폴더에서 — 시스템 임시 폴더의 고정 이름은 동시에 도는 다른 실행과 부딪힌다(EEXIST)
+  const base = path.join(T, 'stale-tmp');
+  fs.mkdirSync(base, { recursive: true });
+  const prevTmp = process.env.TMPDIR;
+  process.env.TMPDIR = base;
   const old = path.join(base, `${PREFIX}evalold`);
   fs.mkdirSync(path.join(old, 'a'), { recursive: true });
   const real = path.join(T, 'keep-me');
@@ -425,7 +432,12 @@ const Hk = repo('hook', {
   fs.symlinkSync(real, path.join(old, 'a', 'link')); // 원본을 가리키는 링크 — 지울 때 따라가면 안 된다
   const t = new Date(Date.now() - 8 * 3600 * 1000);
   fs.utimesSync(old, t, t);
-  cleanupStale();
+  try {
+    cleanupStale();
+  } finally {
+    if (prevTmp === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = prevTmp;
+  }
   check(!fs.existsSync(old) && fs.existsSync(path.join(real, 'f')), 'test-verify 정리: 6시간 지난 격리본은 지우고, 안의 링크가 가리키는 원본은 남긴다');
 }
 {

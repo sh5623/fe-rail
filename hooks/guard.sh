@@ -71,41 +71,43 @@ if echo "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space
   done <<< "$PUSHES"
 fi
 
-# 3. git commit --no-verify / -n  (커밋 훅 우회)
-#    `-[a-zA-Z]*n` 짧은 플래그만 공백 선행 + 트레일링 경계를 요구해 `--dry-run`·`--gpg-sign`
-#    (끝 글자 n)의 부분 오탐을 막는다. `--no-verify` 는 트레일링 경계를 요구하지 않는다 —
-#    이전 회귀: (.*[[:space:]])? 로 두 분기 모두에 트레일링 경계를 강제했더니
-#    `git commit --no-verify;git push` 처럼 뒤에 공백 없이 다른 명령이 이어지면
-#    빠져나갔다(치명적 우회). `--no-verify` 는 완전한 리터럴이라 부분매칭 위험이 없으므로
-#    경계 없이 어디서든 매칭해야 우회를 막는다.
-#    커밋 메시지 인수(`-m`/`--message` 의 값)만 제거해 검사한다 — `-m "... -n ..."` 같은 메시지 내용
-#    오탐 방지. 종전처럼 «따옴표 안 전부» 를 지우면 `bash -c "git commit --no-verify -m fix"` 같은
-#    셸 래핑의 실제 명령까지 사라져 우회됐다(2026-09 교차 리뷰 재현: exit 0).
-#    v1.24.2 — 정규식 대신 셸처럼 읽는 작은 파서(awk)로 판정한다. 정규식으로는 두 방향 다 막을 수 없었다:
-#    · 오탐(v1.24.0 까지): `git commit (.*)?-n` 의 `.*` 가 명령 경계를 넘어 `git commit -m x && sed -n 1p f` 처럼 뒤 명령의
-#      `-n` 을 커밋 플래그로 읽었다. 메시지는 맨 `-m` 뒤만 지워 `-qm "drop the -n flag"` 도 막혔다.
-#    · 우회: 묶음 가운데 n(`-nm "wip"` · `-anm`) · 따옴표로 감싼 플래그(`"-n"` · `-n""` · `-nm"wip"`) · 축약(`--no-veri`).
-#      v1.24.1 의 조각 정규식은 따옴표 · 리다이렉션 안의 `;` `&` 로 나누고(`--author="a;b" -n` · `2>&1 -n`) 마지막
-#      `git commit` 뒤만 봐서(`-n -m x # git commit`) 새 우회를 만들었다(보안 검토 지적).
-#    파서가 하는 일: ① 따옴표 밖의 `;` `|` `&`(리다이렉션 `2>&1` · `>&2` · `&>` 은 제외) · 줄바꿈 · 주석(`#`)으로 명령 조각을
-#    나누고 줄 끝 `\` 이어 쓰기는 합친다 ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다 ③ `git`(경로 · `$(` · `(` 접두 포함)
-#    다음 `commit` 이 오는 «첫» 자리부터 인수를 git 처럼 읽는다 — 짧은 묶음에서 n 이 나오면 우회, 값을 받는 c C F m t 가
-#    나오면 묶음의 나머지가 값(묶음 끝이면 다음 낱말이 값), u S 는 붙은 선택 값, `--` 뒤는 경로, 값을 받는 긴 옵션은 다음
-#    낱말을 건너뛴다 ④ 값으로 쓰이지 않은 낱말에 공백이 있고 git · commit 이 들어 있으면(`bash -c "…"` · `sh -c '…'`) 그 안을
-#    다시 읽는다 ⑤ 명령 어디든 커밋이 있고 값이 아닌 낱말이 `--no-veri`·`--no-verif`·`--no-verify` 면 막는다(종전처럼).
-#    v1.24.3 — 모르면 막는다(보안 검토 2 · 3차 지적): ⑥ 커밋 인수 중 값이 아닌 자리(낱말 첫 글자 · 짧은 묶음의 플래그 자리 ·
-#    긴 옵션 이름)에 파서가 풀 수 없는 확장 — 따옴표 밖이나 큰따옴표 안의 `$` · 백틱, 따옴표 밖의 `{` `*` `?` `[`(글롭은
-#    `-n` 이라는 파일로 펼쳐질 수 있다), `$'…'` · `$"…"` — 이 오면 막는다(`$'-n'` · `"$FLAG"` · `{-n,}` · `-$X` · `*`).
-#    값(`-m "$MSG"` · `--author="$A"`)과 `--` 뒤 경로는 보지 않는다 ⑦ `$'…'` 은 `\'` 가 이스케이프인 별도 따옴표로 읽는다
-#    ⑧ `git` 뒤 전역 옵션(`-Crepo` · `-c"k=v"` · `--git-dir x` …)을 건너뛰고 하위 명령을 찾는다 — 하위 명령 자리가 확장이면
-#    막고, 조각 안의 «모든» `git … commit` 을 각각 읽는다(괄호 안 `git commit -m x -- f; git commit -n` 의 둘째 커밋)
-#    ⑨ `-n` 없이 훅을 끄는 설정도 막는다 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*`, 환경변수
-#    `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n=core.hooksPath|alias.*`,
-#    다른 설정 파일 끌어오기(`include.path` · `includeIf.*.path`), `git config` 로 `core.hooksPath` · `alias.*` · include 에
-#    값 쓰기(읽기 · `--unset` 은 통과) ⑩ `(`…`)` · 백틱 안에서는 조각을 나누지 않는다 ⑪ 다시 읽을 낱말이 16개를 넘으면 막는다.
-#    남는 한계: 셸 변수에 담아 둔 하위 명령 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등)는 이 규칙이 보지 않는다.
+# 3. 커밋 훅 우회 차단 — `git commit -n` / `--no-verify`, 그리고 `-n` 없이 훅을 끄는 설정.
+#    정규식으로는 오탐(뒤 명령의 `sed -n` · 메시지 안의 `-n`)과 우회(`-nm` · `"-n"` · `--no-veri`)를 함께 막을 수 없어
+#    셸처럼 읽는 작은 파서(awk)로 판정한다. 파서는 앞단 정규화 전 원문(`CMD_RAW`)을 읽는다. 하는 일:
+#    ① 따옴표 밖의 `;` `|` `&`(리다이렉션 `2>&1` · `>&2` · `&>` 은 제외) · 줄바꿈 · 주석(`#`)으로 명령 조각을 나눈다.
+#      `(`…`)` · `$(`…`)` · 백틱 안에서는 나누지 않고, 줄 끝 `\` 이어 쓰기는 합친다
+#    ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다. `$'…'` 은 `\` 가 이스케이프인 별도 따옴표로 읽는다
+#    ③ 조각 안의 «모든» git 호출을 각각 읽는다 — `git` · 경로(`/usr/bin/git`) · `$(which git)` · 백틱, 그리고 같은 명령
+#      안에서 `NAME=git`(`/usr/bin/git` · `$(which git)` · `"git commit"`)으로 정한 변수 `$NAME`. 전역 옵션(`-C x` ·
+#      `-cK=V` · `--git-dir x` …)을 건너뛰고 하위 명령을 찾는다
+#    ④ `commit` 의 인수를 git 처럼 읽는다 — 짧은 묶음에서 n 이 나오면 우회, 값을 받는 c C F m t 가 나오면 묶음의 나머지가
+#      값(묶음 끝이면 다음 낱말), u S 는 붙은 선택 값, 값을 받는 긴 옵션은 다음 낱말을 건너뛰고, `--` 는 «그» 커밋의
+#      인수만 끝낸다
+#    ⑤ 모르면 막는다 — 플래그 · 하위 명령 · 전역 옵션 이름 자리에 파서가 풀 수 없는 확장(`$X` · 백틱 · `$'…'` · `$"…"`,
+#      따옴표 밖 `{` `*` `?` `[`)이 오거나, git 호출의 `--` 앞 어디든(값 포함) 따옴표 없는 변수 · 명령 치환이 오면 막는다
+#      — 낱말로 쪼개져 `-n` 이나 다른 하위 명령이 될 수 있다. 큰따옴표로 감싼 값(`-m "$MSG"` ·
+#      `-m "$(cat <<'EOF' …)"` · `-C "$REPO"`)과 `--` 뒤 경로는 통과
+#    ⑥ 훅을 끄는 설정 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*` · `include.path` · `includeIf.*.path`,
+#      환경변수 `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n`(그 키),
+#      `git config` 로 그 키에 값 쓰기(읽기 · `--unset` 은 통과)
+#    ⑦ 값으로 쓰이지 않은 낱말에 공백이 있고 git 과 커밋 · 설정 낱말이 들어 있으면(`bash -c "…"` · `sh -c '…'` · `eval '…'`)
+#      그 안을 다시 읽는다 — 다시 읽을 낱말이 16개를 넘으면 막는다. 명령 어디든 커밋이 있고 값이 아닌 낱말이
+#      `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
+#    막을 때는 이유(우회 플래그 · 풀 수 없는 확장 · 쪼개지는 확장 · 훅을 끄는 설정)를 함께 알린다.
+#    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 명령 밖에서 정한 변수로 부른 git(`$G commit` — 첫
+#    낱말이 변수라는 이유만으로 막으면 `"$PM" run build` 도 막힌다) · 큰따옴표 안 `$(…)` 속 따옴표 중첩 · `HOME` ·
+#    `XDG_CONFIG_HOME` · `GIT_DIR` 로 설정 파일 바꾸기 · `.git/config` 나 `.git/hooks` 를 파일로 직접 고치기 · 셸 alias ·
+#    함수 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등).
 _FE_SQ="'"
-if printf '%s\n' "$CMD_RAW" | awk -v SQ="$_FE_SQ" -v DQ='"' '
+if _FE_WHY=$(printf '%s\n' "$CMD_RAW" | awk -v SQ="$_FE_SQ" -v DQ='"' '
+BEGIN {
+  WF = "-n · --no-verify 금지 — 린트·타입 오류를 수정하세요"
+  WC = "훅을 끄는 git 설정(core.hooksPath · alias.* · include · GIT_CONFIG_*) 금지 — 린트·타입 오류를 수정하세요"
+  WE = "플래그 · 하위 명령 자리에 파서가 풀 수 없는 확장(변수 · 치환 · 글롭 · {…})이 있어 판정할 수 없음"
+  WS = "따옴표 없는 변수 · 명령 치환은 낱말로 쪼개져 판정할 수 없음 — \"$X\" 처럼 큰따옴표로 감싸세요"
+  WM = "다시 읽을 낱말이 너무 많아 판정할 수 없음"
+}
+function hit(w) { if (!found) why = w; found = 1 }
 function flush() { if (seg ~ /[^ \t]/) segs[++ns] = seg; seg = "" }
 function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
   ns = 0; seg = ""; q = ""; depth = 0; bq = 0; n = length(s)
@@ -139,8 +141,9 @@ function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
   }
   flush()
 }
-function tokenize(s,    n, i, c, q, tok, has, nx, d) {
-  nt = 0; tok = ""; q = ""; has = 0; d = 0; n = length(s)
+# 낱말로 나누며 따옴표를 걷는다. dyn = 파서가 풀 수 없는 확장의 첫 위치, uq = 따옴표 밖 변수 · 명령 치환(낱말로 쪼개진다)
+function tokenize(s,    n, i, c, q, tok, has, nx, d, u) {
+  nt = 0; tok = ""; q = ""; has = 0; d = 0; u = 0; n = length(s)
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
     if (q == "") {
@@ -149,7 +152,8 @@ function tokenize(s,    n, i, c, q, tok, has, nx, d) {
       if (c == "$" && nx == SQ) { if (!d) d = length(tok) + 1; tok = tok c; q = "A"; i++; has = 1; continue }
       if (c == "$" && nx == DQ) { if (!d) d = length(tok) + 1; tok = tok c; has = 1; continue }
       if (c == SQ || c == DQ) { q = c; has = 1; continue }
-      if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; dyn[nt] = d; tok = ""; has = 0; d = 0 } continue }
+      if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; dyn[nt] = d; uq[nt] = u; tok = ""; has = 0; d = 0; u = 0 } continue }
+      if (c == "`" || (c == "$" && nx ~ /[A-Za-z0-9_{(@*#?!$-]/)) u = 1
       if (index("$`{*?[", c) && !d) d = length(tok) + 1
       tok = tok c; has = 1
     } else if (q == SQ) {
@@ -166,7 +170,20 @@ function tokenize(s,    n, i, c, q, tok, has, nx, d) {
       tok = tok c
     }
   }
-  if (has) { toks[++nt] = tok; dyn[nt] = d }
+  if (has) { toks[++nt] = tok; dyn[nt] = d; uq[nt] = u }
+}
+# git 을 부르는 낱말인가 — git · /usr/bin/git · $(which git) 의 git) · 백틱 안 git
+function isgit(t) { return (t ~ /(^|[^A-Za-z0-9_.-])git[)`]*$/) }
+# 변수 값이 git 인가(git · /usr/bin/git · git commit · $(which git) · $(command -v git)). 하위 명령은 VSUB 에 둔다.
+# 치환 값은 git 경로를 얻는 꼴만 git 이다 — $(git rev-parse …) 는 git 의 «출력» 이다.
+function gitval(v,    w, n, sb) {
+  VSUB = ""; sb = 0
+  if (v ~ /^\$\(/) { v = substr(v, 3); sb = 1 } else if (v ~ /^`/) { v = substr(v, 2); sb = 1 }
+  if (sb) gsub(/[)`]+$/, "", v)
+  n = split(v, w, /[ \t\n]+/)
+  if (sb) return (n >= 2 && w[1] ~ /^(which|command|type)$/ && w[n] ~ /(^|\/)git$/)
+  if (n >= 1 && w[1] ~ /(^|\/)git$/) { if (n >= 2) VSUB = w[2]; return 1 }
+  return 0
 }
 # 설정 키가 훅을 끄거나 별칭을 만들거나 다른 설정 파일을 끌어오는가(core.hooksPath · alias.* · include.path ·
 # includeIf.*.path). 키 자리가 확장이면 알 수 없으니 그렇다고 본다.
@@ -181,60 +198,89 @@ function scanargs(start,    j, k, L, t, ch, skip, eq, name) {
   skip = 0
   for (j = start; j <= nt; j++) {
     t = toks[j]
-    if (skip) { skip = 0; used[j] = 1; continue }
+    if (skip) { skip = 0; used[j] = 1; if (uq[j]) { hit(WS); return } continue }
     if (t == "--") return
+    if (uq[j]) { hit(WS); return }
     if (t ~ /^--/) {
       eq = index(t, "="); name = eq ? substr(t, 1, eq - 1) : t
-      if (dyn[j] && dyn[j] <= length(name)) { found = 1; return }
-      if (name ~ /^--no-veri(f|fy)?$/) { found = 1; return }
+      if (dyn[j] && dyn[j] <= length(name)) { hit(WE); return }
+      if (name ~ /^--no-veri(f|fy)?$/) { hit(WF); return }
       if (!eq && name ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) skip = 1
       continue
     }
     if (length(t) > 1 && substr(t, 1, 1) == "-") {
       L = length(t)
       for (k = 2; k <= L; k++) {
-        if (dyn[j] == k) { found = 1; return }
+        if (dyn[j] == k) { hit(WE); return }
         ch = substr(t, k, 1)
-        if (ch == "n") { found = 1; return }
+        if (ch == "n") { hit(WF); return }
         if (ch ~ /[cCFmt]/) { if (k == L) skip = 1; break }
         if (ch ~ /[uS]/) break
       }
       continue
     }
-    if (dyn[j] == 1) { found = 1; return }
+    if (dyn[j] == 1) { hit(WE); return }
   }
 }
-# git config 로 core.hooksPath · alias.* 에 값을 쓰는가(읽기 · --unset 은 통과).
-function scanconfig(start,    j, t, k) {
+# git config 로 core.hooksPath · alias.* · include 에 값을 쓰는가(읽기 · --unset 은 통과).
+function scanconfig(start,    j, t) {
   for (j = start; j <= nt; j++) {
     t = toks[j]
     if (t ~ /^-/) continue
-    if (badkey(t) && j < nt) { found = 1; return }
-    if (dyn[j]) { found = 1; return }
+    if (badkey(t) && j < nt) { hit(WC); return }
+    if (dyn[j]) { hit(WE); return }
   }
 }
-function scan(    i, j, g, t) {
+function scan(    i, j, g, t, v, nm, vs, ne, stop) {
   for (j = 1; j <= nt; j++) used[j] = 0
   for (j = 1; j <= nt; j++) {
     t = toks[j]
     # 환경변수로 git 설정을 주입하거나 설정 파일을 바꾸는가
     if (t ~ /^(GIT_CONFIG_PARAMETERS|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_CONFIG)=/) cfgenv = 1
     if (t ~ /^GIT_CONFIG_KEY_[0-9]+=/ && (badkey(substr(t, index(t, "=") + 1)) || dyn[j])) cfgenv = 1
+    # 같은 명령 안에서 git 을 담은 변수(NAME=git · NAME=$(which git) · NAME="git commit")
+    if (t ~ /^[A-Za-z_][A-Za-z0-9_]*=/) {
+      nm = substr(t, 1, index(t, "=") - 1); v = substr(t, index(t, "=") + 1)
+      if (v ~ /^(\$\(|`)/ && v !~ /[)`]$/ && j < nt) v = v " " toks[j + 1]
+      if (gitval(v)) { gitvar[nm] = 1; gitsub[nm] = VSUB }
+    }
   }
   for (i = 1; i <= nt; i++) {
-    if (toks[i] !~ /(^|[^A-Za-z0-9_.-])git$/) continue
+    t = toks[i]; vs = ""
+    if (!isgit(t)) {
+      if (t !~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) continue
+      nm = t; gsub(/[${}]/, "", nm)
+      if (!(nm in gitvar)) continue
+      vs = gitsub[nm]
+    }
     gitseen = 1
+    if (vs == "commit") { hascommit = 1; scanargs(i + 1); continue }
+    if (vs == "config") { scanconfig(i + 1); continue }
+    if (vs != "") continue
+    stop = 0
     for (g = i + 1; g <= nt; g++) {
       t = toks[g]
-      if (t == "-c" || t == "--config-env") { if (g < nt && badcfg(toks[g + 1], dyn[g + 1])) found = 1; g++; continue }
-      if (t ~ /^-c./) { if (badcfg(substr(t, 3), dyn[g] ? dyn[g] - 2 : 0)) found = 1; continue }
-      if (t ~ /^--config-env=/) { if (badcfg(substr(t, 14), dyn[g] ? dyn[g] - 13 : 0)) found = 1; continue }
-      if (t ~ /^(-C|--git-dir|--work-tree|--namespace|--super-prefix|--attr-source)$/) { g++; continue }
-      if (t ~ /^-/) continue
+      if (uq[g]) { hit(WS); stop = 1; break }
+      if (t == "-c" || t == "--config-env") {
+        if (g < nt && uq[g + 1]) { hit(WS); stop = 1; break }
+        if (g < nt && badcfg(toks[g + 1], dyn[g + 1])) hit(WC)
+        g++; continue
+      }
+      if (t ~ /^-c./) { if (badcfg(substr(t, 3), dyn[g] ? dyn[g] - 2 : 0)) hit(WC); continue }
+      if (t ~ /^--config-env=/) { if (badcfg(substr(t, 14), dyn[g] ? dyn[g] - 13 : 0)) hit(WC); continue }
+      if (t ~ /^(-C|--git-dir|--work-tree|--namespace|--super-prefix|--attr-source)$/) {
+        if (g < nt && uq[g + 1]) { hit(WS); stop = 1; break }
+        g++; continue
+      }
+      if (t ~ /^-/) {
+        ne = (t ~ /^-[A-Za-z]./) ? 2 : (index(t, "=") ? index(t, "=") - 1 : length(t))
+        if (dyn[g] && dyn[g] <= ne) { hit(WE); stop = 1; break }
+        continue
+      }
       break
     }
-    if (g > nt) continue
-    if (dyn[g] == 1) { found = 1; continue }
+    if (stop || g > nt) continue
+    if (dyn[g]) { hit(WE); continue }
     if (toks[g] == "commit") { hascommit = 1; scanargs(g + 1) }
     else if (toks[g] == "config") scanconfig(g + 1)
   }
@@ -246,15 +292,18 @@ function scan(    i, j, g, t) {
 }
 { input = input (NR > 1 ? "\n" : "") $0 }
 END {
-  qt = 1; queue[1] = input; found = 0; noverify = 0; hascommit = 0; gitseen = 0; cfgenv = 0
+  qt = 1; queue[1] = input; found = 0; why = ""; noverify = 0; hascommit = 0; gitseen = 0; cfgenv = 0
   for (qh = 1; qh <= qt && qh <= 16; qh++) {
     split_segments(queue[qh])
     for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }
   }
-  if (qt > 16) found = 1
-  exit ((found || (hascommit && noverify) || (gitseen && cfgenv)) ? 0 : 1)
-}'; then
-  block "'--no-verify' / 'git commit -n' / 훅을 끄는 설정(core.hooksPath · alias) 금지. 린트·타입 오류를 수정하세요."
+  if (qt > 16) hit(WM)
+  if (hascommit && noverify) hit(WF)
+  if (gitseen && cfgenv) hit(WC)
+  if (found) { print why; exit 0 }
+  exit 1
+}'); then
+  block "커밋 훅 우회 차단: ${_FE_WHY}."
 fi
 
 # 4. git stash drop / git stash clear
