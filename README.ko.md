@@ -74,7 +74,7 @@ $ claude
 | Hook | 이벤트 | 역할 | 차단 |
 |------|--------|------|------|
 | `session-init.sh` | SessionStart | 원격 버전 체크 + 새 버전 알림 (GitHub, 하루 1회 · `FE_RAIL_NO_UPDATE_CHECK=1` 로 끔) | — |
-| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다. 커밋 검사에서 제외하는 것은 `-m` 메시지 값뿐이다. 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
+| `guard.sh` | PreToolUse:Bash | `git add .`, force push, `--no-verify`, `rm -rf /`, `DROP TABLE`, `git reset --hard`, `git checkout/restore .` 등 차단. git 전역 옵션(`git -C <dir> …`·`-c k=v`·`--git-dir`)을 먼저 정규화하고 셸 래핑(`bash -c "git commit --no-verify …"`)도 잡는다. 커밋 검사는 `;`·`&&`·`|`·줄바꿈으로 나눈 명령 조각마다 `git commit` 뒤 인수만 보고, 메시지 값(`-m`·`-qm` 같은 묶음·`--message`)은 제외한다. 짧은 플래그 묶음의 `n` 은 어디에 있어도 잡는다(`-nm`). 흔한 형태에 대한 정규식 백스톱이지 임의 셸 전체의 보장은 아니다 | ✅ |
 | `write-guard.sh` | PreToolUse:Write\|Edit\|MultiEdit | `.env*`·인증서(`*.pem`/`*.key` 등)·시크릿 페이로드 파일(`*.secret`·`*credentials*.json` 등) 생성·수정 차단 (`.env.example`·`CredentialForm.tsx` 같은 소스 파일은 허용) | ✅ |
 | `config-protection.sh` | PreToolUse:Write\|Edit\|MultiEdit | 린터/포매터/TS 설정 **약화** 편집만 차단: `strict:false`·`@ts-nocheck`·린터 `recommended:false`·기존 `strict:true` 제거. 편집 조각이 아니라 실파일의 편집 전 ↔ 후 전체(디스크 내용 + Edit/MultiEdit/Write 페이로드로 재구성)를 비교하므로, 값만 바꾸는 `true → false` Edit 과 `strict` 키를 뺀 Write 도 잡는다. 경로 alias·플러그인 추가 등 정상 편집은 통과 | ✅ |
 | `read-guard.sh` | PreToolUse:Read | 민감 파일 읽기 시도 경고 출력 (`.env*`·`.envrc`, `*.pem`/`*.key`/`id_rsa` 등 키, `.npmrc`·`*credential*`. 목록은 write-guard 차단 목록과 대칭) | — |
@@ -163,6 +163,8 @@ v1.20.0 은 게이트를 선언하지 않은 프로젝트에서 fe-start 가 커
 v1.21.0 은 회귀 테스트 확인(위 절)을 더합니다. 실행기 `fe-rail verify-test`, 턴 시작 · 종료 훅, `fe-test-author` `regression` 모드, `fe-reviewer` 의 «테스트 판별력» 축, `fe-start` Phase 4.5 와 PR `## 테스트` 연결입니다. 설계는 외부 검증을 네 번 거쳤고, 그때 재현된 함정이 전부 회귀로 고정돼 있습니다. 작업 트리에서 파일을 바꿨다 되돌리는 방식은 그 사이 다른 프로세스가 스테이징하면 index 를 바꿀 수 있어 쓰지 않습니다. 한 격리본을 다시 쓰면 첫 실행이 남긴 상태 파일 때문에 소스가 같아도 결과가 뒤집혀서 깨끗한 격리본 둘을 씁니다. `@scope` 폴더를 통째로 링크하면 워크스페이스 패키지가 원본으로 풀려서, 최종 해석 경로를 확인합니다. 빌드 결과물을 내보내는 패키지는 대조 소스를 바꿔도 기존 결과물을 읽습니다. 스냅샷은 기본 설정이면 격리본마다 새로 써져 둘 다 통과합니다. 정리 단계(`afterAll`) 실패는 케이스 표에 «통과» 로 남습니다. 판정은 파일이 아니라 지정한 케이스 단위이고, 단언 오류여도 준비 단계에서 났으면 검출이 아닙니다. 실제 러너 eval 을 만들다가 pnpm 11 이 격리본에서 스스로 `install` 을 시도하는 것을 찾았고, 실행기는 격리본 안의 명령에서 실행 전 의존성 확인을 끕니다.
 
 v1.21.1 은 v1.21.0 직후 보안 검토가 찾은 격리 구멍을 막습니다. 격리본에는 저장소의 심볼릭 링크가 링크 그대로 들어 있어서, 둘째 격리본에 수정 전 내용(또는 변이)을 쓸 때 링크를 따라 격리본 밖, 곧 링크가 가리키는 원본 파일에 쓸 수 있었습니다. 이제 실행기는 격리본 안 대상 경로의 이미 있는 마디가 하나라도 링크면 쓰지 않고 «측정 불가» 로 보고합니다. 기준 리비전에서 링크였던 소스도 대조하지 않습니다. 선언한 추가 입력 복사도 같은 보호를 받습니다. eval 이 두 경우를 고정하고, 보호를 뺀 사본에서 실패하는 것까지 확인했습니다.
+
+v1.21.2 는 `guard.sh` 의 커밋 훅 우회 규칙을 고칩니다. 종전 정규식은 `git commit` 뒤의 `.*` 가 명령 경계를 넘어, `git commit -m x && sed -n 1p f` · `…; head -n 5 log` · `… | cat -n` 처럼 뒤 명령의 `-n` 을 커밋 플래그로 읽고 막았습니다. 반대로 `n` 이 붙인 플래그의 가운데에 오는 `git commit -nm "wip"` · `-anm` 은 통과시켰습니다. 이제 명령을 조각으로 나눠 `git commit` 이 든 조각에서 그 뒤 인수만 보고, 짧은 플래그 묶음의 `n` 은 어디에 있어도 잡습니다. 메시지 값은 `-qm` · `-am` 같은 묶음에서도 지웁니다. 줄 끝 `\` 로 이어 쓴 명령은 먼저 합쳐 다음 줄의 `-n` 이 빠져나가지 않게 했습니다. eval 에 사례 20개(통과해야 할 것 11 · 막아야 할 것 9)를 넣었고, 고치기 전 규칙은 같은 사례에서 11개가 틀립니다.
 
 ## 포함된 Agents
 

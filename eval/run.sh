@@ -84,6 +84,38 @@ assert_hook ALLOW guard.sh '{"tool_input":{"command":"git commit -m \"wip -n lat
 # --no-verify 뒤에 공백 없이 다른 명령이 곧바로 이어지는 체이닝 우회 — 버그수정 #3 자체 회귀
 assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify;git push"}}'       "guard: --no-verify 뒤 ; 체이닝 우회 차단"
 assert_hook BLOCK guard.sh '{"tool_input":{"command":"git commit --no-verify&&git push"}}'      "guard: --no-verify 뒤 && 체이닝 우회 차단"
+# v1.21.2 — 커밋 훅 우회 규칙을 «명령 조각» 단위로: 뒤 명령의 -n 오탐 · 묶음 가운데 n 우회 · 줄 이어 쓰기 · 여러 줄 메시지.
+# 따옴표·줄바꿈이 든 명령이라 JSON 은 jq 로 만든다(사례는 사람이 읽는 원문 그대로).
+if command -v jq >/dev/null 2>&1; then
+  assert_guard(){ assert_hook "$1" guard.sh "$(jq -nc --arg c "$2" '{tool_input:{command:$c}}')" "guard(v1.21.2): $3"; }
+  assert_guard ALLOW 'git commit -m "fix" && sed -n 1,8p log.txt'    '커밋 뒤 && 명령의 -n 은 커밋 플래그가 아니다'
+  assert_guard ALLOW 'git commit -q -m fix; head -n 5 out.log'       '커밋 뒤 ; 명령의 -n'
+  assert_guard ALLOW 'git commit -m fix
+grep -n TODO src/a.ts'                                                   '커밋 다음 줄 명령의 -n'
+  assert_guard ALLOW 'git commit -m fix | cat -n'                     '커밋 뒤 | 명령의 -n'
+  assert_guard ALLOW 'git commit -m fix;head -n 5 f'                  '따옴표 없는 메시지 값은 ; 앞에서 끊는다'
+  assert_guard ALLOW 'git commit -am "x" 2>&1 | tail -n 3'            '붙인 플래그 -am · 리다이렉트 2>&1 · tail -n'
+  assert_guard ALLOW 'git commit --no-edit && git log -n 1'           '--no-edit 은 --no-verify 가 아니다 · 뒤 git log -n'
+  assert_guard ALLOW 'git commit -qm "drop the -n flag from the script"' '붙인 플래그 -qm 의 메시지 안 -n'
+  assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: drop the -n flag
+detail -n
+EOF
+)"'                                                                       'HEREDOC 여러 줄 메시지 안의 -n'
+  assert_guard ALLOW 'git commit -m "first line
+second -n line"'                                                         '따옴표 안 여러 줄 메시지의 -n'
+  assert_guard ALLOW 'sed -n 1p f && git commit -m fix'               '커밋 앞 명령의 -n(대조군)'
+  assert_guard BLOCK 'git commit -nm "wip"'                           '묶음 가운데 n(-nm) 우회 차단'
+  assert_guard BLOCK 'git commit -anm wip'                            '묶음 가운데 n(-anm) 우회 차단'
+  assert_guard BLOCK 'git commit \
+  -n -m x'                                                               '줄 끝 \ 로 이어 쓴 다음 줄의 -n 차단'
+  assert_guard BLOCK 'git commit -m fix;git commit -n -m y'           '조각 둘째의 git commit -n 차단'
+  assert_guard BLOCK 'echo $(git commit -n -m x)'                     '명령 치환 안의 git commit -n 차단'
+  assert_guard BLOCK 'git commit -m "a" -n'                           '메시지 뒤의 -n 차단'
+  assert_guard BLOCK 'git commit -n|cat'                              '| 바로 앞 -n 차단'
+  assert_guard BLOCK 'git commit --message="ok" --no-verify'          '--message= 뒤 --no-verify 차단'
+  assert_guard BLOCK 'bash -c "git commit -nm wip"'                   '셸 래핑 안의 -nm 차단'
+else ok "jq 없음 → guard v1.24.1 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
 assert_hook ALLOW write-guard.sh '{"tool_input":{"file_path":"/p/.env.example"}}'             "write-guard: .env.example 허용"
