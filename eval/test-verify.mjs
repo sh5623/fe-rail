@@ -267,6 +267,25 @@ const S = repo('single', {
   check(r3.code === 0 && r3.json.scope === 'partial' && r3.json.sources.join() === 'src/price.js', 'test-verify --only: 부분 대조로 기록', r3.err);
 }
 {
+  // 격리본 안의 심볼릭 링크를 따라 격리본 밖에 쓰지 않는다 — 대조로 바꿀 소스가 작업 트리에서 저장소 밖을 가리키는 링크로 바뀐 경우
+  const Ln = repo('symlink', {
+    'package.json': JSON.stringify({ name: 'symlink', private: true, devDependencies: { vitest: '4.1.9' } }),
+    'src/conf.js': 'v1\n',
+    'src/conf.test.js': '// CASE c :: src/conf.js :: v1\n',
+  });
+  const outside = path.join(T, 'outside-target.js');
+  fs.writeFileSync(outside, 'OUTSIDE\n');
+  fs.rmSync(path.join(Ln, 'src/conf.js'));
+  fs.symlinkSync(outside, path.join(Ln, 'src/conf.js'));
+  write(Ln, { 'src/conf.test.js': '// CASE c :: src/conf.js :: v1\n// CASE c2 :: src/conf.js :: OUTSIDE\n' });
+  const r = verify(Ln, ['base', '--', 'src/conf.test.js']);
+  check(fs.readFileSync(outside, 'utf8') === 'OUTSIDE\n' && /심볼릭 링크/.test(r.json?.fatal || ''),
+    'test-verify 격리: 대조로 바꿀 소스가 저장소 밖을 가리키는 링크면 쓰지 않고 측정 불가(링크를 따라 원본에 쓰지 않음)', r.err || r.json?.fatal);
+  const r2 = verify(Ln, ['mutate', '--file', 'src/conf.js', '--find', 'OUTSIDE', '--replace', 'CHANGED', '--', 'src/conf.test.js']);
+  check(fs.readFileSync(outside, 'utf8') === 'OUTSIDE\n' && /심볼릭 링크/.test(r2.json?.fatal || ''),
+    'test-verify 격리: 지정 변이 대상이 링크여도 쓰지 않고 측정 불가', r2.err || r2.json?.fatal);
+}
+{
   // 파일 수준 오류 · 원인 모를 종료 · 종료 코드 방식
   const F = repo('fileerr', {
     'package.json': JSON.stringify({ name: 'fileerr', private: true, devDependencies: { vitest: '4.1.9' } }),
