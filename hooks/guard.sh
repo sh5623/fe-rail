@@ -94,9 +94,8 @@ fi
 #    ⑥ 훅을 끄는 설정 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*` · `include.path` · `includeIf.*.path`,
 #      환경변수 `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n`(그 키),
 #      `git config` 로 그 키에 값 쓰기(읽기 · `--unset` 은 통과)
-#    ⑦ 다시 읽기 — 명령 치환(`$(…)` · 백틱)은 값 자리라도 실행되므로 늘 그 안쪽을 다시 읽고, 바깥 글은 치환 자리를
-#      따옴표 없는 변수로 바꿔 읽는다(git commit 값 자리에서 `cat` 이 받는 heredoc 본문만 데이터로 걷는다 — 조건은
-#      strip_heredoc 위 주석). 값이 아닌 나머지 낱말은 공백이 있고 따옴표 · 역슬래시를 걷은 글자에 git 과 커밋 · 설정 낱말이 있으면
+#    ⑦ 다시 읽기 — 명령 치환(`$(…)` · 백틱)은 값 자리라도 실행되므로 늘 그 안쪽을 다시 읽고(heredoc 본문도 명령으로
+#      읽는다), 바깥 글은 치환 자리를 따옴표 없는 변수로 바꿔 읽는다. 값이 아닌 나머지 낱말은 공백이 있고 따옴표 · 역슬래시를 걷은 글자에 git 과 커밋 · 설정 낱말이 있으면
 #      (`bash -c "…"` · `sh -c '…'` · `eval '…'`) 다시 읽는다. 다시 읽을 낱말이 64개를 넘으면 막는다. 명령 어디든 커밋이 있고
 #      값이 아닌 낱말이 `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
 #      git 인지 알 수 없는 첫 낱말이라도 뒤 전역 옵션 자리에 훅을 끄는 `-c` · `--config-env` 가 있으면 막는다.
@@ -104,7 +103,9 @@ fi
 #    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 하위 명령까지 변수로 부른 git(`$G $SUB` — 첫
 #    낱말이 변수라는 이유만으로 막으면 `"$PM" run build` 도 막힌다) · 큰따옴표 안 `$(…)` 속 따옴표 중첩 · `HOME` ·
 #    `XDG_CONFIG_HOME` · `GIT_DIR` 로 설정 파일 바꾸기 · `.git/config` 나 `.git/hooks` 를 파일로 직접 고치기 · 셸 alias ·
-#    함수 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등).
+#    함수 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등). 막는 쪽 오탐: 커밋 메시지를 `-m "$(cat <<'EOF' …)"` 로 넘기고
+#    본문에 우회 꼴(`git commit -n` 같은 글)이 있으면 막힌다 — heredoc 본문을 데이터로 보는 판정은 cat 바꿔치기 · eval 같은
+#    재해석과 끝없이 어긋나서 두지 않는다. 그런 메시지는 `-F 파일` 로 넘긴다.
 _FE_SQ="'"
 if _FE_WHY=$(printf '%s\n' "$CMD_RAW" | awk -v SQ="$_FE_SQ" -v DQ='"' '
 BEGIN {
@@ -303,7 +304,8 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
       nm = substr(t, 1, index(t, "=") - 1); v = substr(t, index(t, "=") + 1)
       if (v ~ /^(\$\(|`)/ && v !~ /[)`]$/) { for (k = j + 1; k <= nt && k <= j + 6; k++) { v = v " " toks[k]; if (toks[k] ~ /[)`]$/) break } }
       if (gitval(v)) { gitvar[nm] = 1; gitsub[nm] = VSUB }
-      else { delete gitvar[nm]; delete gitsub[nm] }   # git 이 아닌 값으로 다시 정하면 옛 판정을 버린다(모르는 변수로 읽는다)
+      # git 변수를 git 이 아닌 값으로 다시 정한 꼴(다른 명령의 인수 `G=x` 일 수도 있다)은 어느 값인지 모르니 쓰면 막는다
+      else if (nm in gitvar) gitsub[nm] = "-"
     }
   }
   for (i = 1; i <= nt; i++) {
@@ -366,7 +368,7 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
     if (used[j] && !sb) continue
     if (!used[j] && t ~ /^--no-veri(f|fy)?$/) noverify = 1
     # 명령 치환의 안쪽은 글자 검사 없이 늘 다시 읽고, 바깥 글은 치환 자리를 따옴표 없는 변수($_FE)로 바꿔 읽는다
-    if (sb) t = subs(t, used[j])
+    if (sb) t = subs(t)
     if (t !~ /[ \t\n]/) continue
     # 바깥 글(`bash -c "…"` 등)은 따옴표 · 역슬래시를 걷은 글자로 git 과 커밋 · 설정 낱말을 찾는다(`g""it` · `c\ommit`)
     pf = t; gsub("[\"\\\\" SQ "]", "", pf)
@@ -374,8 +376,8 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
   }
 }
 # 낱말 안의 명령 치환(`$(…)` · 백틱)을 떼어 그 안쪽을 다시 읽기 대기열에 넣고, 치환 자리를 `$_FE` 로 바꾼 바깥 글을 돌려준다
-# — 다시 읽을 때 그 자리는 낱말로 쪼개지는 확장으로 판정된다. 값 자리(isval)면 안쪽의 heredoc 본문을 먼저 걷는다.
-function subs(t, isval,    n, i, c, rq, dp, st, out, body) {
+# — 다시 읽을 때 그 자리는 낱말로 쪼개지는 확장으로 판정된다. heredoc 본문도 걷지 않고 명령으로 읽는다(아래 한계).
+function subs(t,    n, i, c, rq, dp, st, out, body) {
   n = length(t); out = ""; i = 1
   while (i <= n) {
     c = substr(t, i, 1)
@@ -391,71 +393,21 @@ function subs(t, isval,    n, i, c, rq, dp, st, out, body) {
         i++
       }
       body = substr(t, st, i - st); i++
-      if (isval) body = strip_heredoc(body)
       queue[++qt] = body; out = out "$_FE"; continue
     }
     if (c == "`") {
       st = i + 1; i++
       while (i <= n && substr(t, i, 1) != "`") { if (substr(t, i, 1) == "\\") i++; i++ }
       body = substr(t, st, i - st); i++
-      if (isval) body = strip_heredoc(body)
       queue[++qt] = body; out = out "$_FE"; continue
     }
     out = out c; i++
   }
   return out
 }
-# heredoc 본문(데이터)을 걷는다 — git commit 값 자리의 명령 치환 안에서만 불린다. 따옴표 밖 `<<`(`<<<` 제외) 다음 줄부터
-# 구분자 줄까지이고, 구분자는 따옴표 · 역슬래시를 걷은 낱말(`'EOF'` · `"E"OF` · `\EOF` → EOF), `<<-` 면 앞 탭을 무시한다.
-# 본문을 데이터로 보는 건 `cat` 이 받고 같은 줄에 다른 명령이 이어지지 않으며 구분자 줄이 실제로 있고, 구분자를 따옴표로
-# 감쌌거나 본문에 명령 치환이 없으며(따옴표 없는 구분자의 본문은 확장된다), 같은 명령이 cat 을 다시 정의하거나 PATH 를
-# 바꾸지 않을 때뿐이다 — 그 밖(`bash <<EOF` · `cat <<EOF | sh` · 구분자를 못 읽음)은 걷지 않고 본문도 명령으로 읽는다.
-function strip_heredoc(t,    n, L, i, j, k, c, q, out, delim, dash, rest, line, w, pre, ok, kk, qd, ex) {
-  n = split(t, L, "\n"); out = ""; delim = ""
-  for (i = 1; i <= n; i++) {
-    line = L[i]
-    if (delim != "") {
-      k = line; if (dash) sub(/^\t+/, "", k)
-      if (k == delim) delim = ""
-      else if (substr(k, 1, length(delim)) == delim && substr(k, length(delim) + 1, 1) == ")") { out = out "\n" substr(k, length(delim) + 1); delim = "" }
-      continue
-    }
-    out = out (i > 1 ? "\n" : "") line
-    q = ""
-    for (k = 1; k <= length(line); k++) {
-      c = substr(line, k, 1)
-      if (q != "") { if (c == "\\" && q == DQ) k++; else if (c == q) q = ""; continue }
-      if (c == "\\") { k++; continue }
-      if (c == SQ || c == DQ) { q = c; continue }
-      if (c == "<" && substr(line, k + 1, 1) == "<") {
-        if (substr(line, k + 2, 1) == "<") { k += 2; continue }
-        pre = substr(line, 1, k - 1); gsub(/.*[;|&(`]/, "", pre); sub(/^[ \t]+/, "", pre); sub(/[ \t].*$/, "", pre)
-        rest = substr(line, k + 2); dash = 0
-        if (rest ~ /^-/) { dash = 1; rest = substr(rest, 2) }
-        sub(/^[ \t]+/, "", rest)
-        if (catunsafe || pre !~ /^(\/bin\/|\/usr\/bin\/)?cat$/ || !match(rest, /^[^ \t;|&<>()]+/)) break
-        w = substr(rest, 1, RLENGTH)
-        if (substr(rest, RLENGTH + 1) !~ /^[ \t)"]*$/) break
-        qd = (w ~ /["\\]/ || index(w, SQ) > 0)
-        gsub("[\"\\\\" SQ "]", "", w)
-        ok = 0; ex = 0
-        for (j = i + 1; j <= n; j++) {
-          kk = L[j]; if (dash) sub(/^\t+/, "", kk)
-          if (kk == w || (substr(kk, 1, length(w)) == w && substr(kk, length(w) + 1, 1) == ")")) { ok = 1; break }
-          if (index(L[j], "$(") || index(L[j], "`")) ex = 1
-        }
-        if (ok && w != "" && (qd || !ex)) delim = w
-        break
-      }
-    }
-  }
-  return out
-}
 { input = input (NR > 1 ? "\n" : "") $0 }
 END {
   qt = 1; queue[1] = input; found = 0; why = ""; noverify = 0; hascommit = 0; gitseen = 0; cfgenv = 0
-  # cat 을 다시 정의하거나 PATH 를 바꾸면 heredoc 본문을 데이터로 보지 않는다
-  catunsafe = (input ~ /cat[ \t]*\(\)|function[ \t]+cat|alias[ \t]+cat|(^|[^A-Za-z0-9_])PATH=/)
   for (qh = 1; qh <= qt && qh <= 64; qh++) {
     split_segments(queue[qh])
     for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }

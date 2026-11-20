@@ -271,12 +271,12 @@ x
 EOF
 git commit -n -m y
 )' '구분자는 따옴표를 걷은 낱말 — 뒤 명령을 읽는다'
-  assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
+  assert_guard BLOCK 'git commit -m "$(cat <<'"'"'EOF'"'"'
 fix: explain why git commit -n is blocked
 EOF
-)"' 'heredoc 메시지 본문은 데이터'
+)"' 'heredoc 본문도 명령으로 읽는다 — 우회 꼴 글이 든 메시지는 막힌다(-F 파일로)'
   assert_guard ALLOW 'git commit -m "$(cat <<EOF
-body with git commit --no-verify text
+body text -n
 EOF)"' '구분자 뒤 ) 가 붙은 heredoc'
   assert_guard ALLOW 'for f in a b; do echo "$(wc -l < $f) $(basename $f)"; done' '커밋과 무관한 명령 치환'
   _many=""; for _i in $(seq 1 65); do _many="$_many bash -c \"x git commit\""; done
@@ -323,14 +323,25 @@ EOF
 git commit -n -m y
 )"' '본문의 ) 로 치환을 일찍 닫아 숨긴 명령'
   assert_guard ALLOW 'git commit -m "$(cat <<EOF
-plain body git commit -n without expansions
+plain body -n without expansions
 EOF
-)"' '치환 없는 따옴표 없는 구분자 본문은 데이터'
+)"' '우회 꼴이 없는 heredoc 본문'
   assert_guard ALLOW 'echo "build-$(date +%F)"' '낱말 안의 커밋과 무관한 치환'
   assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
 fix: handle (edge) cases :)
 EOF
 )"' '본문에 짝 없는 ) 가 있는 heredoc 메시지'
+  # v1.21.12(보안 검토 10차) — heredoc 본문도 명령으로 읽는다 · 다시 정한 git 변수는 «모르는 git» 으로 막는다
+  assert_guard BLOCK 'eval git commit -m "$(cat <<'"'"'EOF'"'"'
+git commit -n -m y
+EOF
+)"' 'eval 이 다시 읽는 heredoc 본문'
+  assert_guard BLOCK 'hash -p /tmp/x cat; git commit -m "$(cat <<'"'"'EOF'"'"'
+git commit -n -m y
+EOF
+)"' 'cat 을 바꿔치기해도 본문은 명령으로 읽는다'
+  assert_guard BLOCK 'G="git commit"; echo G=x; $G -n -m y' '다른 명령의 인수 G=x 가 git 변수 판정을 지우지 못한다'
+  assert_guard ALLOW 'G=git; G=ls; echo done' 'git 변수를 다시 정해도 쓰지 않으면 통과'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"
