@@ -281,6 +281,21 @@ EOF)"' '구분자 뒤 ) 가 붙은 heredoc'
   assert_guard ALLOW 'for f in a b; do echo "$(wc -l < $f) $(basename $f)"; done' '커밋과 무관한 명령 치환'
   _many=""; for _i in $(seq 1 65); do _many="$_many bash -c \"x git commit\""; done
   assert_guard BLOCK "$_many" '다시 읽을 낱말이 64개를 넘으면 막는다'
+  # v1.21.10(보안 검토 8차) — 본문이 실행되는 heredoc · 확인 안 되는 첫 낱말 뒤의 훅 끄기 설정
+  assert_guard BLOCK 'git commit -m "$(bash <<EOF
+git commit -n -m y
+EOF
+)"' 'bash 가 받는 heredoc 본문은 명령'
+  assert_guard BLOCK 'git commit -m "$(cat <<EOF | bash
+git commit -n -m y
+EOF
+)"' 'cat 뒤에 다른 명령이 이어지는 heredoc'
+  assert_guard BLOCK 'git commit -m "$(cat <<EOF
+git commit -n -m y
+)"' '구분자 줄이 없으면 본문도 읽는다'
+  assert_guard BLOCK '$G -c alias.ci='"'"'commit -n'"'"' ci -m x' '확인 안 되는 첫 낱말 뒤의 별칭 설정'
+  assert_guard BLOCK '"$GIT" -c core.hooksPath=/dev/null log' '확인 안 되는 첫 낱말 뒤의 훅 끄기 설정(하위 명령 무관)'
+  assert_guard ALLOW 'echo $((1<<2)) && git commit -m x' '산술 확장의 <<'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"

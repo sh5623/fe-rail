@@ -94,10 +94,11 @@ fi
 #    ⑥ 훅을 끄는 설정 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*` · `include.path` · `includeIf.*.path`,
 #      환경변수 `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n`(그 키),
 #      `git config` 로 그 키에 값 쓰기(읽기 · `--unset` 은 통과)
-#    ⑦ 다시 읽기 — 명령 치환(`$(…)` · 백틱)은 값 자리라도 실행되므로 늘 그 안을 다시 읽는다(따옴표 밖 heredoc 본문만
+#    ⑦ 다시 읽기 — 명령 치환(`$(…)` · 백틱)은 값 자리라도 실행되므로 늘 그 안을 다시 읽는다(`cat` 이 받는 heredoc 본문만
 #      데이터로 걷는다). 값이 아닌 나머지 낱말은 공백이 있고 따옴표 · 역슬래시를 걷은 글자에 git 과 커밋 · 설정 낱말이 있으면
 #      (`bash -c "…"` · `sh -c '…'` · `eval '…'`) 다시 읽는다. 다시 읽을 낱말이 64개를 넘으면 막는다. 명령 어디든 커밋이 있고
 #      값이 아닌 낱말이 `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
+#      git 인지 알 수 없는 첫 낱말이라도 뒤 전역 옵션 자리에 훅을 끄는 `-c` · `--config-env` 가 있으면 막는다.
 #    막을 때는 이유(우회 플래그 · 풀 수 없는 확장 · 쪼개지는 확장 · 훅을 끄는 설정)를 함께 알린다.
 #    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 하위 명령까지 변수로 부른 git(`$G $SUB` — 첫
 #    낱말이 변수라는 이유만으로 막으면 `"$PM" run build` 도 막힌다) · 큰따옴표 안 `$(…)` 속 따옴표 중첩 · `HOME` ·
@@ -266,6 +267,19 @@ function scanconfig(start,    j, t) {
     if (dyn[j]) { hit(WE); return }
   }
 }
+# i 번째 낱말 뒤 전역 옵션 자리에 훅을 끄는 -c · --config-env 가 있는가
+function globalbad(i,    g, t) {
+  for (g = i + 1; g <= nt; g++) {
+    t = toks[g]
+    if (t == "-c" || t == "--config-env") { if (g < nt && badcfg(toks[g + 1], dyn[g + 1])) return 1; g++; continue }
+    if (t ~ /^-c./) { if (badcfg(substr(t, 3), dyn[g] ? dyn[g] - 2 : 0)) return 1; continue }
+    if (t ~ /^--config-env=/) { if (badcfg(substr(t, 14), dyn[g] ? dyn[g] - 13 : 0)) return 1; continue }
+    if (t ~ /^(-C|--git-dir|--work-tree|--namespace|--super-prefix|--attr-source)$/) { g++; continue }
+    if (t ~ /^-/) continue
+    return 0
+  }
+  return 0
+}
 # i 번째 낱말 뒤에서 전역 옵션을 건너뛴 하위 명령 자리(없으면 0)
 function subat(i,    g, t) {
   for (g = i + 1; g <= nt; g++) {
@@ -304,6 +318,8 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
         # 명령 밖에서 정한 변수 · 일부만 변수인 낱말($G · ${G}t · git$X · $(…)it)은 git 인지 알 수 없다 — 첫 낱말이
         # 변수라는 이유만으로 막으면 "$PM" run build 도 막히므로, 뒤 하위 명령 자리가 commit · config 일 때만 git 처럼 읽는다
         if (!dyn[i] || t ~ /^-/ || (index(t, "=") && index(t, "=") < dyn[i])) continue
+        # 하위 명령이 무엇이든 전역 옵션 자리의 훅 끄기 설정(-c alias.ci=… ci)은 막는다
+        if (globalbad(i)) { hit(WC); continue }
         g = subat(i)
         if (!g || (toks[g] != "commit" && toks[g] != "config")) continue
       }
@@ -354,8 +370,10 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
   }
 }
 # heredoc 본문(데이터)을 걷는다 — 따옴표 밖 `<<`(`<<<` 제외) 다음 줄부터 구분자 줄까지. 구분자는 따옴표 · 역슬래시를 걷은
-# 낱말(`'EOF'` · `"E"OF` · `\EOF` → EOF)이고 `<<-` 면 앞 탭을 무시한다. 구분자를 못 읽으면 걷지 않는다(본문도 명령으로 읽는다).
-function strip_heredoc(t,    n, L, i, k, c, q, out, delim, dash, rest, line, w) {
+# 낱말(`'EOF'` · `"E"OF` · `\EOF` → EOF)이고 `<<-` 면 앞 탭을 무시한다. 본문을 데이터로 보는 건 `cat` 이 받고 같은 줄에 다른
+# 명령이 이어지지 않으며 구분자 줄이 실제로 있을 때뿐이다 — 그 밖(`bash <<EOF` · `cat <<EOF | sh` · 구분자를 못 읽음)은
+# 걷지 않고 본문도 명령으로 읽는다.
+function strip_heredoc(t,    n, L, i, j, k, c, q, out, delim, dash, rest, line, w, pre, ok, kk) {
   n = split(t, L, "\n"); out = ""; delim = ""
   for (i = 1; i <= n; i++) {
     line = L[i]
@@ -374,10 +392,17 @@ function strip_heredoc(t,    n, L, i, k, c, q, out, delim, dash, rest, line, w) 
       if (c == SQ || c == DQ) { q = c; continue }
       if (c == "<" && substr(line, k + 1, 1) == "<") {
         if (substr(line, k + 2, 1) == "<") { k += 2; continue }
+        pre = substr(line, 1, k - 1); gsub(/.*[;|&(`]/, "", pre); sub(/^[ \t]+/, "", pre); sub(/[ \t].*$/, "", pre)
         rest = substr(line, k + 2); dash = 0
         if (rest ~ /^-/) { dash = 1; rest = substr(rest, 2) }
         sub(/^[ \t]+/, "", rest)
-        if (match(rest, /^[^ \t;|&<>()]+/)) { w = substr(rest, 1, RLENGTH); gsub("[\"\\\\" SQ "]", "", w); delim = w }
+        if (pre !~ /^(\/bin\/|\/usr\/bin\/)?cat$/ || !match(rest, /^[^ \t;|&<>()]+/)) break
+        w = substr(rest, 1, RLENGTH)
+        if (substr(rest, RLENGTH + 1) !~ /^[ \t)"]*$/) break
+        gsub("[\"\\\\" SQ "]", "", w)
+        ok = 0
+        for (j = i + 1; j <= n; j++) { kk = L[j]; if (dash) sub(/^\t+/, "", kk); if (kk == w || (substr(kk, 1, length(w)) == w && substr(kk, length(w) + 1, 1) == ")")) { ok = 1; break } }
+        if (ok && w != "") delim = w
         break
       }
     }

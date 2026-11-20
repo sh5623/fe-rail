@@ -179,6 +179,8 @@ v1.21.8 closes the gaps from the sixth review round. An unquoted `$(…)` or bac
 
 v1.21.9 closes the gaps from the seventh review round. Grouping `$(…)` into one word in v1.21.8 left the quotes inside it, so `echo $(g''it commit -n)` slipped past the "git" text check; and the heredoc exemption was decided by the bare text `<<`, so inserting `'<<'` escaped it. Command substitutions are now always read again, without the text check, and only the body of an unquoted heredoc is removed as data. Other words are checked for git after their quotes and backslashes are removed (`bash -c "g''it commit -n"`), and the re-read limit rises to 64 words. The eval gains 10 cases; the first edition (1.21.1) gets 91 of the 167 cases so far wrong.
 
+v1.21.10 closes the gaps from the eighth review round. v1.21.9 removed heredoc bodies even where the body runs (`$(bash <<EOF …)`, `$(cat <<EOF | bash …)`); a body is now removed only when `cat` reads it, nothing else follows on that line, and the delimiter line really exists. A hook-disabling `-c` after a first word that may or may not be git (`$G -c alias.ci='commit -n' ci`) blocks whatever the subcommand is. The eval gains 6 cases; the first edition (1.21.1) gets 96 of the 173 cases so far wrong.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
