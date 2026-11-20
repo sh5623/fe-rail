@@ -296,6 +296,41 @@ git commit -n -m y
   assert_guard BLOCK '$G -c alias.ci='"'"'commit -n'"'"' ci -m x' '확인 안 되는 첫 낱말 뒤의 별칭 설정'
   assert_guard BLOCK '"$GIT" -c core.hooksPath=/dev/null log' '확인 안 되는 첫 낱말 뒤의 훅 끄기 설정(하위 명령 무관)'
   assert_guard ALLOW 'echo $((1<<2)) && git commit -m x' '산술 확장의 <<'
+  # v1.21.11(보안 검토 9차) — cat 출력이 스크립트가 되는 heredoc · 따옴표 없는 구분자 본문 확장 · 치환 자리 표시 · 다시 정한 변수 · 대시 붙은 git
+  assert_guard BLOCK 'bash -c "$(cat <<'"'"'EOF'"'"'
+git commit -n -m y
+EOF
+)"' 'cat 출력이 bash -c 스크립트가 되는 heredoc'
+  assert_guard BLOCK 'eval "$(cat <<'"'"'EOF'"'"'
+git commit -n -m y
+EOF
+)"' 'cat 출력을 eval 하는 heredoc'
+  assert_guard BLOCK 'git commit -m "$(cat <<EOF
+$(git commit -n -m y)
+EOF
+)"' '따옴표 없는 구분자 본문의 명령 치환은 실행된다'
+  assert_guard BLOCK 'bash -c "git commit \$(printf -- -n) -m x"' '다시 읽을 때도 치환 자리는 쪼개지는 확장'
+  assert_guard BLOCK 'G="git log"; G=$X; $G commit -n -m x' 'git 이 아닌 값으로 다시 정한 변수는 옛 판정을 버린다'
+  assert_guard BLOCK '/usr/libexec/git-core/git-commit -n -m x' '대시 붙은 git-commit'
+  assert_guard BLOCK 'git-config core.hooksPath /dev/null' '대시 붙은 git-config'
+  assert_guard BLOCK 'cat() { bash; }; git commit -m "$(cat <<'"'"'EOF'"'"'
+git commit -n -m y
+EOF
+)"' 'cat 을 다시 정의하면 heredoc 본문도 읽는다'
+  assert_guard BLOCK 'git commit -m "$(cat <<'"'"'EOF'"'"'
+)
+EOF
+git commit -n -m y
+)"' '본문의 ) 로 치환을 일찍 닫아 숨긴 명령'
+  assert_guard ALLOW 'git commit -m "$(cat <<EOF
+plain body git commit -n without expansions
+EOF
+)"' '치환 없는 따옴표 없는 구분자 본문은 데이터'
+  assert_guard ALLOW 'echo "build-$(date +%F)"' '낱말 안의 커밋과 무관한 치환'
+  assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: handle (edge) cases :)
+EOF
+)"' '본문에 짝 없는 ) 가 있는 heredoc 메시지'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"

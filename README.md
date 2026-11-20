@@ -181,6 +181,8 @@ v1.21.9 closes the gaps from the seventh review round. Grouping `$(…)` into on
 
 v1.21.10 closes the gaps from the eighth review round. v1.21.9 removed heredoc bodies even where the body runs (`$(bash <<EOF …)`, `$(cat <<EOF | bash …)`); a body is now removed only when `cat` reads it, nothing else follows on that line, and the delimiter line really exists. A hook-disabling `-c` after a first word that may or may not be git (`$G -c alias.ci='commit -n' ci`) blocks whatever the subcommand is. The eval gains 6 cases; the first edition (1.21.1) gets 96 of the 173 cases so far wrong.
 
+v1.21.11 closes the gaps from the ninth review round. A heredoc body is now removed as data only in a git commit value position, when the delimiter is quoted or the body holds no command substitution, and when the command neither redefines `cat` nor changes `PATH`; `bash -c "$(cat <<EOF …)"`, `eval "$(cat …)"`, and a `$(git commit -n)` inside an unquoted-delimiter body are read as commands. Re-reading a command substitution used to turn `$(` into `(`, which dropped the expansion marker (`bash -c "git commit $(printf -- -n) -m x"`); the inside is now read on its own and the outer text has each substitution replaced by an unquoted variable. A variable reassigned to a non-git value drops its git status, and the dashed `git-commit` and `git-config` count as git. The eval gains 12 cases; the first edition (1.21.1) gets 103 of the 185 cases so far wrong.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
