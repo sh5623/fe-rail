@@ -231,6 +231,19 @@ EOF
   assert_guard ALLOW 'for d in a b; do git -C "$d" log -n 1; done'           '큰따옴표 전역 옵션 값 · 커밋이 아닌 하위 명령의 -n'
   assert_guard ALLOW 'git log -n 1 $REF'                                     '커밋이 아닌 하위 명령의 따옴표 없는 변수'
   assert_guard ALLOW 'git commit -F "$(mktemp)"'                             '큰따옴표 명령 치환 값'
+  # v1.21.7(보안 검토 5차) — 값에 전역 옵션을 품은 git 변수 · 변수 복사 · 확인 안 되는 변수 뒤의 commit 우회(인수가 우회일 때만)
+  assert_guard BLOCK 'C="git -C repo"; $C commit -n -m x'                    '값에 전역 옵션을 품은 git 변수'
+  assert_guard BLOCK 'G=git; H=$G; $H commit -n -m x'                        '다른 git 변수를 복사한 변수'
+  assert_guard BLOCK '${G}t commit -n -m x'                                  '일부만 변수인 첫 낱말 뒤의 commit 우회'
+  assert_guard BLOCK 'git$X commit -n -m x'                                  'git 뒤에 변수가 붙은 첫 낱말'
+  assert_guard BLOCK '$GIT commit -n -m x'                                   '명령 밖 변수 뒤의 commit 우회'
+  assert_guard BLOCK '"$GIT" -C repo commit --no-verify -m x'                '명령 밖 변수 · 전역 옵션 뒤의 commit 우회'
+  assert_guard BLOCK '$G -c core.hooksPath=/dev/null commit -m x'            '명령 밖 변수의 훅 끄기 설정'
+  assert_guard BLOCK 'G=$(command -v git); $G commit -n -m x'                '$(command -v git) 를 담은 변수(따옴표 없음)'
+  assert_guard ALLOW '$GIT commit -m x'                                      '명령 밖 변수라도 인수가 우회가 아니면 통과'
+  assert_guard ALLOW 'C="git log"; $C -n 3'                                  '커밋이 아닌 하위 명령을 담은 git 변수'
+  assert_guard ALLOW '$EDITOR notes.txt'                                     '첫 낱말이 변수인 일반 명령'
+  assert_guard ALLOW '"$PM" exec vitest run -t "commit -n"'                  '패키지 매니저 변수 · 값 안의 commit -n'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"

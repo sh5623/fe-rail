@@ -78,7 +78,9 @@ fi
 #      `(`…`)` · `$(`…`)` · 백틱 안에서는 나누지 않고, 줄 끝 `\` 이어 쓰기는 합친다
 #    ② 조각을 셸처럼 낱말로 나누며 따옴표를 걷는다. `$'…'` 은 `\` 가 이스케이프인 별도 따옴표로 읽는다
 #    ③ 조각 안의 «모든» git 호출을 각각 읽는다 — `git` · 경로(`/usr/bin/git`) · `$(which git)` · 백틱, 그리고 같은 명령
-#      안에서 `NAME=git`(`/usr/bin/git` · `$(which git)` · `"git commit"`)으로 정한 변수 `$NAME`. 전역 옵션(`-C x` ·
+#      안에서 `NAME=git`(`/usr/bin/git` · `$(which git)` · `"git commit"` · 다른 git 변수)으로 정한 변수 `$NAME` — 값에
+#      전역 옵션 · 확장을 품은 git 변수(`C="git -C x"`)는 값째 읽지 못하니 막는다. 명령 밖에서 정한 변수 · 일부만 변수인
+#      낱말(`$G` · `${G}t` · `git$X`)은 뒤 하위 명령 자리가 `commit` · `config` 일 때만 git 처럼 읽는다. 전역 옵션(`-C x` ·
 #      `-cK=V` · `--git-dir x` …)을 건너뛰고 하위 명령을 찾는다
 #    ④ `commit` 의 인수를 git 처럼 읽는다 — 짧은 묶음에서 n 이 나오면 우회, 값을 받는 c C F m t 가 나오면 묶음의 나머지가
 #      값(묶음 끝이면 다음 낱말), u S 는 붙은 선택 값, 값을 받는 긴 옵션은 다음 낱말을 건너뛰고, `--` 는 «그» 커밋의
@@ -94,7 +96,7 @@ fi
 #      그 안을 다시 읽는다 — 다시 읽을 낱말이 16개를 넘으면 막는다. 명령 어디든 커밋이 있고 값이 아닌 낱말이
 #      `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
 #    막을 때는 이유(우회 플래그 · 풀 수 없는 확장 · 쪼개지는 확장 · 훅을 끄는 설정)를 함께 알린다.
-#    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 명령 밖에서 정한 변수로 부른 git(`$G commit` — 첫
+#    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 하위 명령까지 변수로 부른 git(`$G $SUB` — 첫
 #    낱말이 변수라는 이유만으로 막으면 `"$PM" run build` 도 막힌다) · 큰따옴표 안 `$(…)` 속 따옴표 중첩 · `HOME` ·
 #    `XDG_CONFIG_HOME` · `GIT_DIR` 로 설정 파일 바꾸기 · `.git/config` 나 `.git/hooks` 를 파일로 직접 고치기 · 셸 alias ·
 #    함수 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등).
@@ -231,27 +233,46 @@ function scanconfig(start,    j, t) {
     if (dyn[j]) { hit(WE); return }
   }
 }
-function scan(    i, j, g, t, v, nm, vs, ne, stop) {
+# i 번째 낱말 뒤에서 전역 옵션을 건너뛴 하위 명령 자리(없으면 0)
+function subat(i,    g, t) {
+  for (g = i + 1; g <= nt; g++) {
+    t = toks[g]
+    if (t == "-c" || t == "--config-env" || t ~ /^(-C|--git-dir|--work-tree|--namespace|--super-prefix|--attr-source)$/) { g++; continue }
+    if (t ~ /^-/) continue
+    return g
+  }
+  return 0
+}
+function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
   for (j = 1; j <= nt; j++) used[j] = 0
   for (j = 1; j <= nt; j++) {
     t = toks[j]
     # 환경변수로 git 설정을 주입하거나 설정 파일을 바꾸는가
     if (t ~ /^(GIT_CONFIG_PARAMETERS|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_CONFIG)=/) cfgenv = 1
     if (t ~ /^GIT_CONFIG_KEY_[0-9]+=/ && (badkey(substr(t, index(t, "=") + 1)) || dyn[j])) cfgenv = 1
-    # 같은 명령 안에서 git 을 담은 변수(NAME=git · NAME=$(which git) · NAME="git commit")
+    # 같은 명령 안에서 git 을 담은 변수(NAME=git · NAME=$(which git) · NAME="git commit" · NAME=$다른git변수)
     if (t ~ /^[A-Za-z_][A-Za-z0-9_]*=/) {
       nm = substr(t, 1, index(t, "=") - 1); v = substr(t, index(t, "=") + 1)
-      if (v ~ /^(\$\(|`)/ && v !~ /[)`]$/ && j < nt) v = v " " toks[j + 1]
+      if (v ~ /^(\$\(|`)/ && v !~ /[)`]$/) { for (k = j + 1; k <= nt && k <= j + 6; k++) { v = v " " toks[k]; if (toks[k] ~ /[)`]$/) break } }
       if (gitval(v)) { gitvar[nm] = 1; gitsub[nm] = VSUB }
+      else if (v ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) { gsub(/[${}]/, "", v); if (v in gitvar) { gitvar[nm] = 1; gitsub[nm] = gitsub[v] } }
     }
   }
   for (i = 1; i <= nt; i++) {
     t = toks[i]; vs = ""
     if (!isgit(t)) {
-      if (t !~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/) continue
       nm = t; gsub(/[${}]/, "", nm)
-      if (!(nm in gitvar)) continue
-      vs = gitsub[nm]
+      if (t ~ /^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?$/ && (nm in gitvar)) {
+        vs = gitsub[nm]
+        # 값에 전역 옵션이나 확장을 품은 git 변수(C="git -C x")는 값째 읽지 못하니 막는다
+        if (vs ~ /^-/ || vs ~ /[$`{}*?[]/) { hit(WE); continue }
+      } else {
+        # 명령 밖에서 정한 변수 · 일부만 변수인 낱말($G · ${G}t · git$X)은 git 인지 알 수 없다 — 첫 낱말이 변수라는
+        # 이유만으로 막으면 "$PM" run build 도 막히므로, 뒤 하위 명령 자리가 commit · config 일 때만 git 처럼 읽는다
+        if (!dyn[i] || t ~ /^-/ || (index(t, "=") && index(t, "=") < dyn[i])) continue
+        g = subat(i)
+        if (!g || (toks[g] != "commit" && toks[g] != "config")) continue
+      }
     }
     gitseen = 1
     if (vs == "commit") { hascommit = 1; scanargs(i + 1); continue }
