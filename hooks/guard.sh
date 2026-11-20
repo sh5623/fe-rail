@@ -93,13 +93,19 @@ fi
 #    나오면 묶음의 나머지가 값(묶음 끝이면 다음 낱말이 값), u S 는 붙은 선택 값, `--` 뒤는 경로, 값을 받는 긴 옵션은 다음
 #    낱말을 건너뛴다 ④ 값으로 쓰이지 않은 낱말에 공백이 있고 git · commit 이 들어 있으면(`bash -c "…"` · `sh -c '…'`) 그 안을
 #    다시 읽는다 ⑤ 명령 어디든 커밋이 있고 값이 아닌 낱말이 `--no-veri`·`--no-verif`·`--no-verify` 면 막는다(종전처럼).
-#    v1.24.3 — 모르면 막는다(보안 검토 2차 지적): ⑥ 커밋 인수 중 값이 아닌 자리에 파서가 풀 수 없는 확장(따옴표 밖이나
-#    큰따옴표 안의 `$` · 백틱, 따옴표 밖의 `{`, `$'…'` · `$"…"`)이 낱말 첫 글자 · 짧은 묶음의 플래그 자리 · 긴 옵션 이름에
-#    오면 막는다(`$'-n'` · `"$FLAG"` · `{-n,}` · `-$X` · `$(echo x;) -n`). 값(`-m "$MSG"` · `--author="$A"`)과 `--` 뒤 경로는
-#    보지 않는다 ⑦ `git` 뒤 전역 옵션(`-Crepo` · `-c"k=v"` · `--git-dir x` …)을 건너뛰고 `commit` 을 찾는다
-#    ⑧ 다시 읽을 낱말이 16개를 넘으면 막는다(상한을 넘긴 나머지를 건너뛰면 우회가 된다).
+#    v1.24.3 — 모르면 막는다(보안 검토 2 · 3차 지적): ⑥ 커밋 인수 중 값이 아닌 자리(낱말 첫 글자 · 짧은 묶음의 플래그 자리 ·
+#    긴 옵션 이름)에 파서가 풀 수 없는 확장 — 따옴표 밖이나 큰따옴표 안의 `$` · 백틱, 따옴표 밖의 `{` `*` `?` `[`(글롭은
+#    `-n` 이라는 파일로 펼쳐질 수 있다), `$'…'` · `$"…"` — 이 오면 막는다(`$'-n'` · `"$FLAG"` · `{-n,}` · `-$X` · `*`).
+#    값(`-m "$MSG"` · `--author="$A"`)과 `--` 뒤 경로는 보지 않는다 ⑦ `$'…'` 은 `\'` 가 이스케이프인 별도 따옴표로 읽는다
+#    ⑧ `git` 뒤 전역 옵션(`-Crepo` · `-c"k=v"` · `--git-dir x` …)을 건너뛰고 하위 명령을 찾는다 — 하위 명령 자리가 확장이면
+#    막고, 조각 안의 «모든» `git … commit` 을 각각 읽는다(괄호 안 `git commit -m x -- f; git commit -n` 의 둘째 커밋)
+#    ⑨ `-n` 없이 훅을 끄는 설정도 막는다 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*`, 환경변수
+#    `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n=core.hooksPath|alias.*`,
+#    다른 설정 파일 끌어오기(`include.path` · `includeIf.*.path`), `git config` 로 `core.hooksPath` · `alias.*` · include 에
+#    값 쓰기(읽기 · `--unset` 은 통과) ⑩ `(`…`)` · 백틱 안에서는 조각을 나누지 않는다 ⑪ 다시 읽을 낱말이 16개를 넘으면 막는다.
+#    남는 한계: 셸 변수에 담아 둔 하위 명령 · git 별칭 설정 파일 · 도구별 환경변수(`HUSKY=0` 등)는 이 규칙이 보지 않는다.
 _FE_SQ="'"
-if printf '%s\n' "$CMD" | awk -v SQ="$_FE_SQ" -v DQ='"' '
+if printf '%s\n' "$CMD_RAW" | awk -v SQ="$_FE_SQ" -v DQ='"' '
 function flush() { if (seg ~ /[^ \t]/) segs[++ns] = seg; seg = "" }
 function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
   ns = 0; seg = ""; q = ""; depth = 0; bq = 0; n = length(s)
@@ -107,6 +113,7 @@ function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
     c = substr(s, i, 1)
     if (q == "") {
       if (c == "\\") { nx = substr(s, i + 1, 1); i++; if (nx != "\n") seg = seg c nx; continue }
+      if (c == "$" && substr(s, i + 1, 1) == SQ) { q = "A"; seg = seg c SQ; i++; continue }
       if (c == SQ || c == DQ) { q = c; seg = seg c; continue }
       if (c == "`") { bq = !bq; seg = seg c; continue }
       if (c == "(") { depth++; seg = seg c; continue }
@@ -119,6 +126,10 @@ function split_segments(s,    n, i, c, q, nx, p, depth, bq) {
         if (p == ">" || p == "<" || nx == ">") { seg = seg c; continue }
         flush(); continue
       }
+      seg = seg c
+    } else if (q == "A") {
+      if (c == "\\") { seg = seg c substr(s, i + 1, 1); i++; continue }
+      if (c == SQ) q = ""
       seg = seg c
     } else {
       if (q == DQ && c == "\\") { seg = seg c substr(s, i + 1, 1); i++; continue }
@@ -133,13 +144,19 @@ function tokenize(s,    n, i, c, q, tok, has, nx, d) {
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
     if (q == "") {
-      if (c == "\\") { tok = tok substr(s, i + 1, 1); i++; has = 1; continue }
-      if (c == "$" && (substr(s, i + 1, 1) == SQ || substr(s, i + 1, 1) == DQ)) { if (!d) d = length(tok) + 1; tok = tok c; has = 1; continue }
+      nx = substr(s, i + 1, 1)
+      if (c == "\\") { tok = tok nx; i++; has = 1; continue }
+      if (c == "$" && nx == SQ) { if (!d) d = length(tok) + 1; tok = tok c; q = "A"; i++; has = 1; continue }
+      if (c == "$" && nx == DQ) { if (!d) d = length(tok) + 1; tok = tok c; has = 1; continue }
       if (c == SQ || c == DQ) { q = c; has = 1; continue }
       if (c == " " || c == "\t" || c == "\n") { if (has) { toks[++nt] = tok; dyn[nt] = d; tok = ""; has = 0; d = 0 } continue }
-      if ((c == "$" || c == "`" || c == "{") && !d) d = length(tok) + 1
+      if (index("$`{*?[", c) && !d) d = length(tok) + 1
       tok = tok c; has = 1
     } else if (q == SQ) {
+      if (c == SQ) { q = ""; continue }
+      tok = tok c
+    } else if (q == "A") {
+      if (c == "\\") { tok = tok substr(s, i + 1, 1); i++; continue }
       if (c == SQ) { q = ""; continue }
       tok = tok c
     } else {
@@ -151,64 +168,93 @@ function tokenize(s,    n, i, c, q, tok, has, nx, d) {
   }
   if (has) { toks[++nt] = tok; dyn[nt] = d }
 }
-function scan(    i, j, k, L, t, ch, skip, start, g, eq, name) {
+# 설정 키가 훅을 끄거나 별칭을 만들거나 다른 설정 파일을 끌어오는가(core.hooksPath · alias.* · include.path ·
+# includeIf.*.path). 키 자리가 확장이면 알 수 없으니 그렇다고 본다.
+function badkey(k) { k = tolower(k); return (k == "core.hookspath" || k ~ /^alias\./ || k == "include.path" || k ~ /^includeif\..*\.path$/) }
+function badcfg(v, d,    eq) {
+  eq = index(v, "=")
+  if (d && (!eq || d <= eq)) return 1
+  return badkey(eq ? substr(v, 1, eq - 1) : v)
+}
+# 한 커밋의 인수 읽기 — `--` 는 «이» 커밋의 인수만 끝낸다.
+function scanargs(start,    j, k, L, t, ch, skip, eq, name) {
+  skip = 0
+  for (j = start; j <= nt; j++) {
+    t = toks[j]
+    if (skip) { skip = 0; used[j] = 1; continue }
+    if (t == "--") return
+    if (t ~ /^--/) {
+      eq = index(t, "="); name = eq ? substr(t, 1, eq - 1) : t
+      if (dyn[j] && dyn[j] <= length(name)) { found = 1; return }
+      if (name ~ /^--no-veri(f|fy)?$/) { found = 1; return }
+      if (!eq && name ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) skip = 1
+      continue
+    }
+    if (length(t) > 1 && substr(t, 1, 1) == "-") {
+      L = length(t)
+      for (k = 2; k <= L; k++) {
+        if (dyn[j] == k) { found = 1; return }
+        ch = substr(t, k, 1)
+        if (ch == "n") { found = 1; return }
+        if (ch ~ /[cCFmt]/) { if (k == L) skip = 1; break }
+        if (ch ~ /[uS]/) break
+      }
+      continue
+    }
+    if (dyn[j] == 1) { found = 1; return }
+  }
+}
+# git config 로 core.hooksPath · alias.* 에 값을 쓰는가(읽기 · --unset 은 통과).
+function scanconfig(start,    j, t, k) {
+  for (j = start; j <= nt; j++) {
+    t = toks[j]
+    if (t ~ /^-/) continue
+    if (badkey(t) && j < nt) { found = 1; return }
+    if (dyn[j]) { found = 1; return }
+  }
+}
+function scan(    i, j, g, t) {
   for (j = 1; j <= nt; j++) used[j] = 0
-  start = 0
-  for (i = 1; i <= nt && !start; i++) {
+  for (j = 1; j <= nt; j++) {
+    t = toks[j]
+    # 환경변수로 git 설정을 주입하거나 설정 파일을 바꾸는가
+    if (t ~ /^(GIT_CONFIG_PARAMETERS|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM|GIT_CONFIG)=/) cfgenv = 1
+    if (t ~ /^GIT_CONFIG_KEY_[0-9]+=/ && (badkey(substr(t, index(t, "=") + 1)) || dyn[j])) cfgenv = 1
+  }
+  for (i = 1; i <= nt; i++) {
     if (toks[i] !~ /(^|[^A-Za-z0-9_.-])git$/) continue
+    gitseen = 1
     for (g = i + 1; g <= nt; g++) {
       t = toks[g]
-      if (t ~ /^(-C|-c|--git-dir|--work-tree|--namespace|--config-env|--super-prefix|--attr-source)$/) { g++; continue }
+      if (t == "-c" || t == "--config-env") { if (g < nt && badcfg(toks[g + 1], dyn[g + 1])) found = 1; g++; continue }
+      if (t ~ /^-c./) { if (badcfg(substr(t, 3), dyn[g] ? dyn[g] - 2 : 0)) found = 1; continue }
+      if (t ~ /^--config-env=/) { if (badcfg(substr(t, 14), dyn[g] ? dyn[g] - 13 : 0)) found = 1; continue }
+      if (t ~ /^(-C|--git-dir|--work-tree|--namespace|--super-prefix|--attr-source)$/) { g++; continue }
       if (t ~ /^-/) continue
       break
     }
-    if (g <= nt && toks[g] == "commit") start = g + 1
-  }
-  if (start) {
-    hascommit = 1; skip = 0
-    for (j = start; j <= nt; j++) {
-      t = toks[j]
-      if (skip) { skip = 0; used[j] = 1; continue }
-      if (t == "--") break
-      if (t ~ /^--/) {
-        eq = index(t, "="); name = eq ? substr(t, 1, eq - 1) : t
-        if (dyn[j] && dyn[j] <= length(name)) { found = 1; break }
-        if (name ~ /^--no-veri(f|fy)?$/) { found = 1; break }
-        if (!eq && name ~ /^--(message|file|author|date|template|reuse-message|reedit-message|fixup|squash|trailer|cleanup|pathspec-from-file)$/) skip = 1
-        continue
-      }
-      if (length(t) > 1 && substr(t, 1, 1) == "-") {
-        L = length(t)
-        for (k = 2; k <= L; k++) {
-          if (dyn[j] == k) { found = 1; break }
-          ch = substr(t, k, 1)
-          if (ch == "n") { found = 1; break }
-          if (ch ~ /[cCFmt]/) { if (k == L) skip = 1; break }
-          if (ch ~ /[uS]/) break
-        }
-        if (found) break
-        continue
-      }
-      if (dyn[j] == 1) { found = 1; break }
-    }
+    if (g > nt) continue
+    if (dyn[g] == 1) { found = 1; continue }
+    if (toks[g] == "commit") { hascommit = 1; scanargs(g + 1) }
+    else if (toks[g] == "config") scanconfig(g + 1)
   }
   for (j = 1; j <= nt; j++) {
     if (used[j]) continue
     if (toks[j] ~ /^--no-veri(f|fy)?$/) noverify = 1
-    if (toks[j] ~ /[ \t\n]/ && toks[j] ~ /git/ && toks[j] ~ /commit/) queue[++qt] = toks[j]
+    if (toks[j] ~ /[ \t\n]/ && toks[j] ~ /git/ && tolower(toks[j]) ~ /commit|config|alias|hookspath|include/) queue[++qt] = toks[j]
   }
 }
 { input = input (NR > 1 ? "\n" : "") $0 }
 END {
-  qt = 1; queue[1] = input; found = 0; noverify = 0; hascommit = 0
+  qt = 1; queue[1] = input; found = 0; noverify = 0; hascommit = 0; gitseen = 0; cfgenv = 0
   for (qh = 1; qh <= qt && qh <= 16; qh++) {
     split_segments(queue[qh])
     for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }
   }
   if (qt > 16) found = 1
-  exit ((found || (hascommit && noverify)) ? 0 : 1)
+  exit ((found || (hascommit && noverify) || (gitseen && cfgenv)) ? 0 : 1)
 }'; then
-  block "'--no-verify' / 'git commit -n' 금지. 린트·타입 오류를 수정하세요."
+  block "'--no-verify' / 'git commit -n' / 훅을 끄는 설정(core.hooksPath · alias) 금지. 린트·타입 오류를 수정하세요."
 fi
 
 # 4. git stash drop / git stash clear
