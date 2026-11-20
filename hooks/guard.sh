@@ -94,9 +94,10 @@ fi
 #    ⑥ 훅을 끄는 설정 — `-c` · `--config-env` 의 `core.hooksPath` · `alias.*` · `include.path` · `includeIf.*.path`,
 #      환경변수 `GIT_CONFIG_PARAMETERS` · `GIT_CONFIG_GLOBAL` · `GIT_CONFIG_SYSTEM` · `GIT_CONFIG` · `GIT_CONFIG_KEY_n`(그 키),
 #      `git config` 로 그 키에 값 쓰기(읽기 · `--unset` 은 통과)
-#    ⑦ 값으로 쓰이지 않은 낱말에 공백이 있고 git 과 커밋 · 설정 낱말이 들어 있으면(`bash -c "…"` · `sh -c '…'` · `eval '…'` ·
-#      `$(…)`) 그 안을 다시 읽는다 — 값이라도 명령 치환(`-m "$(git commit -n …)"`)은 실행되므로 다시 읽고, heredoc 은 데이터로 본다 — 다시 읽을 낱말이 16개를 넘으면 막는다. 명령 어디든 커밋이 있고 값이 아닌 낱말이
-#      `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
+#    ⑦ 다시 읽기 — 명령 치환(`$(…)` · 백틱)은 값 자리라도 실행되므로 늘 그 안을 다시 읽는다(따옴표 밖 heredoc 본문만
+#      데이터로 걷는다). 값이 아닌 나머지 낱말은 공백이 있고 따옴표 · 역슬래시를 걷은 글자에 git 과 커밋 · 설정 낱말이 있으면
+#      (`bash -c "…"` · `sh -c '…'` · `eval '…'`) 다시 읽는다. 다시 읽을 낱말이 64개를 넘으면 막는다. 명령 어디든 커밋이 있고
+#      값이 아닌 낱말이 `--no-veri` · `--no-verif` · `--no-verify` 면 막는다
 #    막을 때는 이유(우회 플래그 · 풀 수 없는 확장 · 쪼개지는 확장 · 훅을 끄는 설정)를 함께 알린다.
 #    알려진 한계 — 흔한 형태의 백스톱이지 셸 전체의 보장이 아니다: 하위 명령까지 변수로 부른 git(`$G $SUB` — 첫
 #    낱말이 변수라는 이유만으로 막으면 `"$PM" run build` 도 막힌다) · 큰따옴표 안 `$(…)` 속 따옴표 중첩 · `HOME` ·
@@ -275,7 +276,7 @@ function subat(i,    g, t) {
   }
   return 0
 }
-function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
+function scan(    i, j, k, g, t, v, nm, vs, ne, stop, sb, pf) {
   for (j = 1; j <= nt; j++) used[j] = 0
   for (j = 1; j <= nt; j++) {
     t = toks[j]
@@ -340,20 +341,57 @@ function scan(    i, j, k, g, t, v, nm, vs, ne, stop) {
   }
   for (j = 1; j <= nt; j++) {
     t = toks[j]
-    # 값으로 쓰인 낱말은 보지 않는다 — 단 값 안의 명령 치환(`-m "$(git commit -n …)"`)은 실행되므로 다시 읽는다(heredoc 은 데이터)
-    if (used[j] && !((index(t, "$(") || index(t, "`")) && !index(t, "<<"))) continue
+    sb = (index(t, "$(") || index(t, "`"))
+    # 값으로 쓰인 낱말은 보지 않는다 — 단 값 안의 명령 치환(`-m "$(git commit -n …)"`)은 실행되므로 다시 읽는다
+    if (used[j] && !sb) continue
     if (!used[j] && t ~ /^--no-veri(f|fy)?$/) noverify = 1
-    if (t ~ /[ \t\n]/ && t ~ /git/ && tolower(t) ~ /commit|config|alias|hookspath|include/) { gsub(/\$\(/, "(", t); gsub(/`/, " ", t); queue[++qt] = t }
+    if (t !~ /[ \t\n]/) continue
+    # 명령 치환은 글자 검사 없이 늘 다시 읽는다(안의 따옴표 · 역슬래시는 다시 읽을 때 걷힌다) — heredoc 본문(데이터)만 걷는다
+    if (sb) { t = strip_heredoc(t); gsub(/\$\(/, "(", t); gsub(/`/, " ", t); queue[++qt] = t; continue }
+    # 나머지(`bash -c "…"` 등)는 따옴표 · 역슬래시를 걷은 글자로 git 과 커밋 · 설정 낱말을 찾는다(`g""it` · `c\ommit`)
+    pf = t; gsub("[\"\\\\" SQ "]", "", pf)
+    if (pf ~ /git/ && tolower(pf) ~ /commit|config|alias|hookspath|include/) queue[++qt] = t
   }
+}
+# heredoc 본문(데이터)을 걷는다 — 따옴표 밖 `<<`(`<<<` 제외) 다음 줄부터 구분자 줄까지. 구분자는 따옴표 · 역슬래시를 걷은
+# 낱말(`'EOF'` · `"E"OF` · `\EOF` → EOF)이고 `<<-` 면 앞 탭을 무시한다. 구분자를 못 읽으면 걷지 않는다(본문도 명령으로 읽는다).
+function strip_heredoc(t,    n, L, i, k, c, q, out, delim, dash, rest, line, w) {
+  n = split(t, L, "\n"); out = ""; delim = ""
+  for (i = 1; i <= n; i++) {
+    line = L[i]
+    if (delim != "") {
+      k = line; if (dash) sub(/^\t+/, "", k)
+      if (k == delim) delim = ""
+      else if (substr(k, 1, length(delim)) == delim && substr(k, length(delim) + 1, 1) == ")") { out = out "\n" substr(k, length(delim) + 1); delim = "" }
+      continue
+    }
+    out = out (i > 1 ? "\n" : "") line
+    q = ""
+    for (k = 1; k <= length(line); k++) {
+      c = substr(line, k, 1)
+      if (q != "") { if (c == "\\" && q == DQ) k++; else if (c == q) q = ""; continue }
+      if (c == "\\") { k++; continue }
+      if (c == SQ || c == DQ) { q = c; continue }
+      if (c == "<" && substr(line, k + 1, 1) == "<") {
+        if (substr(line, k + 2, 1) == "<") { k += 2; continue }
+        rest = substr(line, k + 2); dash = 0
+        if (rest ~ /^-/) { dash = 1; rest = substr(rest, 2) }
+        sub(/^[ \t]+/, "", rest)
+        if (match(rest, /^[^ \t;|&<>()]+/)) { w = substr(rest, 1, RLENGTH); gsub("[\"\\\\" SQ "]", "", w); delim = w }
+        break
+      }
+    }
+  }
+  return out
 }
 { input = input (NR > 1 ? "\n" : "") $0 }
 END {
   qt = 1; queue[1] = input; found = 0; why = ""; noverify = 0; hascommit = 0; gitseen = 0; cfgenv = 0
-  for (qh = 1; qh <= qt && qh <= 16; qh++) {
+  for (qh = 1; qh <= qt && qh <= 64; qh++) {
     split_segments(queue[qh])
     for (si = 1; si <= ns; si++) { tokenize(segs[si]); scan() }
   }
-  if (qt > 16) hit(WM)
+  if (qt > 64) hit(WM)
   if (hascommit && noverify) hit(WF)
   if (gitseen && cfgenv) hit(WC)
   if (found) { print why; exit 0 }

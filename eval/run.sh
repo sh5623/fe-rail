@@ -257,6 +257,30 @@ EOF
   assert_guard ALLOW 'X=$(git commit -m y); echo "$X"'                       '커밋 출력을 담은 변수'
   assert_guard ALLOW 'git commit -m "$(git log -1 --format=%s)"'             '값 안의 git log 치환'
   assert_guard ALLOW 'echo "$(git rev-parse HEAD)" && git commit -m x'       '다른 명령의 git 치환'
+  # v1.21.9(보안 검토 7차) — 명령 치환 안 따옴표 · heredoc 예외는 본문만 · 래핑 문자열의 따옴표 · 다시 읽기 상한 64
+  assert_guard BLOCK 'echo $(g'"'"''"'"'it commit -n -m x)' '치환 안 따옴표를 걷은 뒤 읽는다'
+  assert_guard BLOCK '`g\it commit -n -m x`' '백틱 안 역슬래시를 걷은 뒤 읽는다'
+  assert_guard BLOCK 'bash -c "g'"'"''"'"'it commit -n -m x"' '래핑 문자열도 따옴표를 걷은 글자로 git 을 찾는다'
+  assert_guard BLOCK 'git commit -m "$(echo '"'"'<<'"'"'; git commit -n -m y)"' '따옴표 안 << 는 heredoc 이 아니다'
+  assert_guard BLOCK 'git commit -m "$(git commit -n -F - <<EOF
+m
+EOF
+)"' 'heredoc 본문만 걷고 앞 명령은 읽는다'
+  assert_guard BLOCK 'X=$(cat <<"E"OF
+x
+EOF
+git commit -n -m y
+)' '구분자는 따옴표를 걷은 낱말 — 뒤 명령을 읽는다'
+  assert_guard ALLOW 'git commit -m "$(cat <<'"'"'EOF'"'"'
+fix: explain why git commit -n is blocked
+EOF
+)"' 'heredoc 메시지 본문은 데이터'
+  assert_guard ALLOW 'git commit -m "$(cat <<EOF
+body with git commit --no-verify text
+EOF)"' '구분자 뒤 ) 가 붙은 heredoc'
+  assert_guard ALLOW 'for f in a b; do echo "$(wc -l < $f) $(basename $f)"; done' '커밋과 무관한 명령 치환'
+  _many=""; for _i in $(seq 1 65); do _many="$_many bash -c \"x git commit\""; done
+  assert_guard BLOCK "$_many" '다시 읽을 낱말이 64개를 넘으면 막는다'
 else ok "jq 없음 → guard v1.21.2 조각 판정 사례 스킵"; fi
 # write-guard.sh
 assert_hook BLOCK write-guard.sh '{"tool_input":{"file_path":"/p/.env"}}'                     "write-guard: .env 차단"

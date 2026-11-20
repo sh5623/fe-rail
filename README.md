@@ -177,6 +177,8 @@ v1.21.7 closes a gap the fifth review round found in v1.21.6's variable tracking
 
 v1.21.8 closes the gaps from the sixth review round. An unquoted `$(…)` or backtick span was split at its spaces, so shapes such as `$(printf %s g)it commit -n` slipped through; it is now one word, as the shell sees it. A value whose first word is a git variable (`C="$G commit"; $C -n`) is followed too, and a word that starts with a git variable and has more attached (`${G}${E}`), or a commit or config variable with words after the subcommand, is blocked since it cannot be read as written. A command substitution in a value position (`-m "$(git commit -n …)"`) runs, so it is read again (a heredoc message is treated as data). The eval gains 12 cases; the first edition (1.21.1) gets 86 of the 158 cases so far wrong.
 
+v1.21.9 closes the gaps from the seventh review round. Grouping `$(…)` into one word in v1.21.8 left the quotes inside it, so `echo $(g''it commit -n)` slipped past the "git" text check; and the heredoc exemption was decided by the bare text `<<`, so inserting `'<<'` escaped it. Command substitutions are now always read again, without the text check, and only the body of an unquoted heredoc is removed as data. Other words are checked for git after their quotes and backslashes are removed (`bash -c "g''it commit -n"`), and the re-read limit rises to 64 words. The eval gains 10 cases; the first edition (1.21.1) gets 91 of the 167 cases so far wrong.
+
 ## Agents
 
 Each agent runs in an isolated context, protecting the main session from noise.
