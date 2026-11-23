@@ -117,6 +117,7 @@ PM="npm"; PX="npx"
 | 테스트 제목과 단언의 방향이 반대 (`'X 하면 Y 가 보인다'` 인데 Y 의 부재를 단언) | 항상 | 결함이 있어도 통과한다 | WARN |
 | 단언이 없는 테스트, 또는 항상 참인 단언 (`expect(true).toBe(true)`, 상수끼리 비교) | 항상 | 무엇을 바꿔도 통과한다 | WARN |
 | 실행기 기록이 미검출 · 원인 미확인인데 보고 · PR 에 해석이 없음 (`fe-rail verify-test status --json -- <파일>`) | 기록이 있을 때 | 죽은 테스트일 수 있다 | WARN |
+| 바뀐 제품 코드(JS·TS)에 «미실행» 이 있는데 사유(동작 변화 없음 등)가 없음 (`fe-rail verify-test report --base <리뷰 기준 SHA> --json`) | 제품 코드가 바뀌었을 때 | 그 변경을 지키는 테스트가 있는지 아무도 확인하지 않았다 | INFO |
 | 여러 인자를 준 부정 단언 (`not.toHaveClass(a, b)`) | jest-dom 사용 시 | 하나만 없어도 통과한다 — 인자마다 따로 단언 | WARN |
 | 같은 접근명이 여럿인데 첫 요소(`getAllBy…()[0]`)로 집음 | Testing Library 사용 시 | 그 요소가 사라지면 형제로 미끄러져 통과한다 — `within()` 으로 좁힌다 | WARN |
 | 타입 단정만으로 지키는 테스트 (`const x: T = …` 만 있고 런타임 단언 없음) | TypeScript 사용 시 | 러너가 아니라 타입 검사기가 강제한다 — 타입 검사가 게이트에 없으면 아무것도 지키지 않는다 | INFO |
@@ -216,6 +217,7 @@ echo "typecheck exit=$RC"; head -50 "$LOG"
 # 테스트 판별력: 변경 목록에 테스트 파일(*.test.* · *.spec.* · __tests__/)이 있으면 위 «테스트 판별력» 표로 대조하고,
 # 실행기 기록이 있는지 본다(없으면 «기록 없음» 으로만 적는다 — 리뷰어는 실행기를 돌리지 않는다).
 fe-rail verify-test status --json -- <변경된 테스트 파일…> 2>/dev/null || true
+fe-rail verify-test report --base <리뷰 기준 SHA> --json 2>/dev/null || true   # 제품 코드별 미실행 · 판정(리뷰어는 실행기를 돌리지 않는다)
 ```
 
 ### Step 3: 분류 출력

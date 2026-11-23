@@ -107,8 +107,8 @@ function verify(cwd, args, env = {}) {
   return { ...r, json };
 }
 const verdicts = (j) => Object.fromEntries((j?.targets || []).map((t) => [t.name, t.verdict]));
-function hook(cwd, kind, session, { active = false, env = {}, wrapper = false } = {}) {
-  const input = JSON.stringify({ session_id: session, cwd, stop_hook_active: active, hook_event_name: kind });
+function hook(cwd, kind, session, { active = false, env = {}, wrapper = false, msg } = {}) {
+  const input = JSON.stringify({ session_id: session, cwd, stop_hook_active: active, hook_event_name: kind, ...(msg !== undefined ? { last_assistant_message: msg } : {}) });
   if (wrapper) return run(cwd, 'bash', [path.join(ROOT, 'hooks', kind === 'stop' ? 'test-verify-stop.sh' : 'test-verify-turn.sh')], { env, input });
   return run(cwd, process.execPath, [BIN, 'hook', kind], { env, input });
 }
@@ -371,7 +371,8 @@ const Hk = repo('hook', {
   hook(Hk, 'turn-start', sid);
   write(Hk, { 'src/price.js': 'rate=1.1\n' });
   const nosrc = hook(Hk, 'stop', sid);
-  check(!blocked(nosrc), 'test-verify 훅: 소스만 바꾸고 테스트를 안 바꾼 턴 → 침묵');
+  check(blocked(nosrc) && /제품 코드 1개/.test(nosrc.out) && !/단위 테스트 \d+개를 수정 전/.test(nosrc.out),
+    'test-verify 훅: 소스만 바꾸고 테스트를 안 바꾼 턴 → 막음(제품 코드 갈래만 · 바뀐 테스트 갈래는 없음)', nosrc.out + nosrc.err);
   hook(Hk, 'turn-start', sid); // 앞 턴의 소스 수정이 미커밋으로 남은 채 새 턴
   write(Hk, { 'src/price.test.js': '// CASE 기존 :: src/price.js :: rate\n// CASE 부가세 :: src/price.js :: rate=1.1\n' });
   const b1 = hook(Hk, 'stop', sid);
@@ -413,7 +414,112 @@ const Hk = repo('hook', {
   check(!blocked(hook(NG, 'stop', 's')) && hook(NG, 'stop', 's').code === 0, 'test-verify 훅: git 저장소가 아니면 → 침묵 · exit 0');
   hook(W, 'turn-start', 'w');
   write(W, { 'apps/admin/src/x.js': 'x v3\n', 'apps/web/src/a.test.js': '// CASE 기존 :: ../../packages/ui/src/index.js :: ui\n// CASE 새2 :: ../../packages/ui/src/index.js :: ui\n' });
-  check(!blocked(hook(W, 'stop', 'w')), 'test-verify 훅: 다른 앱의 소스 + 이 앱의 테스트 → 침묵(적용 관계 없음)');
+  const wr = hook(W, 'stop', 'w');
+  check(blocked(wr) && /apps\/admin\/src\/x\.js/.test(wr.out) && !/verify-test base --base [0-9a-f]{12} -- apps\/web/.test(wr.out),
+    'test-verify 훅: 다른 앱의 소스 + 이 앱의 테스트 → 이 앱의 테스트는 요구하지 않고(적용 관계 없음) 다른 앱의 제품 코드만 막음', wr.out + wr.err);
+}
+
+// ── 제품 코드 갈래 — 테스트를 안 고친 턴 · 파일 단위 덮임 · 생략 줄 · report (v1.22.0) ─────────
+const P = repo('product', {
+  'package.json': JSON.stringify({ name: 'product', private: true, devDependencies: { vitest: '4.1.9' } }),
+  'src/guard.js': 'guard=on\n',
+  'src/price.js': 'rate=1.0\n',
+  'src/types.d.ts': 'export type A = 1\n',
+  'src/app.css': '.a{}\n',
+  'src/data.json': '{}\n',
+  // 기존 테스트 — 이 시나리오 내내 고치지 않는다
+  'src/submit.test.js': "// import { guard } from './guard.js'\n// CASE submit > 한 번만 :: src/guard.js :: guard=on\n// CASE submit > 엄격 :: src/guard.js :: strict\n",
+  'src/price.test.js': '// CASE price > 세율 :: src/price.js :: rate\n',
+  'README.md': 'r\n',
+});
+{
+  const sid = 'eval-prod';
+  const SENV = { CLAUDE_CODE_SESSION_ID: sid };
+  const report = () => run(P, process.execPath, [BIN, 'verify-test', 'report'], { env: SENV });
+  hook(P, 'turn-start', sid);
+  write(P, { 'src/app.css': '.a{color:red}\n', 'src/data.json': '{"a":1}\n', 'src/types.d.ts': 'export type A = 2\n', 'README.md': 'r2\n' });
+  check(!blocked(hook(P, 'stop', sid)), 'test-verify 훅(제품 코드): 스타일 · 데이터 · 타입 선언(*.d.ts) · 문서만 바뀐 턴 → 침묵');
+  commit(P, 'non-code');
+  const head = git(P, 'rev-parse', 'HEAD').out.trim(); // 다음 턴의 턴 시작 HEAD
+
+  hook(P, 'turn-start', sid);
+  write(P, { 'src/guard.js': 'guard=on strict\n', 'src/price.js': 'rate=1.1\n' });
+  const b = hook(P, 'stop', sid);
+  check(blocked(b) && /제품 코드 2개/.test(b.out) && /src\/guard\.js {2}\(후보 테스트: src\/submit\.test\.js\)/.test(b.out) && /src\/price\.js {2}\(후보 테스트: src\/price\.test\.js\)/.test(b.out),
+    'test-verify 훅(제품 코드): 제품 코드만 고치고 테스트는 안 고친 턴 → 막고 파일마다 후보 테스트(같은 이름 · 가져오는 테스트)를 보여 준다', b.out + b.err);
+  check(/verify-test base --base [0-9a-f]{12} --only <소스> --test/.test(b.out) && /verify-test mutate --file <소스>/.test(b.out) && /verify-test report/.test(b.out) && /--intent/.test(b.out) && /테스트 확인: 생략 — <이유>/.test(b.out),
+    'test-verify 훅(제품 코드): 차단 사유가 절차(기대 동작 → base · mutate → report)와 생략 줄 형식을 지시한다');
+  check(!blocked(hook(P, 'stop', sid, { active: true })), 'test-verify 훅(제품 코드): 두 번째 종료(stop_hook_active)는 막지 않는다');
+  check(!blocked(hook(P, 'stop', sid, { msg: '정리했습니다.\n\n테스트 확인: 생략 — 작업이 끝나지 않음(다음 턴에 이어서)' })),
+    'test-verify 훅: 마지막 답변에 «테스트 확인: 생략 — <이유>» 가 있으면 첫 종료도 막지 않는다(last_assistant_message)');
+  check(!blocked(hook(P, 'stop', sid, { msg: '- **테스트 확인**: 생략 — 문구만 바꿈', wrapper: true })),
+    'test-verify 훅: 생략 줄은 목록 · 굵게 표기여도 인정한다(래퍼 경유)');
+  check(blocked(hook(P, 'stop', sid, { msg: '테스트 확인: 생략 —   ' })) && blocked(hook(P, 'stop', sid, { msg: '테스트 확인은 생략 — 나중에' })),
+    'test-verify 훅: 이유가 빈 생략 줄 · 형식이 다른 문장은 인정하지 않는다');
+
+  const nr = report();
+  check(nr.code === 3 && /- src\/guard\.js: 미실행/.test(nr.out) && /- src\/price\.js: 미실행/.test(nr.out) && /실행 0 · 미실행 2/.test(nr.out),
+    'test-verify report: 기록이 없으면 파일마다 «미실행» · 종료 코드 3', nr.out + nr.err);
+
+  const none = verify(P, ['base', '--base', head, '--', 'src/price.test.js']);
+  check(none.json?.fatalCode === 'no-target' && blocked(hook(P, 'stop', sid)) && /제품 코드 2개/.test(hook(P, 'stop', sid).out),
+    'test-verify 덮임: 손대지 않은 테스트로 --test 없이 돌려 «대상 케이스 없음» 이면 아무것도 덮지 않는다', none.err || none.json?.fatal);
+
+  const m = verify(P, ['mutate', '--file', 'src/guard.js', '--find', 'guard=on', '--replace', 'guard=off', '--test', 'submit > 한 번만', '--intent', '중복 제출 가드 제거', '--', 'src/submit.test.js']);
+  check(verdicts(m.json)['submit > 한 번만'] === 'detected' && m.json.intent === '중복 제출 가드 제거', 'test-verify mutate: 손대지 않은 기존 테스트 + --test 로 검출 · --intent 를 기록에 남긴다', m.err || JSON.stringify(m.json?.targets));
+  const m2 = verify(P, ['mutate', '--file', 'src/guard.js', '--find', 'strict', '--replace', 'loose', '--test', 'submit > 엄격', '--intent', '가격 세율 변경 확인', '--', 'src/submit.test.js']);
+  const b2 = hook(P, 'stop', sid);
+  check(verdicts(m2.json)['submit > 엄격'] === 'detected' && blocked(b2) && /제품 코드 1개/.test(b2.out) && /- src\/price\.js/.test(b2.out) && !/- src\/guard\.js/.test(b2.out),
+    'test-verify 덮임: guard.js 만 변이한 기록은 같은 턴의 price.js 를 덮지 않는다(--intent 문구가 가격을 말해도 판정에 쓰지 않음)', b2.out + b2.err);
+
+  const pb = verify(P, ['base', '--base', head, '--only', 'src/price.js', '--test', 'price > 세율', '--', 'src/price.test.js']);
+  check(pb.json?.scope === 'partial' && verdicts(pb.json)['price > 세율'] === 'undetected' && !blocked(hook(P, 'stop', sid)),
+    'test-verify 덮임: --only 로 좁힌 부분 대조도 그 파일은 덮는다 · 판정이 미검출이어도 «실행함»(훅 침묵)', pb.err || JSON.stringify(pb.json?.targets));
+  const r1 = report();
+  check(r1.code === 0 && /- src\/guard\.js: 중복 제출 가드 제거 → src\/submit\.test\.js › submit > 한 번만 → expected source to contain guard=on \(src\/submit\.test\.js:2:20\) → 검출 \[지정 변이\]/.test(r1.out),
+    'test-verify report: «깨뜨린 동작 → 케이스 → 실제 관측값 → 판정» 한 줄(검출)', r1.out + r1.err);
+  check(/- src\/price\.js: 수정 전 내용으로 되돌림\(기준 [0-9a-f]{9}\) → src\/price\.test\.js › price > 세율 → 대조에서도 통과 → 미검출 \[수정 전 대조 · 부분\]/.test(r1.out) && /실행 2 · 미실행 0 — 검출 2 · 미검출 1/.test(r1.out) && /해석: /.test(r1.out),
+    'test-verify report: 미검출은 케이스와 함께 «미검출» 로(미실행과 구분) · 집계 · 해석 문서', r1.out);
+
+  write(P, { 'src/guard.js': 'guard=on strict v2\n' });
+  const b3 = hook(P, 'stop', sid);
+  check(blocked(b3) && /제품 코드 2개/.test(b3.out), 'test-verify 덮임: 실행 뒤 소스를 다시 고치면 모든 기록이 무효(현재 트리 기준) → 다시 막음', b3.out);
+  const mix = verify(P, ['base', '--base', head, '--test', 'submit > 엄격', '--intent', '엄격 모드 추가 되돌림', '--', 'src/submit.test.js']);
+  const r2 = report();
+  check(verdicts(mix.json)['submit > 엄격'] === 'detected' && mix.json.sources.join() === 'src/guard.js,src/price.js' && !blocked(hook(P, 'stop', sid))
+    && /- src\/price\.js: 엄격 모드 추가 되돌림 → src\/submit\.test\.js › submit > 엄격 → .* → 검출 \[수정 전 대조 · 함께 되돌린 소스 2개 — 어느 수정이 이 결과를 냈는지는 이 기록으로 가를 수 없음\]/.test(r2.out),
+  'test-verify report: 소스 여러 개를 함께 되돌린 base 의 검출은 어느 수정 탓인지 단정하지 않는다(두 파일 모두 «실행함»)', r2.out + mix.err);
+  check(/소스 2개를 함께 되돌렸다/.test(run(P, process.execPath, [BIN, 'verify-test', 'base', '--base', head, '--test', 'submit > 엄격', '--', 'src/submit.test.js']).out),
+    'test-verify 출력: 소스 여러 개를 함께 되돌린 base 는 사람이 읽는 출력에도 귀속 한계를 적는다');
+  commit(P, 'guard + price');
+
+  hook(P, 'turn-start', sid);
+  write(P, { 'src/price.js': 'rate=1.2\n' });
+  commit(P, 'in-turn');
+  check(blocked(hook(P, 'stop', sid)), 'test-verify 훅(제품 코드): 턴 안에서 커밋한 제품 코드 변경도 이번 턴 변경 → 막음');
+  hook(P, 'turn-start', sid);
+  check(!blocked(hook(P, 'stop', sid)), 'test-verify 훅(제품 코드): 앞 턴의 변경만 남은 새 턴(이번 턴 변경 없음) → 침묵');
+
+  const V3p = repo('product-v3', { 'package.json': JSON.stringify({ name: 'v3p', private: true, devDependencies: { vitest: '3.2.0' } }), 'src/a.js': 'a\n', 'src/a.test.js': '// CASE a :: src/a.js :: a\n' }, { vitest: '3.2.0' });
+  hook(V3p, 'turn-start', 's');
+  write(V3p, { 'src/a.js': 'a2\n' });
+  const n3 = hook(V3p, 'stop', 's');
+  check(!blocked(n3) && /검증된 조합이 아니라/.test(n3.err) && n3.err.split('\n').filter(Boolean).length === 1, 'test-verify 훅(제품 코드): 검증되지 않은 조합 → 막지 않고 알림만(패키지당 한 번)', n3.err);
+  const Up = repo('product-unknown', { 'package.json': JSON.stringify({ name: 'up', private: true }), 'src/a.js': 'a\n' }, { vitest: null });
+  hook(Up, 'turn-start', 's');
+  write(Up, { 'src/a.js': 'a2\n' });
+  const nu = hook(Up, 'stop', 's');
+  check(!blocked(nu) && !nu.err.trim(), 'test-verify 훅(제품 코드): 러너를 알 수 없는 프로젝트 → 침묵');
+}
+
+{
+  const { entryLine } = await import(path.join(ROOT, 'lib/test-verify/coverage.mjs'));
+  const rec = { kind: 'mutate', intent: '가드 제거', mutation: { file: 'src/a.js', find: 'x', replace: 'y' } };
+  const tg = { file: 'src/a.test.js', name: 'a > 한 번', verdict: 'detected', failure: { message: 'expected [ …(2) ] to have a length of 1 but got 2', at: 'src/a.test.js:9:3' },
+    raw: { err: { message: 'expected [ …(2) ] to have a length of 1 but got 2\n\nIgnored nodes: comments, script, style\n<html>\n  <body>\n    <div>긴 DOM</div>' } } };
+  const line = entryLine('src/a.js', { rec, target: tg });
+  check(line === '- src/a.js: 가드 제거 → src/a.test.js › a > 한 번 → expected [ …(2) ] to have a length of 1 but got 2 (src/a.test.js:9:3) → 검출 [지정 변이]',
+    'test-verify report: 관측값에서 Testing Library 의 DOM 덤프(Ignored nodes · <html>…)를 걷어 낸다', line);
 }
 
 // ── 정리 · 자체 점검 ──────────────────────────────────────────────────────────
@@ -457,6 +563,10 @@ const Hk = repo('hook', {
   const fs_ = fs.readFileSync(path.join(ROOT, 'skills/fe-start/SKILL.md'), 'utf8');
   check(/`regression`/.test(ta) && /verify-test/.test(ta) && /테스트 판별력/.test(rv) && /verify-test status/.test(fs_) && /test-verify/.test(fs_),
     'test-verify 자체 점검: fe-test-author regression 모드 · fe-reviewer 판별력 축 · fe-start(status · kind test-verify) 배선');
+  const si = fs.readFileSync(path.join(ROOT, 'hooks/session-init.sh'), 'utf8');
+  const hk = fs.readFileSync(path.join(ROOT, 'lib/test-verify/hook.mjs'), 'utf8');
+  check(/### 6\.1 /.test(doc) && /## 10\. /.test(doc) && /verify-test report/.test(doc) && /verify-test report/.test(fs_) && /verify-test report/.test(rv) && /verify-test report/.test(si) && /§10/.test(hk),
+    'test-verify 자체 점검(v1.22.0): 덮임 정의(§6.1) · 변이 고르기(§10) 문서 · fe-start · fe-reviewer · session-init 의 report 배선 · 훅 메시지의 §10 참조');
 }
 
 console.log(`TV_RESULT ${PASS} ${FAIL}`);

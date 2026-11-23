@@ -265,6 +265,43 @@ async function vitestScenarios(combo, dir) {
     && before.split('\n').filter((l) => l.includes('price.js')).join() === after.split('\n').filter((l) => l.includes('price.js')).join(),
   `${tag}: 실행 도중 다른 프로세스가 스테이징해도 실행 뒤 index · 작업 트리가 그대로`);
   reset(dir);
+
+  // 6) 제품 코드만 고치고 기존 테스트는 손대지 않은 턴(v1.22.0) — 훅이 막고 · 기존 케이스 지정으로 대조 · report 한 줄
+  write(dir, {
+    [`${W}/submit.js`]: 'export function createSubmitter(send) {\n  return () => send()\n}\n',
+    [`${W}/submit.test.js`]: [
+      "import { expect, it, vi } from 'vitest'",
+      "import { createSubmitter } from './submit.js'",
+      "it('처리 중 다시 눌러도 요청은 한 번', async () => {",
+      '  let release',
+      '  const send = vi.fn(() => new Promise((r) => { release = r }))',
+      '  const submit = createSubmitter(send)',
+      '  const first = submit()',
+      '  submit()',
+      '  expect(send).toHaveBeenCalledTimes(1)',
+      '  release()',
+      '  await first',
+      '})',
+    ].join('\n') + '\n',
+  });
+  commit(dir, 's6-base');
+  const sid6 = `runner-${combo.id}-6`;
+  run(dir, process.execPath, [BIN, 'hook', 'turn-start'], { input: JSON.stringify({ session_id: sid6, cwd: dir }) });
+  write(dir, { [`${W}/submit.js`]: 'export function createSubmitter(send) {\n  let pending = false\n  return async () => {\n    if (pending) return\n    pending = true\n    try { await send() } finally { pending = false }\n  }\n}\n' });
+  const h6 = run(dir, process.execPath, [BIN, 'hook', 'stop'], { input: JSON.stringify({ session_id: sid6, cwd: dir, stop_hook_active: false }) });
+  check(/"decision":"block"/.test(h6.out) && /제품 코드 1개/.test(h6.out) && /apps\/web\/src\/submit\.js {2}\(후보 테스트: apps\/web\/src\/submit\.test\.js\)/.test(h6.out),
+    `${tag}: 제품 코드만 고친 턴 → 종료 훅이 막고 같은 이름의 기존 테스트를 후보로 보여 준다`, h6.out + h6.err);
+  const r12 = verify(dir, ['base', '--test', '처리 중 다시 눌러도 요청은 한 번', '--intent', '중복 제출 가드 추가 되돌림', '--', `${W}/submit.test.js`], { CLAUDE_CODE_SESSION_ID: sid6 });
+  check(V(r12)['처리 중 다시 눌러도 요청은 한 번'] === 'detected' && /called 1 times, but got 2 times/.test(r12.json?.targets?.[0]?.raw?.err?.message || ''),
+    `${tag}: 손대지 않은 기존 케이스를 --test 로 지정한 수정 전 대조 = 요청 횟수 단언(기대 1 · 실제 2)이 뒤집혀 검출`, detail(r12));
+  const r13 = verify(dir, ['mutate', '--file', `${W}/submit.js`, '--find', '    if (pending) return\n', '--replace', '', '--test', '처리 중 다시 눌러도 요청은 한 번', '--intent', '중복 제출 가드 제거', '--', `${W}/submit.test.js`]);
+  check(V(r13)['처리 중 다시 눌러도 요청은 한 번'] === 'detected', `${tag}: 같은 케이스로 가드 한 줄만 지운 지정 변이 = 검출`, detail(r13));
+  const h6b = run(dir, process.execPath, [BIN, 'hook', 'stop'], { input: JSON.stringify({ session_id: sid6, cwd: dir, stop_hook_active: false }) });
+  const rep6 = run(dir, process.execPath, [BIN, 'verify-test', 'report'], { env: { CLAUDE_CODE_SESSION_ID: sid6 } });
+  check(!/"decision":"block"/.test(h6b.out) && rep6.code === 0
+    && /- apps\/web\/src\/submit\.js: 중복 제출 가드 제거 → apps\/web\/src\/submit\.test\.js › 처리 중 다시 눌러도 요청은 한 번 → .*called 1 times, but got 2 times.* → 검출 \[지정 변이\]/.test(rep6.out),
+  `${tag}: 대조 기록이 생기면 훅은 침묵하고, report 가 «깨뜨린 동작 → 케이스 → 실제 관측값 → 판정» 을 낸다`, h6b.out + rep6.out + rep6.err);
+  reset(dir);
 }
 
 // ── Jest 조합 ────────────────────────────────────────────────────────────────
@@ -331,6 +368,35 @@ async function jestScenarios(combo, dir) {
   write(dir, { 'src/price.js': 'exports.price = (n) => n + 1\n', 'src/__tests__/plus.cjs': "const { price } = require('../price')\nit('하나 더', () => { expect(price(1)).toBe(2) })\n" });
   const h = run(dir, process.execPath, [BIN, 'hook', 'stop'], { input: JSON.stringify({ session_id: sid, cwd: dir, stop_hook_active: false }) });
   check(/"decision":"block"/.test(h.out) && /__tests__\/plus\.cjs/.test(h.out), `${tag}: 종료 훅이 __tests__/*.cjs(Jest 기본 수집)를 바뀐 테스트로 보고 막는다`, h.out + h.err);
+  reset(dir);
+  // 제품 코드만 고치고 기존 테스트는 손대지 않은 턴(v1.22.0)
+  write(dir, {
+    'src/submit.js': 'exports.createSubmitter = (send) => () => send()\n',
+    'src/submit.test.js': [
+      "const { createSubmitter } = require('./submit')",
+      "it('처리 중 다시 눌러도 요청은 한 번', async () => {",
+      '  let release',
+      '  const send = jest.fn(() => new Promise((r) => { release = r }))',
+      '  const submit = createSubmitter(send)',
+      '  const first = submit()',
+      '  submit()',
+      '  expect(send).toHaveBeenCalledTimes(1)',
+      '  release()',
+      '  await first',
+      '})',
+    ].join('\n') + '\n',
+  });
+  commit(dir, 'j6-base');
+  const sid6 = `runner-${combo.id}-6`;
+  run(dir, process.execPath, [BIN, 'hook', 'turn-start'], { input: JSON.stringify({ session_id: sid6, cwd: dir }) });
+  write(dir, { 'src/submit.js': 'exports.createSubmitter = (send) => {\n  let pending = false\n  return async () => {\n    if (pending) return\n    pending = true\n    try { await send() } finally { pending = false }\n  }\n}\n' });
+  const h6 = run(dir, process.execPath, [BIN, 'hook', 'stop'], { input: JSON.stringify({ session_id: sid6, cwd: dir, stop_hook_active: false }) });
+  check(/"decision":"block"/.test(h6.out) && /src\/submit\.js {2}\(후보 테스트: src\/submit\.test\.js\)/.test(h6.out), `${tag}: 제품 코드만 고친 턴 → 종료 훅이 막고 기존 테스트를 후보로 보여 준다`, h6.out + h6.err);
+  const r6 = verify(dir, ['mutate', '--file', 'src/submit.js', '--find', '    if (pending) return\n', '--replace', '', '--test', '처리 중 다시 눌러도 요청은 한 번', '--intent', '중복 제출 가드 제거', '--', 'src/submit.test.js']);
+  const rep6 = run(dir, process.execPath, [BIN, 'verify-test', 'report'], { env: { CLAUDE_CODE_SESSION_ID: sid6 } });
+  check(V(r6)['처리 중 다시 눌러도 요청은 한 번'] === 'detected' && rep6.code === 0
+    && /- src\/submit\.js: 중복 제출 가드 제거 → src\/submit\.test\.js › 처리 중 다시 눌러도 요청은 한 번 → .*Received number of calls: 2.* → 검출 \[지정 변이\]/.test(rep6.out),
+  `${tag}: 손대지 않은 기존 케이스로 가드 제거 변이 = 검출 · report 의 관측값에 «Received number of calls: 2» 가 실린다`, detail(r6) + rep6.out);
   reset(dir);
 }
 

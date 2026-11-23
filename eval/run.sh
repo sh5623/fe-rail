@@ -985,6 +985,15 @@ uc=$(env HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_HOOK_PROFILE=minimal PATH="
 printf '%s' "$uc" | grep -q '훅 프로파일: minimal' && ok "session-init: 플러그인 경로 없음 → 버전 체크만 건너뛰고 프로파일 안내는 유지" \
   || ng "session-init: 플러그인 경로가 없으면 뒤 안내까지 사라진다 (out='$uc')"
 
+# v1.22.0 — 제품 코드 변경 확인 안내는 stdout(세션 컨텍스트) 한 줄 · test-verify 를 끄면 사라진다 · git+package.json 프로젝트에서만
+SI_PRJ="$TMP/si-prj"; mkdir -p "$SI_PRJ"; (cd "$SI_PRJ" && git init -q && printf '{}\n' > package.json)
+si_out=$(cd "$SI_PRJ" && HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_SKIP_SETUP_NUDGE=1 bash "$HOOKS/session-init.sh" 2>/dev/null)
+printf '%s' "$si_out" | grep -q 'verify-test report' && printf '%s' "$si_out" | grep -q '테스트 확인: 생략' \
+  && ok "session-init: 제품 코드 변경 확인 안내를 stdout(컨텍스트)으로 한 줄 낸다(v1.22.0)" || ng "session-init: 제품 코드 변경 확인 안내 누락 (out='$si_out')"
+si_off=$(cd "$SI_PRJ" && HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_SKIP_SETUP_NUDGE=1 FE_RAIL_DISABLED_HOOKS=test-verify bash "$HOOKS/session-init.sh" 2>/dev/null)
+si_np=$(cd "$TMP" && HOME="$UC_HOME" CLAUDE_PLUGIN_ROOT= FE_RAIL_SKIP_SETUP_NUDGE=1 GIT_CEILING_DIRECTORIES="$TMP" bash "$HOOKS/session-init.sh" 2>/dev/null)
+[ -z "$si_off" ] && [ -z "$si_np" ] && ok "session-init: test-verify 비활성 · git 프로젝트 밖이면 안내 없음(stdout 비어 있음)" || ng "session-init: 꺼야 할 때 안내가 나옴 (off='$si_off' np='$si_np')"
+
 # ── v1.21.0 — 회귀 테스트 확인(test-verify) · 모델 없는 eval ──────────────────────
 # 실행기는 node 단독 스크립트라 eval 도 node 로 짠다(임시 저장소 · 가짜 러너 fixture). 결과 줄을 이 eval 의 집계에 더한다.
 if command -v node >/dev/null 2>&1; then

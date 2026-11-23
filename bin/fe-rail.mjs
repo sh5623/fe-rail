@@ -5,19 +5,24 @@ import path from 'node:path';
 import { stop, turnStart } from '../lib/test-verify/hook.mjs';
 import { DOC, PLUGIN_VERSION, UsageError, formatRecord, statusFor, verify } from '../lib/test-verify/verify.mjs';
 import { toplevel } from '../lib/test-verify/git.mjs';
+import { formatReport, reportFor, reportIncomplete } from '../lib/test-verify/coverage.mjs';
 
 const HELP = `fe-rail ${PLUGIN_VERSION}
 
-  fe-rail verify-test base   [--base <rev>] [--only <소스>]… [--test <케이스 전체 이름>]… [--expect <문자열>]
+  fe-rail verify-test base   [--base <rev>] [--only <소스>]… [--test <케이스 전체 이름>]… [--expect <문자열>] [--intent <깨뜨린 동작>]
                              [--cmd <명령 틀> [--format vitest|jest|exit-code]] [--json] [--keep] -- <테스트 파일>…
-  fe-rail verify-test mutate --file <소스> --find <원문> --replace <바꿀 내용> [--test …] [--expect …] [--cmd …] -- <테스트 파일>…
+  fe-rail verify-test mutate --file <소스> --find <원문> --replace <바꿀 내용> [--test …] [--expect …] [--intent …] [--cmd …] -- <테스트 파일>…
   fe-rail verify-test status [--base <rev>] [--expect <문자열>] [--cmd …] [--json] -- <테스트 파일>…
+  fe-rail verify-test report [--base <rev>] [--json]
 
   base    현재 작업 내용의 격리본 둘을 만들고, 하나는 그대로(현재 소스) · 하나는 제품 소스를 기준 리비전 내용으로
           바꿔(대조 소스) 같은 테스트를 돌린다. 사용자 작업 트리와 스테이징은 읽기만 한다.
           기준 기본값 = 이 세션의 턴 시작 HEAD(없으면 HEAD).
   mutate  대조 소스를 «현재 소스의 지정한 한 곳을 바꾼 것» 으로 만든다(--find 원문은 그 파일에 정확히 한 번).
   status  현재 상태에서 요청을 충족하는 기록이 있는지(종료 훅 · fe-start 가 쓰는 같은 판정).
+  report  이번 턴(--base 를 주면 그 리비전 이후)에 바뀐 제품 코드 파일마다 «깨뜨린 동작 → 케이스 → 실제 관측값 → 판정»
+          또는 «미실행» 을 한 줄씩 낸다(종료 훅과 같은 덮임 판정). 미실행 · 미충족이 있으면 종료 코드 3.
+  --intent  사람이 읽을 설명(예: "중복 제출 가드 제거"). 기록이 무엇을 덮는가의 판정에는 쓰지 않는다.
 
   판정(케이스마다): 검출 · 미검출 · 원인 미확인 · 측정 불가 — 해석: ${DOC}`;
 
@@ -45,6 +50,7 @@ function parse(argv) {
       case '--file': o.file = val(); break;
       case '--find': o.find = val(); break;
       case '--replace': o.replace = val(); break;
+      case '--intent': o.intent = val(); break;
       case '--json': o.json = true; break;
       case '--keep': o.keep = true; break;
       case '-h': case '--help': o.help = true; break;
@@ -114,9 +120,23 @@ async function main(argv) {
     }
     return res.every((r) => r.satisfied) ? 0 : 3;
   }
+  if (sub === 'report') {
+    const root = toplevel(process.cwd());
+    if (!root) throw new UsageError('git 저장소가 아님');
+    if (o.files.length) throw new UsageError('report 는 파일 인자를 받지 않습니다(이번 턴 · --base 이후 바뀐 파일을 스스로 찾습니다)');
+    let rep;
+    try {
+      rep = reportFor(root, { base: o.base, sessionId });
+    } catch (e) {
+      if (/기준 리비전을 찾지 못함/.test(String(e.message))) throw new UsageError(e.message);
+      throw e;
+    }
+    process.stdout.write(o.json ? `${JSON.stringify(rep, null, 1)}\n` : `${formatReport(rep)}\n`);
+    return reportIncomplete(rep) ? 3 : 0;
+  }
   if (sub !== 'base' && sub !== 'mutate') throw new UsageError(`알 수 없는 하위 명령: ${sub}`);
   const r = await verify({
-    cwd: process.cwd(), mode: sub, base: o.base, only: o.only, tests: o.tests, expect: o.expect, cmd: o.cmd, format: o.format,
+    cwd: process.cwd(), mode: sub, base: o.base, only: o.only, tests: o.tests, expect: o.expect, intent: o.intent, cmd: o.cmd, format: o.format,
     files: o.files, keep: o.keep, sessionId, mutation: sub === 'mutate' ? { file: o.file, find: o.find, replace: o.replace } : null,
   });
   if (o.json) process.stdout.write(`${JSON.stringify({ record: r.file, ...r.rec }, null, 1)}\n`);

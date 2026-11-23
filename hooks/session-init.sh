@@ -76,6 +76,15 @@ if [ -f "$_FE_PLIB" ]; then
   fi
 fi
 
+# 제품 코드 변경 확인 안내(v1.22.0) — 이 한 줄만 stdout(= 세션 컨텍스트)으로 낸다. 종료 훅(test-verify)이 켜져 있고
+#   git + package.json 프로젝트일 때만. 종료 전에 Claude 가 스스로 확인하게 해 차단 왕복을 줄인다. 상세: docs/test-verify.md §10
+if command -v fe_hook_enabled >/dev/null 2>&1 && fe_hook_enabled "test-verify" "standard"; then
+  _FE_TOP="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [ -n "$_FE_TOP" ] && { [ -f "$_FE_TOP/package.json" ] || [ -f "package.json" ]; }; then
+    echo "[fe-rail] JS·TS 제품 코드를 고친 턴은 끝내기 전에, 그 수정이 보장하려는 동작을 깨뜨렸을 때 그 동작을 지키는 테스트(고치지 않은 기존 테스트 포함)가 실패하는지 \`fe-rail verify-test base --only <소스> --test \"<케이스>\" --intent \"<깨뜨린 동작>\" -- <테스트>\`(결함 수정) 또는 \`mutate\`(새 기능 · 섞인 수정)로 확인하고 \`fe-rail verify-test report\` 줄을 요약하지 말고 그대로 답변에 싣는다(줄마다 깨뜨린 동작 · 케이스 · 관측값 · 판정). 동작 변화가 없거나 작업 중이면 마지막 줄에 \`테스트 확인: 생략 — <이유>\` — 둘 다 없으면 종료 훅이 한 번 막는다."
+  fi
+fi
+
 # 권장 Bash 권한 미설정 안내 (소비자 프로젝트 기준). 이미 설정됐거나 opt-out 이면 조용히 넘어간다.
 # - SessionStart 훅은 비대화형이라 설치/선택은 못 하고 1회 안내만 한다.
 # - 실제 설정: hooks/scripts/setup-permissions.sh (호스트 감지 → settings.local.json 병합).

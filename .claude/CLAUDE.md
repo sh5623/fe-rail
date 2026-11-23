@@ -39,7 +39,7 @@ fe-rail/
 │   ├── session-init.sh    ← SessionStart: 원격 버전 체크(하루 1회, GitHub raw · 끄기 FE_RAIL_NO_UPDATE_CHECK=1) + 훅 프로파일 + 권장 권한 미설정 안내
 │   ├── guard·write-guard·task-guard·config-protection ← 차단(exit 2): 위험명령·민감파일·인젝션·설정 약화
 │   ├── read-guard·lint-fix·nextjs-guard·design-nudge·quality-gate·doc-sync-check ← 경고(stderr)
-│   ├── test-verify-turn.sh·test-verify-stop.sh ← UserPromptSubmit·Stop: 회귀 테스트 확인(턴 기록 · 기록 없으면 종료를 한 번 막음 · 이름 test-verify)
+│   ├── test-verify-turn.sh·test-verify-stop.sh ← UserPromptSubmit·Stop: 회귀 테스트 확인(턴 기록 · 바뀐 테스트 · 바뀐 제품 코드(JS·TS)를 대조한 기록이 없으면 종료를 한 번 막음 · 생략 줄 인식 · 이름 test-verify)
 │   ├── notify.sh          ← Notification(옵션): terminal-notifier 배너 (setup-notifier.sh 로 활성화, hooks.json 미배선)
 │   └── scripts/           ← profile-lib(프로파일/토글)·setup-permissions(권장 Bash 권한 → settings.local.json)·setup-notifier(notify 활성화)
 ├── skills/
@@ -49,7 +49,7 @@ fe-rail/
 │   ├── fe-start/          ← 원스톱 자동화 (spec→PR) · scripts/gate-commands.mjs = 6-0 기본 build·E2E 명령 선택기(고르기만)
 │   └── fe-doc-sync/       ← 설치된 사용자 프로젝트 스캔 → 그 프로젝트의 CLAUDE.md·README.md 동기화
 ├── bin/fe-rail(.mjs)       ← `fe-rail verify-test` 명령 (Claude Code 가 Bash 도구 PATH 에 올린다 · 일반 셸은 node bin/fe-rail.mjs)
-├── lib/test-verify/       ← 실행기(격리본 · 분류 · 러너 실행 · 보고서 정규화 · 케이스 판정 · 기록 · 턴 · 훅) + Vitest 보고기 — node 단독(의존성 0)
+├── lib/test-verify/       ← 실행기(격리본 · 분류 · 러너 실행 · 보고서 정규화 · 케이스 판정 · 기록 · 파일 단위 덮임 · report · 턴 · 훅) + Vitest 보고기 — node 단독(의존성 0)
 ├── eval/
 │   ├── run.sh             ← 회귀 eval (훅 동작·프로파일·self-lint, 결정적·CI용 · H 절 = test-verify.mjs)
 │   ├── test-verify.mjs    ← 회귀 테스트 확인 모델 없는 eval(가짜 러너 fixture · 실제 러너 보고서 견본 eval/fixtures/test-verify/)
@@ -164,6 +164,8 @@ fe-review → 4축 검토 (타입·성능·a11y·품질)
 **시각 판정의 미검증 (v1.20.0)**: fe-vision 은 입력이 부족하면 `verdict: "unverified"`(점수 없음)를 내고, fe-start 는 `revise` 만 수정 루프에 넣는다(`unverified` = 미검증 기록 · `fail` = 힌트 재검토로 STOP).
 
 **회귀 테스트 확인 (v1.21.0)**: 새로 쓴 회귀 테스트가 수정 전 코드에서 실제로 실패하는지 `fe-rail verify-test` 가 잰다. 작업 트리의 파일을 바꿨다 되돌리지 않는다 — 그 사이 다른 프로세스가 스테이징하면 복원 해시가 같아도 index 가 수정 전 내용으로 바뀐다(외부 검증 재현). 현재 작업 내용(추적 + 무시되지 않은 미추적)을 임시 폴더에 복사하고 `node_modules` 를 항목별로 이어 붙인 뒤(`@scope` 는 폴더를 만들고 안을 항목별로 · 최종 해석 경로가 격리본 안인지 확인) 그대로 복제해 **깨끗한 격리본 둘**을 만든다(한 격리본을 다시 쓰면 첫 실행이 남긴 상태 파일이 둘째 결과를 뒤집는다). 판정은 지정 케이스 단위 — 검출은 «현재 통과 · 대조에서 그 케이스의 본문 단언이 뒤집힘(+ `--expect`)» 이고, 본문 여부는 실패 스택에서 테스트 파일을 가리키는 가장 바깥 프레임이 케이스 선언 뒤 · 다음 선언 앞 · 사이에 훅 선언 없음으로 가린다. 단언 여부는 Vitest 는 플러그인 보고기(`lib/test-verify/vitest-reporter.mjs` — `AssertionError` · `expect.extend` · 스냅샷 불일치), Jest 는 `failureDetails[].matcherResult`. 파일 · 러너 수준 오류(`afterAll` 실패 · 미처리 오류)는 케이스가 «통과» 여도 측정 불가. 스냅샷은 읽기 전용, 빌드 결과물을 내보내는 워크스페이스 패키지는 `prepare` 선언 없으면 측정 불가. 격리본 안의 명령에서는 pnpm `verify-deps-before-run` 을 끈다(pnpm 11 이 원본 경로를 담은 상태 파일 때문에 스스로 install 을 시도 — 링크를 따라 원본에 쓸 수 있다). 기록(`.git/fe-rail/verify/records`)의 유효성은 종료 훅 · fe-start · `status` 가 같은 함수로 판정한다(트리 id + 선언 추가 입력 지문 · 기준 · 명령 · 준비 명령 · 전체 범위 · 새 케이스 전부 · `--expect` 는 저장 근거로 재판정). 종료 훅의 자동 차단은 `VERIFIED`(실제 러너 eval 통과 조합)에서만 — 판단할 수 없으면 막지 않는다. 설명서 `docs/test-verify.md`.
+
+**제품 코드 변경 확인 (v1.22.0)**: 종료 훅은 이번 턴에 **테스트 파일이 바뀐** 경우만 보던 것을 넘어, `/fe-start` 여부와 무관하게 이번 턴에 바뀐 제품 코드(JS·TS · `*.d.ts` 제외)를 파일마다 본다(`lib/test-verify/coverage.mjs`). 판정 단위는 파일 하나이고, 기록이 그 파일을 덮는 것은 ① 현재 트리와 같고(트리 id + `copy` 지문) ② 그 파일이 실제 대조 대상이었고(`base` 의 대조 소스 · `mutate` 의 변이 대상) ③ 대상 케이스가 1개 이상일 때뿐이다 — `guard.ts`·`price.ts` 를 함께 고치고 가드 변이만 돌리면 `guard.ts` 만 덮인다. `--intent` 는 사람이 읽을 설명이라 판정에 넣지 않는다(문구로 덮임을 주장할 수 없게). 소스 여러 개를 함께 되돌린 `base` 의 결과는 출력 · `report` 모두 «어느 수정 탓인지 가를 수 없음» 을 붙인다. 생략 줄은 Stop 훅 입력 `last_assistant_message` 로 읽어 첫 종료 전에도 인정한다(이유 없는 줄은 불인정). 훅이 TSX 안의 순수 표현 변경과 동작 변경을 가를 수 없어서, 그 판단은 생략 사유로 Claude 에게 맡긴다. 상세: `docs/test-verify.md` §6.1 · §10.
 
 fe-spec → fe-start 핸드오프: fe-spec 의 "다음 단계" 게이트에서 "풀 자동"을 고르면 fe-start 로 이어진다. 이때 "구현할까요?"는 fe-spec 게이트가 대신하므로 fe-start 는 "커밋할까요?"만 묻는다(전체 승인 2회 유지).
 
