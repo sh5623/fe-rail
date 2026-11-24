@@ -13,14 +13,24 @@
 
 ## Installation
 
+Recommended: install from the [guardrail](https://github.com/sh5623/guardrail) aggregate marketplace (fe-rail, self-improvement, parallel-worktree and e2e-rail in one marketplace).
+
 ```bash
 claude
 
+/plugin marketplace add sh5623/guardrail
+/plugin install fe-rail@guardrail
+/reload-plugins
+```
+
+Installing straight from this repository also works if you only need fe-rail:
+
+```bash
 /plugin marketplace add sh5623/fe-rail
 /plugin install fe-rail@fe-rail-market
 ```
 
-> Also using [self-improvement](https://github.com/sh5623/self-improvement)? Install both from one marketplace: [`sh5623/guardrail`](https://github.com/sh5623/guardrail).
+> Also using [self-improvement](https://github.com/sh5623/self-improvement)? Run `/plugin install self-improvement@guardrail` from the same marketplace.
 
 ![fe-rail workflow: spec, build, review, PR](docs/assets/workflow.svg)
 

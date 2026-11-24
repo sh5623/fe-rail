@@ -13,14 +13,24 @@
 
 ## 설치
 
+권장: [guardrail](https://github.com/sh5623/guardrail) 통합 마켓으로 설치한다 (fe-rail, self-improvement, parallel-worktree, e2e-rail을 마켓 하나로 받는다).
+
 ```bash
 claude
 
+/plugin marketplace add sh5623/guardrail
+/plugin install fe-rail@guardrail
+/reload-plugins
+```
+
+fe-rail만 필요하면 이 저장소를 마켓으로 직접 추가해도 된다.
+
+```bash
 /plugin marketplace add sh5623/fe-rail
 /plugin install fe-rail@fe-rail-market
 ```
 
-> [self-improvement](https://github.com/sh5623/self-improvement)도 같이 쓴다면, 마켓 하나로 두 개 다 설치: [`sh5623/guardrail`](https://github.com/sh5623/guardrail).
+> [self-improvement](https://github.com/sh5623/self-improvement)도 같이 쓴다면, 같은 마켓에서 `/plugin install self-improvement@guardrail`로 설치한다.
 
 ![fe-rail 워크플로우: spec, build, review, PR](docs/assets/workflow.svg)
 
