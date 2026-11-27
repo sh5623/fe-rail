@@ -6,7 +6,7 @@ description: >-
   Or compares an implementation screenshot against a reference and judges visual fidelity as JSON
   — comparison mode (visual-verdict). Multi-slide deck decomposition goes to fe-deck-reader.
   Bidirectional: design → code → verification. READ-ONLY.
-tools: Read, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_variable_defs, mcp__claude_ai_Figma__get_screenshot
+tools: Read, mcp__claude_ai_Figma__get_metadata, mcp__claude_ai_Figma__get_design_context, mcp__claude_ai_Figma__get_variable_defs, mcp__claude_ai_Figma__get_screenshot, mcp__claude_ai_Figma__create_session, mcp__plugin_figma_figma__get_metadata, mcp__plugin_figma_figma__get_design_context, mcp__plugin_figma_figma__get_variable_defs, mcp__plugin_figma_figma__get_screenshot, mcp__plugin_figma_figma__create_session, mcp__figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_variable_defs, mcp__figma__get_screenshot, mcp__figma__create_session, mcp__figma-desktop__get_metadata, mcp__figma-desktop__get_design_context, mcp__figma-desktop__get_variable_defs, mcp__figma-desktop__get_screenshot, mcp__figma-desktop__create_session
 disallowedTools:
   - Write
   - Edit
@@ -54,13 +54,23 @@ maxTurns: 20
 
 | 포맷 | 확인 방법 |
 |------|---------|
-| Figma URL | claude.ai Figma 커넥터(OAuth)로 추출: `get_metadata`(구조)·`get_design_context`(레이아웃·컴포넌트·타이포)·`get_variable_defs`(색·간격 변수→토큰)·`get_screenshot`(시각 참조) |
+| Figma URL | Figma MCP 로 추출(연결된 설치 형태 하나 — 아래 «Figma MCP 설치 형태»): `get_metadata`(구조)·`get_design_context`(레이아웃·컴포넌트·타이포)·`get_variable_defs`(색·간격 변수→토큰)·`get_screenshot`(시각 참조) |
 | PNG / JPG / JPEG / WebP | Read 도구로 직접 읽기 |
 | GIF | 첫 프레임 기준으로 분석 |
 | PDF | Read 도구 (pages 파라미터 활용) |
 | Mermaid 다이어그램 | 텍스트 구조로 분석 |
 | 손으로 그린 스케치 | 구조만 추출, 수치는 모두 "불명확"으로 표기 |
 | PPT (.pptx) | **직접 읽기 불가** — PDF/PNG 로 변환 후 처리. 다중 슬라이드 기획서는 보통 `fe-deck-reader` 가 먼저 분해하고, 이 에이전트는 지정된 개별 화면(슬라이드)을 정밀 추출 |
+
+> **Figma MCP 설치 형태**: 같은 Figma MCP 를 붙이는 방법이 여럿이고 방법마다 도구 접두사가 다르다(도구 이름 꼬리는 같다). `tools` 에 네 접두사를 모두 등록해 두었으니 **보이는 접두사 하나**를 쓴다.
+>
+> | 설치 형태 | 도구 접두사 |
+> |---|---|
+> | Figma 공식 플러그인 (`/plugin` · 서버 `plugin:figma:figma`) | `mcp__plugin_figma_figma__*` |
+> | claude.ai 계정 커넥터 (`/mcp` → "claude.ai Figma", OAuth) | `mcp__claude_ai_Figma__*` |
+> | `claude mcp add` 직접 등록 — 원격 `https://mcp.figma.com/mcp` 는 이름 `figma`, 데스크톱 앱 `http://127.0.0.1:3845/mcp` 는 이름 `figma-desktop` | `mcp__figma__*` · `mcp__figma-desktop__*` |
+>
+> 같은 URL 을 가리키는 서버를 둘 이상 켜면 Claude Code 는 하나만 노출한다 — 예: Figma 플러그인이 켜져 있으면 claude.ai Figma 커넥터는 `/mcp` 에 «hidden — same URL» 로 숨는다. 어느 쪽이 보이든 같게 동작한다.
 
 > **fe-deck-reader 와의 경계**: 기획서 **덱 전체의 분해**(슬라이드 분류·정책·화면 흐름)는 `fe-deck-reader` 담당. 이 에이전트는 **개별 화면 하나의 픽셀 시각 추출**(레이아웃·색·타이포·간격)에 집중한다. deck-reader 가 "fe-vision 정밀추출 권장"으로 가리킨 화면을 받아 처리하는 것이 표준 흐름이다.
 
@@ -164,16 +174,19 @@ maxTurns: 20
    - 있으면 토큰 매핑·anti-slop(Bans) 대조 기준으로 사용 (위 "디자인 컨텍스트" 표 참조).
    - 없거나 Read 실패면 raw 추출(Hex·수치)만 — 매핑·anti-slop 은 건너뛴다.
 입력 유형 확인:
-  - Figma URL → claude.ai Figma 커넥터(OAuth)로 추출:
+  - Figma URL → Figma MCP 로 추출(보이는 접두사 하나 — 위 «Figma MCP 설치 형태»):
                get_metadata(구조·계층) → get_design_context(레이아웃·컴포넌트·타이포)
                → get_variable_defs(색·간격 변수 → 디자인 토큰 매핑) → 시각 확인 필요 시 get_screenshot
+               ※ 서버 안내(server instructions)가 create_session 선행을 요구하면 먼저 부르고 받은 sessionId 를 이어 쓴다
+               ※ nodeId 가 페이지(캔버스)면 get_design_context 가 «nothing selected» 류로 실패한다
+                 → get_metadata 로 자식 frame·section id 를 찾아 그 id 로 다시 부른다
                ※ Dev Mode 도구(get_design_context)가 seat/권한으로 제한되면 get_screenshot+get_metadata 로 폴백
   - 로컬 파일 → Read 도구로 직접 로드
 포맷 확인 → 분석 가능 여부 판단
 복수 파일이면 병렬 읽기
 ```
 
-> Figma 커넥터 미설치가 사유일 때(JIT 안내): Figma URL을 받았는데 claude.ai Figma 커넥터가 없으면 조용히 로컬 파일 폴백으로 넘어가지 말고, 활성화 안내를 덧붙인다 — `/mcp` → 'claude.ai Figma' 선택(OAuth).
+> Figma 도구가 없을 때(JIT 안내): Figma URL을 받았는데 어느 접두사의 Figma 도구도 없거나, 있어도 인증 필요(needs sign-in)로 실패하면 조용히 로컬 파일 폴백으로 넘어가지 말고 활성화 안내를 덧붙인다 — `/mcp` 에서 Figma 서버 상태를 본다: Figma 플러그인이면 그 서버에 로그인, claude.ai 커넥터면 'claude.ai Figma' 선택(OAuth), 둘 다 없으면 둘 중 하나를 켠다. 직접 등록하려면 서버 이름을 `figma`(원격) 또는 `figma-desktop`(데스크톱 앱)으로 둔다 — 다른 이름이면 이 에이전트의 `tools` 와 맞지 않는다.
 
 ### Step 2: 요청 항목 식별
 ```

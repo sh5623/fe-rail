@@ -201,6 +201,8 @@ v1.21.12 는 보안 검토 10차 지적에 따라 heredoc 본문을 데이터로
 
 v1.22.0 은 회귀 테스트 확인의 빈틈을 메웁니다. 종전 종료 훅은 이번 턴에 **테스트 파일이 바뀐** 경우에만 봤기 때문에, 제품 코드만 고치고 «기존 테스트가 있으니 고칠 필요 없다» 고 판단한 턴은 조용히 끝났습니다. 이제 종료 훅은 `/fe-start` 여부와 무관하게 이번 턴에 바뀐 제품 코드(JS·TS · `*.d.ts` 제외)를 **파일마다** 봅니다. 그 파일을 실제로 대조한 기록(현재 트리 · 대조 소스 또는 변이 대상이 그 파일 · 대상 케이스 1개 이상)이 없으면 첫 종료를 한 번 막고, 파일마다 후보 테스트(같은 이름 · 그 파일을 가져오는 테스트)와 절차(기대 동작 → `base --only … --test …` 또는 `mutate` → `report`)를 지시합니다. 두 번째 종료는 막지 않고, 마지막 답변에 `테스트 확인: 생략 — <이유>` 가 있으면 첫 종료도 막지 않습니다(Stop 훅 입력의 `last_assistant_message`). 실행기에는 사람이 읽을 설명 `--intent` 와 `fe-rail verify-test report` 가 더해졌습니다. `report` 는 파일마다 «깨뜨린 동작 → 케이스 → 실제 관측값 → 판정» 또는 «미실행» 을 한 줄로 내고, 소스 여러 개를 함께 되돌린 `base` 의 결과는 어느 수정 탓인지 단정하지 않습니다. 변이를 고르는 기준과 예시(가드 제거 · 경계값 · 분기 목적지 · 캐시 키 · 실패 응답)는 [`docs/test-verify.md`](docs/test-verify.md) §10 에 있습니다.
 
+v1.22.1 은 `fe-vision` 이 Figma MCP 를 붙인 방법과 무관하게 도구를 찾게 합니다. 종전 `tools` 에는 claude.ai 커넥터 접두사(`mcp__claude_ai_Figma__*`)만 있어서, Figma 공식 플러그인(`mcp__plugin_figma_figma__*`)이 켜진 환경에서는 Figma 서버가 연결돼 있어도 도구가 없어 로컬 이미지 폴백으로만 돌았습니다 — 같은 URL 이라 Claude Code 가 claude.ai 커넥터를 숨기기 때문입니다. 이제 플러그인 · claude.ai 커넥터 · `claude mcp add`(이름 `figma` · `figma-desktop`) 네 접두사를 모두 등록하고, 서버가 요구하는 `create_session` 선행과 페이지(캔버스) 노드 폴백(`get_metadata` 로 자식 프레임 id 를 찾아 다시 부름)을 따르며, 도구가 없거나 인증이 필요할 때 설치 형태별 안내를 냅니다. eval 에 «MCP 접두사 대칭» 검사를 더해, 한 MCP 의 도구를 쓰는 에이전트가 그 MCP 의 알려진 접두사 전부(Figma · Context7 · Chrome DevTools)에 같은 도구를 두지 않으면 실패하고, 한 형태만 등록한 종전 꼴을 잡는지도 확인합니다.
+
 ## 포함된 Agents
 
 각 agent는 별도 컨텍스트에서 동작하여 메인 세션을 노이즈로부터 보호합니다.
@@ -280,7 +282,7 @@ feature.md 작성 → /fe-rail:fe-start feature.md → "구현할까요?" 승인
 |------|------|------|
 | **프로젝트 CLAUDE.md** | `fe-analyst`·`fe-architect` 등이 스택·규칙·금지사항을 읽어 추론한다. 없으면 빈손으로 분석한다 (이 레포의 `.claude/CLAUDE.md` 는 소비자 세션에 로드되지 않고, `docs/` 의 프레임워크 규칙은 스킬을 통해서만 에이전트에 닿는다. 위 v1.18.0 참조) | `/init` 또는 `/fe-rail:fe-doc-sync` |
 | **Bash 권한** | `fe-git-operator`·`fe-pr-author` 흐름에서 매번 권한 프롬프트 방지 | 자동: 프로젝트 루트에서 `bash <설치경로>/hooks/scripts/setup-permissions.sh`(호스트 감지 → `.claude/settings.local.json` 병합, 확인 1회) · 수동: `.claude/settings.json`의 `permissions.allow`에 `Bash(git *)`·`Bash(gh pr *)` 추가 |
-| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
+| **MCP (선택)** | `fe-vision`의 Figma 직접 조회, `fe-researcher`의 Context7 문서 조회, `fe-perf-auditor`/`fe-a11y-auditor`의 `--live` 실측 활성화 (미설치 시 각각 로컬 이미지·WebSearch·정적 분석으로 fallback) | Figma: Figma 공식 플러그인 · claude.ai 커넥터(`/mcp` → "claude.ai Figma", OAuth) · `claude mcp add`(이름 `figma`/`figma-desktop`) 중 하나 — `fe-vision` 이 네 접두사를 모두 등록해 어느 쪽이든 쓴다(같은 URL 은 Claude Code 가 하나만 노출) · Context7: 플러그인 설치 · Chrome DevTools: 플러그인 설치. 미설치 시 각 에이전트가 폴백하며 활성화 명령을 그 자리에서 안내(JIT) |
 | **검증 스크립트** | Phase 3·4.5 가 `typecheck`/`lint`/`test` 를, Phase 6-0 커밋 직전 게이트가 `build`/`e2e`(존재 시)를 사용 | 해당 스크립트 정의 권장. 프로젝트 전용 푸시 전 게이트가 있으면 CLAUDE.md·AGENTS.md 에 명령을 선언 |
 | **회귀 테스트 확인 선언 (선택)** | 테스트에 환경변수가 필요하거나, 워크스페이스 패키지를 빌드 결과물로 소비하거나, git 이 무시하는 파일이 테스트에 필요하면 자동 감지만으로는 측정 불가가 된다 | `package.json` 에 `"fe-rail": { "testVerify": { "command" · "prepare" · "copy" } }` — [`docs/test-verify.md`](docs/test-verify.md) §7 |
 

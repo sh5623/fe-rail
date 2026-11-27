@@ -526,6 +526,50 @@ if grep -q 'mcp__plugin_context7_context7__' "$_RES" && grep -q 'mcp__context7__
 else
   ng "fe-researcher: Context7 접두사 한쪽만 등록 — 다른 설치형태서 침묵 폴백"
 fi
+# MCP 접두사 대칭(전 에이전트): 같은 MCP 서버를 붙이는 방법(플러그인 · claude.ai 커넥터 · claude mcp add)마다 도구
+# 접두사가 다르고, 같은 URL 을 둘 이상 켜면 Claude Code 는 하나만 노출한다(플러그인이 있으면 claude.ai 커넥터는 숨김).
+# 한 MCP 의 도구를 tools 에 두는 에이전트는 그 MCP 의 알려진 접두사 전부에 같은 도구 이름을 둬야 한다 —
+# 한 형태만 두면 다른 설치 형태에서 서버가 연결돼 있어도 도구를 못 보고 조용히 폴백한다.
+# 형식: <이름>:<접두사,…>  (접두사 = mcp__<여기>__<도구>)
+MCP_FAMILIES='figma:claude_ai_Figma,plugin_figma_figma,figma,figma-desktop
+context7:plugin_context7_context7,context7
+chrome-devtools:plugin_chrome-devtools-mcp_chrome-devtools,chrome-devtools'
+# 에이전트 frontmatter 의 tools 줄에서 빠진 «접두사 × 도구» 조합을 한 줄씩 낸다(없으면 빈 출력 · 본문 언급은 보지 않는다)
+mcp_prefix_gaps(){
+  local names fam prefixes p tails t
+  names=$(awk 'NR==1 && /^---$/ {fm=1; next} fm && /^---$/ {exit} fm && /^tools:/ {print; exit}' "$1" \
+    | grep -oE 'mcp__[A-Za-z0-9_.-]+__[A-Za-z0-9_-]+' | sort -u)
+  [ -n "$names" ] || return 0
+  printf '%s\n' "$MCP_FAMILIES" | while IFS= read -r fam; do
+    [ -n "$fam" ] || continue
+    prefixes=$(printf '%s' "${fam#*:}" | tr ',' ' ')
+    tails=$(for p in $prefixes; do printf '%s\n' "$names" | sed -n "s/^mcp__${p}__//p"; done | sort -u)
+    [ -n "$tails" ] || continue
+    for p in $prefixes; do
+      for t in $tails; do
+        printf '%s\n' "$names" | grep -qxF "mcp__${p}__${t}" || printf 'mcp__%s__%s\n' "$p" "$t"
+      done
+    done
+  done
+}
+bad=0
+for f in "$ROOT"/agents/*.md; do
+  [ -e "$f" ] || continue
+  _gaps=$(mcp_prefix_gaps "$f")
+  [ -z "$_gaps" ] || { ng "$(basename "$f"): MCP 접두사 비대칭 — 빠짐: $(printf '%s' "$_gaps" | tr '\n' ' ')"; bad=1; }
+done
+[ $bad -eq 0 ] && ok "MCP 접두사 대칭: 에이전트마다 쓰는 MCP 의 알려진 설치 형태 접두사 전부에 같은 도구 등록"
+# 판별력: 한 형태만 등록한 tools(종전 fe-vision 꼴)는 잡고, 본문에만 적힌 도구 이름은 tools 로 치지 않는다
+mkdir -p "$TMP/mcpsym"
+printf -- '---\nname: x\ntools: Read, mcp__claude_ai_Figma__get_screenshot\n---\nbody mcp__figma__get_metadata\n' > "$TMP/mcpsym/one-form.md"
+_gaps=$(mcp_prefix_gaps "$TMP/mcpsym/one-form.md")
+if printf '%s\n' "$_gaps" | grep -qxF 'mcp__plugin_figma_figma__get_screenshot' \
+   && printf '%s\n' "$_gaps" | grep -qxF 'mcp__figma-desktop__get_screenshot' \
+   && ! printf '%s\n' "$_gaps" | grep -q 'get_metadata'; then
+  ok "MCP 접두사 대칭 검사 판별력: 한 형태만 등록하면 잡고 · 본문 언급은 tools 로 치지 않음"
+else
+  ng "MCP 접두사 대칭 검사가 한 형태만 등록한 tools 를 못 잡음(또는 본문을 tools 로 읽음)"
+fi
 # setup-permissions.sh — 권장 권한 자동설정(소비자 타겟팅·병합·멱등) 회귀
 SETUP_PERM="$HOOKS/scripts/setup-permissions.sh"
 if [ ! -f "$SETUP_PERM" ]; then
