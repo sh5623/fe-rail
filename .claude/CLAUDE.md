@@ -87,18 +87,18 @@ fe-rail/
 
 | MCP | 설치 형태 | 연결 에이전트 | 도구 접두사 | 없을 때 fallback |
 |-----|----------|-------------|-----------|----------------|
-| **Figma** | claude.ai 계정 커넥터 (`/mcp` → "claude.ai Figma", OAuth) | `fe-vision` | `mcp__claude_ai_Figma__get_design_context`<br>`mcp__claude_ai_Figma__get_screenshot` (외 get_metadata·get_variable_defs) | 로컬 스크린샷(PNG/JPG)만 분석 |
+| **Figma** | Figma 공식 플러그인 · claude.ai 계정 커넥터 · `claude mcp add`(이름 `figma`/`figma-desktop`) 중 하나 | `fe-vision` | `mcp__plugin_figma_figma__*`<br>`mcp__claude_ai_Figma__*`<br>`mcp__figma__*` · `mcp__figma-desktop__*`<br>(각 get_metadata·get_design_context·get_variable_defs·get_screenshot·create_session) | 로컬 스크린샷(PNG/JPG)만 분석 |
 | **Context7** | Claude Code 플러그인 | `fe-researcher` | `mcp__plugin_context7_context7__resolve-library-id`<br>`mcp__plugin_context7_context7__query-docs`<br>(+ `.mcp.json` 등록 대비 `mcp__context7__*` 도 등록) | WebSearch + WebFetch로 문서 조회 |
 | **Chrome DevTools** | Claude Code 플러그인 (`ChromeDevTools/chrome-devtools-mcp`) | `fe-perf-auditor`·`fe-a11y-auditor` | `mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace`<br>`mcp__plugin_chrome-devtools-mcp_chrome-devtools__lighthouse_audit` (외 performance_stop_trace·performance_analyze_insight·list_console_messages·list_network_requests·take_snapshot·navigate_page) | 정적 분석(grep 기반 추정치)만 수행 — `--live` 호출 시에만 실측 시도, 미설치면 정적 결과만 |
 
 > Microsoft 365 (선택 보조): OneDrive/SharePoint 의 PPT 기획서를 가져오는 용도. 단 인터랙티브 OAuth 인증이 필요하고 슬라이드를 시각적으로 렌더해 주지 않을 수 있어, 화면 분석에는 PDF 변환이 더 안전하다. 특정 에이전트에 직접 연결하지 않으며, 가져온 파일은 부모 세션이 PDF/이미지로 변환해 fe-deck-reader 에 전달한다.
 
-> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (Figma·Context7·Chrome DevTools 의 **플러그인 설치형 접두사는 실환경에서 직접 검증됨**. 반면 `.mcp.json`/`claude mcp add` 등록형(`mcp__context7__*`·`mcp__chrome-devtools__*`)은 명명 규칙 기반 예상 접두사를 함께 등록해 둔 것이므로, 그 방식으로 설치했다면 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.)
+> 도구 접두사는 설치 형태에 따라 달라진다. 플러그인으로 설치하면 `mcp__plugin_<플러그인>_<서버>__*`, 사용자/프로젝트 `.mcp.json`으로 등록하면 `mcp__<서버>__*`, claude.ai 계정 커넥터(OAuth)는 `mcp__claude_ai_<서버>__*` 형식이다. 에이전트 `tools` 목록의 접두사가 실제 설치 형태와 일치해야 도구가 인식되며, 불일치 시 fallback으로만 동작한다. (실환경에서 직접 확인한 접두사: Figma 플러그인형·claude.ai 커넥터형 · Context7·Chrome DevTools 플러그인형. `.mcp.json`/`claude mcp add` 등록형(`mcp__figma__*`·`mcp__figma-desktop__*`·`mcp__context7__*`·`mcp__chrome-devtools__*`)은 명명 규칙 기반 예상 접두사라, 그 방식으로 설치했다면 최초 사용 시 실제 등록된 도구 이름과 대조 확인 권장.) 같은 URL 을 가리키는 서버가 둘 이상이면 Claude Code 는 하나만 노출한다(플러그인 서버가 있으면 같은 URL 의 claude.ai 커넥터는 숨김). 그래서 한 설치 형태만 등록한 에이전트는 사용자 환경에 따라 도구를 잃는다 — **한 MCP 의 도구를 쓰는 에이전트는 그 MCP 의 알려진 접두사 전부에 같은 도구를 등록한다**(eval «MCP 접두사 대칭» 이 강제 · 접두사 목록 `MCP_FAMILIES`).
 
 ### 설치
 
 - **Context7** (플러그인): `/plugin install context7@<marketplace>` → `/reload-plugins`. 도구는 `mcp__plugin_context7_context7__*` 로 등록된다.
-- **Figma** (claude.ai 계정 커넥터): `/mcp` 실행 → "claude.ai Figma" 선택 → OAuth 인증. 공식 Figma MCP(mcp.figma.com)를 claude.ai가 프록시하며, 도구는 `mcp__claude_ai_Figma__*` 로 등록된다. (Dev Mode 계열 도구는 Dev/Full seat 필요)
+- **Figma** (셋 중 하나): ① Figma 공식 플러그인 — `/plugin` 에서 설치하고 `/mcp` 에서 그 서버에 로그인, 도구 `mcp__plugin_figma_figma__*` ② claude.ai 계정 커넥터 — `/mcp` → "claude.ai Figma" → OAuth, 도구 `mcp__claude_ai_Figma__*`(claude.ai 가 공식 Figma MCP `mcp.figma.com` 을 프록시) ③ 직접 등록 — `claude mcp add --transport http figma https://mcp.figma.com/mcp`(데스크톱 앱 서버는 이름 `figma-desktop` · `http://127.0.0.1:3845/mcp`), 도구 `mcp__figma__*`·`mcp__figma-desktop__*`. ①과 ②를 함께 켜면 같은 URL 이라 Claude Code 가 ②를 숨긴다(`/mcp` 에 «hidden — same URL as your server 'plugin:figma:figma'») — ②를 쓰려면 `/plugin` 에서 플러그인 서버를 끈다. 어느 쪽이든 `fe-vision` 은 네 접두사를 모두 등록해 그대로 쓴다. (Dev Mode 계열 도구는 Dev/Full seat 필요)
 - **Chrome DevTools** (플러그인, 스킬 포함): `/plugin marketplace add ChromeDevTools/chrome-devtools-mcp` → `/plugin install chrome-devtools-mcp@chrome-devtools-plugins`. MCP만 필요하면 `claude mcp add chrome-devtools --scope user npx chrome-devtools-mcp@latest` 로도 등록 가능(이 경우 접두사는 `mcp__chrome-devtools__*`). Chromium 기반 브라우저 실행 환경이 필요하다.
 
 ---
